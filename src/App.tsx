@@ -8,6 +8,10 @@ import AppLayout from "@/components/layout/AppLayout";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import Receitas from "./pages/Receitas";
+import ParcelasMentoria from "./pages/ParcelasMentoria";
+import DespesasEmpresa from "./pages/DespesasEmpresa";
+import DespesasPessoal from "./pages/DespesasPessoal";
+import EventosEspeciais from "./pages/EventosEspeciais";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -24,6 +28,10 @@ const App = () => (
             <Route element={<AppLayout />}>
               <Route path="/" element={<Dashboard />} />
               <Route path="/receitas" element={<Receitas />} />
+              <Route path="/parcelas" element={<ParcelasMentoria />} />
+              <Route path="/despesas-empresa" element={<DespesasEmpresa />} />
+              <Route path="/despesas-pessoal" element={<DespesasPessoal />} />
+              <Route path="/eventos" element={<EventosEspeciais />} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>
