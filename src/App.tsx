@@ -12,6 +12,10 @@ import ParcelasMentoria from "./pages/ParcelasMentoria";
 import DespesasEmpresa from "./pages/DespesasEmpresa";
 import DespesasPessoal from "./pages/DespesasPessoal";
 import EventosEspeciais from "./pages/EventosEspeciais";
+import ProdutosMargem from "./pages/ProdutosMargem";
+import Projecao from "./pages/Projecao";
+import BusinessIntelligence from "./pages/BusinessIntelligence";
+import Configuracoes from "./pages/Configuracoes";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -32,6 +36,10 @@ const App = () => (
               <Route path="/despesas-empresa" element={<DespesasEmpresa />} />
               <Route path="/despesas-pessoal" element={<DespesasPessoal />} />
               <Route path="/eventos" element={<EventosEspeciais />} />
+              <Route path="/produtos" element={<ProdutosMargem />} />
+              <Route path="/projecao" element={<Projecao />} />
+              <Route path="/bi" element={<BusinessIntelligence />} />
+              <Route path="/config" element={<Configuracoes />} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>
