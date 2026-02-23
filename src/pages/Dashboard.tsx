@@ -1,20 +1,22 @@
 import { useDashboardData } from "@/hooks/useDashboardData";
-import { formatCurrency, formatPercent, formatDate } from "@/lib/format";
-import { Loader2, AlertTriangle, TrendingUp, Target, Flame, DollarSign, Users, CalendarClock, ArrowRight } from "lucide-react";
+import { formatCurrency, formatPercent, formatDate, getMonthRange } from "@/lib/format";
+import { Loader2, AlertTriangle, TrendingUp, Target, Flame, DollarSign, Users, CalendarClock, ArrowRight, ShoppingCart, RefreshCw, BookOpen, CreditCard, BarChart3 } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
 import { useNavigate } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 
 const GOLD_COLORS = ["#C9A84C", "#E5C76B", "#A68A3E", "#D4B85A", "#8B7432", "#F0D87E"];
 
 function MetricCard({ label, value, sub, icon: Icon, variant }: { label: string; value: string; sub?: string; icon?: any; variant?: "alert" }) {
   return (
-    <div className={`rounded-xl border p-5 transition-colors ${variant === "alert" ? "border-destructive/40 bg-destructive/5" : "border-border bg-card"}`}>
-      <div className="flex items-center justify-between mb-2">
-        <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{label}</span>
-        {Icon && <Icon className={`h-4 w-4 ${variant === "alert" ? "text-destructive" : "text-primary"}`} />}
+    <div className={`rounded-xl border p-4 transition-colors ${variant === "alert" ? "border-destructive/40 bg-destructive/5" : "border-border bg-card"}`}>
+      <div className="flex items-center justify-between mb-1">
+        <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">{label}</span>
+        {Icon && <Icon className={`h-3.5 w-3.5 ${variant === "alert" ? "text-destructive" : "text-primary"}`} />}
       </div>
-      <p className={`text-2xl font-bold ${variant === "alert" ? "text-destructive" : "text-foreground"}`}>{value}</p>
-      {sub && <p className="text-xs text-muted-foreground mt-1">{sub}</p>}
+      <p className={`text-lg font-bold ${variant === "alert" ? "text-destructive" : "text-foreground"}`}>{value}</p>
+      {sub && <p className="text-[10px] text-muted-foreground mt-0.5">{sub}</p>}
     </div>
   );
 }
@@ -23,12 +25,86 @@ export default function Dashboard() {
   const d = useDashboardData();
   const navigate = useNavigate();
 
+  // Extra data for new KPIs
+  const now = new Date();
+  const { start: mesInicio, end: mesFim } = getMonthRange(now.getFullYear(), now.getMonth());
+
+  const { data: allReceitas } = useQuery({
+    queryKey: ["dash-receitas-all"],
+    queryFn: async () => {
+      const { data } = await supabase.from("receitas").select("*").order("data", { ascending: false });
+      return data ?? [];
+    },
+  });
+
+  const { data: allDetalhes } = useQuery({
+    queryKey: ["dash-parcelas-detalhe-all"],
+    queryFn: async () => {
+      const { data } = await supabase.from("parcelas_mentoria_detalhe").select("*, parcelas_mentoria(*)");
+      return data ?? [];
+    },
+  });
+
   if (d.isLoading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
+    return <div className="flex items-center justify-center h-64"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
+  }
+
+  const receitas = allReceitas ?? [];
+  const receitasMes = receitas.filter(r => r.data >= mesInicio && r.data <= mesFim);
+  const detalhes = allDetalhes ?? [];
+  const detalhesMes = detalhes.filter(p => p.data_vencimento >= mesInicio && p.data_vencimento <= mesFim);
+  const today = now.toISOString().split("T")[0];
+
+  // A) KPIs principais
+  const qtdVendas = receitasMes.length;
+  const ticketMedio = qtdVendas > 0 ? d.totalBruto / qtdVendas : 0;
+
+  // B) KPIs de renovação
+  const renovacoesMes = receitasMes.filter(r => r.produto_categoria === "Renovação Mentoria");
+  const receitaRenovacoes = renovacoesMes.reduce((s, r) => s + (r.valor_bruto ?? 0), 0);
+  const pctRenovacoes = d.totalBruto > 0 ? (receitaRenovacoes / d.totalBruto) * 100 : 0;
+
+  // C) KPIs de mentoria
+  const mentoriaCats = ["Mentoria Outsider", "Mentoria Digital Beauty", "Consultoria Premium", "Consultoria Express"];
+  const mentoriasMes = receitasMes.filter(r => mentoriaCats.includes(r.produto_categoria ?? ""));
+  const receitaMentorias = mentoriasMes.reduce((s, r) => s + (r.valor_bruto ?? 0), 0);
+  const pctMentorias = d.totalBruto > 0 ? (receitaMentorias / d.totalBruto) * 100 : 0;
+
+  // D) Controle parcelas
+  const parcelasPagas = detalhesMes.filter(p => p.status === "Quitado");
+  const parcelasAReceber = detalhesMes.filter(p => p.status === "Pendente" || p.status === "Parcialmente Pago");
+  const parcelasEmAtraso = detalhesMes.filter(p => p.status === "Atraso" || (p.data_vencimento < today && p.status === "Pendente"));
+  const valorAtraso = parcelasEmAtraso.reduce((s, p) => s + ((p.valor_real ?? p.valor_sugerido ?? 0) - (p.valor_pago_parcial ?? 0)), 0);
+  const valorAReceber = parcelasAReceber.reduce((s, p) => s + ((p.valor_real ?? p.valor_sugerido ?? 0) - (p.valor_pago_parcial ?? 0)), 0);
+  const valorRecebido = parcelasPagas.reduce((s, p) => s + (p.valor_real ?? p.valor_sugerido ?? 0), 0);
+
+  // Valor em risco (alunas com 2+ parcelas em atraso)
+  const atrasoMap = new Map<string, number>();
+  const allDetalhesFull = detalhes;
+  allDetalhesFull.filter(p => p.status === "Atraso" || (p.data_vencimento < today && p.status === "Pendente")).forEach(p => {
+    const id = p.parcela_mentoria_id;
+    atrasoMap.set(id, (atrasoMap.get(id) ?? 0) + 1);
+  });
+  const idsRisco = Array.from(atrasoMap.entries()).filter(([, c]) => c >= 2).map(([id]) => id);
+  const valorEmRisco = allDetalhesFull.filter(p => idsRisco.includes(p.parcela_mentoria_id) && (p.status === "Atraso" || p.status === "Pendente" || p.status === "Parcialmente Pago")).reduce((s, p) => s + ((p.valor_real ?? p.valor_sugerido ?? 0) - (p.valor_pago_parcial ?? 0)), 0);
+
+  // E) Metas vs Realizado
+  const diffMeta = d.totalBruto - d.metaValor;
+
+  // F) Comparação mensal
+  const comparacaoMensal = [];
+  for (let i = 5; i >= 0; i--) {
+    const dt = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const { start: ms, end: me } = getMonthRange(dt.getFullYear(), dt.getMonth());
+    const label = dt.toLocaleString("pt-BR", { month: "short", year: "2-digit" });
+    const rm = receitas.filter(r => r.data >= ms && r.data <= me);
+    const mentorias = rm.filter(r => mentoriaCats.includes(r.produto_categoria ?? "")).reduce((s, r) => s + (r.valor_bruto ?? 0), 0);
+    const renovacoes = rm.filter(r => r.produto_categoria === "Renovação Mentoria").reduce((s, r) => s + (r.valor_bruto ?? 0), 0);
+    const parcelas = detalhes.filter(p => p.data_vencimento >= ms && p.data_vencimento <= me && p.status === "Quitado").reduce((s, p) => s + (p.valor_real ?? p.valor_sugerido ?? 0), 0);
+    const fisicos = rm.filter(r => r.produto_categoria === "Produto Físico").reduce((s, r) => s + (r.valor_bruto ?? 0), 0);
+    const digitais = rm.filter(r => ["Curso/Formação", "Ferramenta", "Apostila"].includes(r.produto_categoria ?? "")).reduce((s, r) => s + (r.valor_bruto ?? 0), 0);
+    const total = rm.reduce((s, r) => s + (r.valor_bruto ?? 0), 0);
+    comparacaoMensal.push({ periodo: label, mentorias, renovacoes, parcelas, fisicos, digitais, total });
   }
 
   const metaColor = d.metaPercent >= 80 ? "bg-emerald-500" : d.metaPercent >= 50 ? "bg-yellow-500" : "bg-destructive";
@@ -79,10 +155,17 @@ export default function Dashboard() {
             <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Lucro líquido projetado</span>
             <TrendingUp className="h-4 w-4 text-primary" />
           </div>
-          <p className={`text-2xl font-bold ${d.lucroProjetado >= 0 ? "text-emerald-400" : "text-destructive"}`}>
-            {formatCurrency(d.lucroProjetado)}
-          </p>
+          <p className={`text-2xl font-bold ${d.lucroProjetado >= 0 ? "text-emerald-400" : "text-destructive"}`}>{formatCurrency(d.lucroProjetado)}</p>
         </div>
+      </div>
+
+      {/* A) KPIs PRINCIPAIS */}
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+        <MetricCard label="Faturamento Total" value={formatCurrency(d.totalBruto)} icon={DollarSign} />
+        <MetricCard label="Ticket Médio" value={formatCurrency(ticketMedio)} icon={ShoppingCart} />
+        <MetricCard label="Total Vendas" value={String(qtdVendas)} icon={BarChart3} />
+        <MetricCard label="Meta Atingida" value={formatPercent(d.metaPercent)} icon={Target} sub={`Falta: ${formatCurrency(d.metaFaltante)}`} />
+        <MetricCard label="Diferença Meta" value={formatCurrency(diffMeta)} icon={TrendingUp} variant={diffMeta < 0 ? "alert" : undefined} sub={diffMeta >= 0 ? "Superou" : "Abaixo"} />
       </div>
 
       {/* LINHA 2 — 3 cards de alerta */}
@@ -94,9 +177,7 @@ export default function Dashboard() {
           </div>
           <p className="text-xl font-bold text-destructive">{d.contasAtrasoQtd} contas</p>
           <p className="text-sm text-destructive/70">{formatCurrency(d.totalAtraso)}</p>
-          <button onClick={() => navigate("/despesas-empresa")} className="mt-3 text-xs text-primary hover:underline flex items-center gap-1">
-            Ver todas <ArrowRight className="h-3 w-3" />
-          </button>
+          <button onClick={() => navigate("/despesas-empresa")} className="mt-3 text-xs text-primary hover:underline flex items-center gap-1">Ver todas <ArrowRight className="h-3 w-3" /></button>
         </div>
 
         <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-5">
@@ -107,14 +188,10 @@ export default function Dashboard() {
           <div className="space-y-1 max-h-20 overflow-auto">
             {d.vencendoSemana.length === 0 && <p className="text-sm text-muted-foreground">Nenhuma</p>}
             {d.vencendoSemana.slice(0, 3).map((v, i) => (
-              <p key={i} className="text-xs text-foreground truncate">
-                {v.descricao} — {formatCurrency(v.saldo_pendente)} — {formatDate(v.data_vencimento)}
-              </p>
+              <p key={i} className="text-xs text-foreground truncate">{v.descricao} — {formatCurrency(v.saldo_pendente)} — {formatDate(v.data_vencimento)}</p>
             ))}
           </div>
-          <button onClick={() => navigate("/despesas-empresa")} className="mt-3 text-xs text-primary hover:underline flex items-center gap-1">
-            Ver todas <ArrowRight className="h-3 w-3" />
-          </button>
+          <button onClick={() => navigate("/despesas-empresa")} className="mt-3 text-xs text-primary hover:underline flex items-center gap-1">Ver todas <ArrowRight className="h-3 w-3" /></button>
         </div>
 
         <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-5">
@@ -124,10 +201,18 @@ export default function Dashboard() {
           </div>
           <p className="text-xl font-bold text-destructive">{d.alunosInadimplentesQtd} alunas</p>
           <p className="text-sm text-destructive/70">{formatCurrency(d.totalInadimplente)}</p>
-          <button onClick={() => navigate("/parcelas")} className="mt-3 text-xs text-primary hover:underline flex items-center gap-1">
-            Ver alunas <ArrowRight className="h-3 w-3" />
-          </button>
+          <button onClick={() => navigate("/parcelas")} className="mt-3 text-xs text-primary hover:underline flex items-center gap-1">Ver alunas <ArrowRight className="h-3 w-3" /></button>
         </div>
+      </div>
+
+      {/* B) KPIs Renovação + C) KPIs Mentoria */}
+      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
+        <MetricCard label="Taxa Renovação" value={formatPercent(d.taxaRenovacao)} icon={RefreshCw} />
+        <MetricCard label="Receita Renovações" value={formatCurrency(receitaRenovacoes)} icon={RefreshCw} />
+        <MetricCard label="% Renovações" value={formatPercent(pctRenovacoes)} icon={RefreshCw} />
+        <MetricCard label="Receita Mentorias" value={formatCurrency(receitaMentorias)} icon={BookOpen} />
+        <MetricCard label="% Mentorias" value={formatPercent(pctMentorias)} icon={BookOpen} />
+        <MetricCard label="Mentorias Vendidas" value={String(mentoriasMes.length)} icon={BookOpen} />
       </div>
 
       {/* LINHA 3 — Gráficos */}
@@ -136,13 +221,9 @@ export default function Dashboard() {
           <h3 className="text-sm font-medium text-muted-foreground mb-4">Faturamento diário — últimos 30 dias</h3>
           <ResponsiveContainer width="100%" height={220}>
             <LineChart data={d.faturamentoDiario}>
-              <XAxis dataKey="data" tick={{ fontSize: 10, fill: "hsl(0 0% 55%)" }} tickFormatter={(v) => v.slice(8)} />
-              <YAxis tick={{ fontSize: 10, fill: "hsl(0 0% 55%)" }} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
-              <Tooltip
-                contentStyle={{ background: "hsl(0 0% 9%)", border: "1px solid hsl(0 0% 16%)", borderRadius: 8, fontSize: 12 }}
-                labelStyle={{ color: "hsl(0 0% 55%)" }}
-                formatter={(v: number) => [formatCurrency(v), "Faturamento"]}
-              />
+              <XAxis dataKey="data" tick={{ fontSize: 10, fill: "hsl(0 0% 55%)" }} tickFormatter={v => v.slice(8)} />
+              <YAxis tick={{ fontSize: 10, fill: "hsl(0 0% 55%)" }} tickFormatter={v => `${(v / 1000).toFixed(0)}k`} />
+              <Tooltip contentStyle={{ background: "hsl(0 0% 9%)", border: "1px solid hsl(0 0% 16%)", borderRadius: 8, fontSize: 12 }} labelStyle={{ color: "hsl(0 0% 55%)" }} formatter={(v: number) => [formatCurrency(v), "Faturamento"]} />
               <Line type="monotone" dataKey="valor" stroke="#C9A84C" strokeWidth={2} dot={false} />
             </LineChart>
           </ResponsiveContainer>
@@ -156,62 +237,89 @@ export default function Dashboard() {
             <ResponsiveContainer width="100%" height={220}>
               <PieChart>
                 <Pie data={d.composicaoPorCategoria} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} innerRadius={45}>
-                  {d.composicaoPorCategoria.map((_, i) => (
-                    <Cell key={i} fill={GOLD_COLORS[i % GOLD_COLORS.length]} />
-                  ))}
+                  {d.composicaoPorCategoria.map((_, i) => <Cell key={i} fill={GOLD_COLORS[i % GOLD_COLORS.length]} />)}
                 </Pie>
-                <Tooltip
-                  contentStyle={{ background: "hsl(0 0% 9%)", border: "1px solid hsl(0 0% 16%)", borderRadius: 8, fontSize: 12 }}
-                  formatter={(v: number) => [formatCurrency(v)]}
-                />
+                <Tooltip contentStyle={{ background: "hsl(0 0% 9%)", border: "1px solid hsl(0 0% 16%)", borderRadius: 8, fontSize: 12 }} formatter={(v: number) => [formatCurrency(v)]} />
               </PieChart>
             </ResponsiveContainer>
           )}
         </div>
       </div>
 
-      {/* LINHA 4 — 6 cards de métricas mentoria */}
-      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4">
+      {/* D) Controle de Parcelas */}
+      <div>
+        <h3 className="text-sm font-semibold text-foreground mb-3">Controle de Parcelas</h3>
+        <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-8 gap-3">
+          <MetricCard label="Valor em Atraso" value={formatCurrency(valorAtraso)} variant="alert" icon={AlertTriangle} />
+          <MetricCard label="A Receber (mês)" value={formatCurrency(valorAReceber)} icon={CreditCard} />
+          <MetricCard label="Recebido (mês)" value={formatCurrency(valorRecebido)} icon={DollarSign} />
+          <MetricCard label="Parcelas Pagas" value={String(parcelasPagas.length)} icon={CalendarClock} />
+          <MetricCard label="A Receber (qtd)" value={String(parcelasAReceber.length)} icon={CalendarClock} />
+          <MetricCard label="Em Atraso (qtd)" value={String(parcelasEmAtraso.length)} variant={parcelasEmAtraso.length > 0 ? "alert" : undefined} icon={AlertTriangle} />
+          <MetricCard label="Inadimplência" value={formatPercent(d.taxaInadimplencia)} variant={d.taxaInadimplencia > 20 ? "alert" : undefined} icon={AlertTriangle} />
+          <MetricCard label="Valor em Risco" value={formatCurrency(valorEmRisco)} variant={valorEmRisco > 0 ? "alert" : undefined} icon={AlertTriangle} />
+        </div>
+      </div>
+
+      {/* LINHA 4 — Métricas mentoria originais */}
+      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
         <MetricCard label="Previstas no mês" value={formatCurrency(d.previstaMes)} icon={CalendarClock} />
         <MetricCard label="Recebidas no mês" value={formatCurrency(d.recebidaMes)} icon={DollarSign} />
         <MetricCard label="Saldo a receber (mês)" value={formatCurrency(d.saldoReceberMes)} icon={Target} />
         <MetricCard label="Saldo total futuro" value={formatCurrency(d.saldoTotalFuturo)} icon={TrendingUp} />
         <MetricCard label="Taxa de renovação" value={formatPercent(d.taxaRenovacao)} icon={Users} />
-        <MetricCard
-          label="Taxa inadimplência"
-          value={formatPercent(d.taxaInadimplencia)}
-          icon={AlertTriangle}
-          variant={d.taxaInadimplencia > 20 ? "alert" : undefined}
-        />
+        <MetricCard label="Taxa inadimplência" value={formatPercent(d.taxaInadimplencia)} icon={AlertTriangle} variant={d.taxaInadimplencia > 20 ? "alert" : undefined} />
+      </div>
+
+      {/* F) Comparação Mensal */}
+      <div className="rounded-xl border border-border bg-card overflow-hidden">
+        <div className="p-5 border-b border-border">
+          <h3 className="text-sm font-medium text-foreground">Comparação Mensal da Receita</h3>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-border bg-secondary/30">
+                {["Período", "Mentorias", "Renovações", "Parcelas", "Produtos Físicos", "Produtos Digitais", "Total"].map(h => (
+                  <th key={h} className={`p-3 text-xs font-medium text-muted-foreground ${h !== "Período" ? "text-right" : "text-left"}`}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {comparacaoMensal.map((m, i) => (
+                <tr key={i} className="border-b border-border/50 hover:bg-surface-hover transition-colors">
+                  <td className="p-3 font-medium text-foreground capitalize">{m.periodo}</td>
+                  <td className="p-3 text-right">{formatCurrency(m.mentorias)}</td>
+                  <td className="p-3 text-right">{formatCurrency(m.renovacoes)}</td>
+                  <td className="p-3 text-right">{formatCurrency(m.parcelas)}</td>
+                  <td className="p-3 text-right">{formatCurrency(m.fisicos)}</td>
+                  <td className="p-3 text-right">{formatCurrency(m.digitais)}</td>
+                  <td className="p-3 text-right text-primary font-bold">{formatCurrency(m.total)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {/* LINHA 5 — Últimas 10 receitas */}
       <div className="rounded-xl border border-border bg-card overflow-hidden">
         <div className="p-5 border-b border-border flex items-center justify-between">
           <h3 className="text-sm font-medium text-foreground">Últimas 10 receitas</h3>
-          <button onClick={() => navigate("/receitas")} className="text-xs text-primary hover:underline flex items-center gap-1">
-            Ver todas <ArrowRight className="h-3 w-3" />
-          </button>
+          <button onClick={() => navigate("/receitas")} className="text-xs text-primary hover:underline flex items-center gap-1">Ver todas <ArrowRight className="h-3 w-3" /></button>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border bg-secondary/30">
-                <th className="text-left p-3 text-xs font-medium text-muted-foreground">Data</th>
-                <th className="text-left p-3 text-xs font-medium text-muted-foreground">Produto</th>
-                <th className="text-left p-3 text-xs font-medium text-muted-foreground">Categoria</th>
-                <th className="text-left p-3 text-xs font-medium text-muted-foreground">Plataforma</th>
-                <th className="text-left p-3 text-xs font-medium text-muted-foreground">Cliente</th>
-                <th className="text-right p-3 text-xs font-medium text-muted-foreground">Bruto</th>
-                <th className="text-right p-3 text-xs font-medium text-muted-foreground">Líquido</th>
-                <th className="text-left p-3 text-xs font-medium text-muted-foreground">Origens</th>
+                {["Data", "Produto", "Categoria", "Plataforma", "Cliente", "Bruto", "Líquido", "Origens"].map(h => (
+                  <th key={h} className={`p-3 text-xs font-medium text-muted-foreground ${["Bruto", "Líquido"].includes(h) ? "text-right" : "text-left"}`}>{h}</th>
+                ))}
               </tr>
             </thead>
             <tbody>
-              {d.ultimasReceitas.length === 0 && (
-                <tr><td colSpan={8} className="p-8 text-center text-muted-foreground">Nenhuma receita registrada</td></tr>
-              )}
-              {d.ultimasReceitas.map((r) => (
+              {d.ultimasReceitas.length === 0 && <tr><td colSpan={8} className="p-8 text-center text-muted-foreground">Nenhuma receita registrada</td></tr>}
+              {d.ultimasReceitas.map(r => (
                 <tr key={r.id} className="border-b border-border/50 hover:bg-surface-hover transition-colors">
                   <td className="p-3 text-foreground">{formatDate(r.data)}</td>
                   <td className="p-3 text-foreground truncate max-w-[150px]">{r.produto_nome}</td>
@@ -222,9 +330,7 @@ export default function Dashboard() {
                   <td className="p-3 text-right text-primary">{formatCurrency(r.valor_liquido)}</td>
                   <td className="p-3">
                     <div className="flex flex-wrap gap-1">
-                      {(r.origens_venda ?? []).map((o, i) => (
-                        <span key={i} className="px-1.5 py-0.5 text-[10px] rounded bg-primary/10 text-primary">{o}</span>
-                      ))}
+                      {(r.origens_venda ?? []).map((o, i) => <span key={i} className="px-1.5 py-0.5 text-[10px] rounded bg-primary/10 text-primary">{o}</span>)}
                     </div>
                   </td>
                 </tr>

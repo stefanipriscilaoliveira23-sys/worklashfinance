@@ -12,6 +12,7 @@ import { Progress } from "@/components/ui/progress";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { Tables } from "@/integrations/supabase/types";
 
 const STATUS_STYLE: Record<string, string> = {
@@ -19,6 +20,12 @@ const STATUS_STYLE: Record<string, string> = {
   "Pago": "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
   "Em Atraso": "bg-destructive/10 text-destructive border-destructive/20",
   "Parcialmente Pago": "bg-orange-500/10 text-orange-400 border-orange-500/20",
+};
+
+const CATEGORIA_STYLE: Record<string, string> = {
+  "Fechado": "bg-blue-500/10 text-blue-400 border-blue-500/20",
+  "Precisa Fechar": "bg-yellow-500/10 text-yellow-400 border-yellow-500/20",
+  "Pago/Presente": "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
 };
 
 function getEventStatus(dataEvento: string | null) {
@@ -35,16 +42,10 @@ export default function EventosEspeciais() {
   const { role } = useAuth();
   const queryClient = useQueryClient();
   const [selectedEvento, setSelectedEvento] = useState<Tables<"eventos_especiais"> | null>(null);
-
-  // New event modal
   const [showNovoEvento, setShowNovoEvento] = useState(false);
   const [eventoForm, setEventoForm] = useState({ nome: "", data_evento: "", descricao: "" });
-
-  // New expense modal
   const [showNovaDespesa, setShowNovaDespesa] = useState(false);
-  const [despesaForm, setDespesaForm] = useState({ descricao: "", valor_original: "", data_vencimento: "", observacao: "" });
-
-  // Payment modal
+  const [despesaForm, setDespesaForm] = useState({ descricao: "", valor_original: "", data_vencimento: "", observacao: "", categoria_evento: "Fechado" });
   const [showPagamento, setShowPagamento] = useState<Tables<"eventos_despesas"> | null>(null);
   const [pgValor, setPgValor] = useState("");
   const [pgData, setPgData] = useState(new Date().toISOString().split("T")[0]);
@@ -62,9 +63,8 @@ export default function EventosEspeciais() {
   const { data: todasDespesas } = useQuery({
     queryKey: ["eventos-despesas-all"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("eventos_despesas").select("*");
-      if (error) throw error;
-      return data;
+      const { data } = await supabase.from("eventos_despesas").select("*");
+      return data ?? [];
     },
   });
 
@@ -81,19 +81,10 @@ export default function EventosEspeciais() {
   const criarEvento = useMutation({
     mutationFn: async () => {
       if (!eventoForm.nome) throw new Error("Nome obrigatório");
-      const { error } = await supabase.from("eventos_especiais").insert({
-        nome: eventoForm.nome,
-        data_evento: eventoForm.data_evento || null,
-        descricao: eventoForm.descricao || null,
-      });
+      const { error } = await supabase.from("eventos_especiais").insert({ nome: eventoForm.nome, data_evento: eventoForm.data_evento || null, descricao: eventoForm.descricao || null });
       if (error) throw error;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["eventos-especiais"] });
-      toast.success("Evento criado");
-      setShowNovoEvento(false);
-      setEventoForm({ nome: "", data_evento: "", descricao: "" });
-    },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["eventos-especiais"] }); toast.success("Evento criado"); setShowNovoEvento(false); setEventoForm({ nome: "", data_evento: "", descricao: "" }); },
     onError: (e: any) => toast.error(e.message),
   });
 
@@ -102,23 +93,17 @@ export default function EventosEspeciais() {
       if (!selectedEvento) return;
       const valor = parseFloat(despesaForm.valor_original);
       if (!despesaForm.descricao || isNaN(valor)) throw new Error("Preencha campos obrigatórios");
+      const statusInicial = despesaForm.categoria_evento === "Pago/Presente" ? "Pago" : "A Vencer";
       const { error } = await supabase.from("eventos_despesas").insert({
-        evento_id: selectedEvento.id,
-        descricao: despesaForm.descricao,
-        valor_original: valor,
-        saldo_pendente: valor,
-        data_vencimento: despesaForm.data_vencimento || null,
-        observacao: despesaForm.observacao || null,
+        evento_id: selectedEvento.id, descricao: despesaForm.descricao, valor_original: valor,
+        saldo_pendente: despesaForm.categoria_evento === "Pago/Presente" ? 0 : valor,
+        valor_pago_total: despesaForm.categoria_evento === "Pago/Presente" ? valor : 0,
+        data_vencimento: despesaForm.data_vencimento || null, observacao: despesaForm.observacao || null,
+        status: statusInicial as any, categoria_evento: despesaForm.categoria_evento as any,
       });
       if (error) throw error;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["eventos-despesas"] });
-      queryClient.invalidateQueries({ queryKey: ["eventos-despesas-all"] });
-      toast.success("Despesa adicionada");
-      setShowNovaDespesa(false);
-      setDespesaForm({ descricao: "", valor_original: "", data_vencimento: "", observacao: "" });
-    },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["eventos-despesas"] }); queryClient.invalidateQueries({ queryKey: ["eventos-despesas-all"] }); toast.success("Item adicionado"); setShowNovaDespesa(false); setDespesaForm({ descricao: "", valor_original: "", data_vencimento: "", observacao: "", categoria_evento: "Fechado" }); },
     onError: (e: any) => toast.error(e.message),
   });
 
@@ -127,50 +112,22 @@ export default function EventosEspeciais() {
       if (!showPagamento) return;
       const valor = parseFloat(pgValor);
       if (isNaN(valor) || valor <= 0) throw new Error("Valor inválido");
-
-      await supabase.from("pagamentos_parciais").insert({
-        referencia_id: showPagamento.id,
-        referencia_tipo: "evento_despesa",
-        valor_pago: valor,
-        data_pagamento: pgData,
-        observacao: pgObs || null,
-      });
-
+      await supabase.from("pagamentos_parciais").insert({ referencia_id: showPagamento.id, referencia_tipo: "evento_despesa", valor_pago: valor, data_pagamento: pgData, observacao: pgObs || null });
       const novoPago = (showPagamento.valor_pago_total ?? 0) + valor;
       const novoSaldo = Math.max(0, (showPagamento.valor_original ?? 0) - novoPago);
       const novoStatus = novoSaldo <= 0 ? "Pago" : "Parcialmente Pago";
-
-      await supabase.from("eventos_despesas").update({
-        valor_pago_total: novoPago,
-        saldo_pendente: novoSaldo,
-        status: novoStatus as any,
-        data_pagamento: novoSaldo <= 0 ? pgData : showPagamento.data_pagamento,
-      }).eq("id", showPagamento.id);
+      await supabase.from("eventos_despesas").update({ valor_pago_total: novoPago, saldo_pendente: novoSaldo, status: novoStatus as any, data_pagamento: novoSaldo <= 0 ? pgData : showPagamento.data_pagamento }).eq("id", showPagamento.id);
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["eventos-despesas"] });
-      queryClient.invalidateQueries({ queryKey: ["eventos-despesas-all"] });
-      toast.success("Pagamento registrado");
-      setShowPagamento(null);
-      setPgValor("");
-      setPgObs("");
-    },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["eventos-despesas"] }); queryClient.invalidateQueries({ queryKey: ["eventos-despesas-all"] }); toast.success("Pagamento registrado"); setShowPagamento(null); setPgValor(""); setPgObs(""); },
     onError: (e: any) => toast.error(e.message),
   });
 
   const deleteEvento = useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase.from("eventos_especiais").delete().eq("id", id);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["eventos-especiais"] });
-      toast.success("Evento excluído");
-    },
+    mutationFn: async (id: string) => { const { error } = await supabase.from("eventos_especiais").delete().eq("id", id); if (error) throw error; },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["eventos-especiais"] }); toast.success("Evento excluído"); },
     onError: () => toast.error("Erro ao excluir — apenas administradores"),
   });
 
-  // Get totals per event
   const getEventTotals = (eventoId: string) => {
     const deps = (todasDespesas ?? []).filter(d => d.evento_id === eventoId);
     const total = deps.reduce((s, d) => s + (d.valor_original ?? 0), 0);
@@ -181,9 +138,48 @@ export default function EventosEspeciais() {
   // Detail view
   if (selectedEvento) {
     const deps = despesasEvento ?? [];
-    const totalPrevisto = deps.reduce((s, d) => s + (d.valor_original ?? 0), 0);
+    const fechado = deps.filter(d => (d as any).categoria_evento === "Fechado");
+    const precisaFechar = deps.filter(d => (d as any).categoria_evento === "Precisa Fechar");
+    const pagoPresente = deps.filter(d => (d as any).categoria_evento === "Pago/Presente");
+
+    const totalFechado = fechado.reduce((s, d) => s + (d.valor_original ?? 0), 0);
+    const totalPagoFechado = fechado.reduce((s, d) => s + (d.valor_pago_total ?? 0), 0);
+    const faltaFechado = totalFechado - totalPagoFechado;
+    const totalPrecisaFechar = precisaFechar.reduce((s, d) => s + (d.valor_original ?? 0), 0);
     const totalPago = deps.reduce((s, d) => s + (d.valor_pago_total ?? 0), 0);
-    const falta = totalPrevisto - totalPago;
+
+    const renderDespesaTable = (items: typeof deps, title: string, badgeCls: string) => (
+      <div className="space-y-2">
+        <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+          {title} <Badge variant="outline" className={badgeCls}>{items.length}</Badge>
+        </h3>
+        {items.length === 0 ? (
+          <p className="text-xs text-muted-foreground p-4">Nenhum item</p>
+        ) : (
+          <div className="rounded-xl border border-border bg-card overflow-hidden">
+            <table className="w-full text-sm">
+              <thead><tr className="border-b border-border bg-secondary/30">
+                {["Descrição", "Data PGT", "Valor Total", "Valor Pago", "Status", "Ações"].map(h => (
+                  <th key={h} className={`p-3 text-xs font-medium text-muted-foreground ${["Valor Total", "Valor Pago"].includes(h) ? "text-right" : "text-left"}`}>{h}</th>
+                ))}
+              </tr></thead>
+              <tbody>
+                {items.map(d => (
+                  <tr key={d.id} className="border-b border-border/50 hover:bg-surface-hover transition-colors">
+                    <td className="p-3 font-medium">{d.descricao}</td>
+                    <td className="p-3 text-muted-foreground">{formatDate(d.data_vencimento)}</td>
+                    <td className="p-3 text-right">{formatCurrency(d.valor_original)}</td>
+                    <td className="p-3 text-right text-muted-foreground">{formatCurrency(d.valor_pago_total)}</td>
+                    <td className="p-3"><Badge variant="outline" className={STATUS_STYLE[d.status ?? "A Vencer"] ?? STATUS_STYLE["A Vencer"]}>{d.status}</Badge></td>
+                    <td className="p-3">{d.status !== "Pago" && <button onClick={() => { setShowPagamento(d); setPgValor(String(d.saldo_pendente ?? 0)); }} className="p-1.5 rounded hover:bg-primary/10 text-muted-foreground hover:text-primary transition-colors"><DollarSign className="h-3.5 w-3.5" /></button>}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    );
 
     return (
       <div className="space-y-6 animate-fade-in">
@@ -197,73 +193,54 @@ export default function EventosEspeciais() {
 
         {selectedEvento.descricao && <p className="text-sm text-muted-foreground">{selectedEvento.descricao}</p>}
 
-        <div className="grid grid-cols-3 gap-3">
-          {[
-            { label: "Total previsto", value: formatCurrency(totalPrevisto) },
-            { label: "Pago até agora", value: formatCurrency(totalPago) },
-            { label: "Falta pagar", value: formatCurrency(falta), alert: falta > 0 },
-          ].map(c => (
-            <div key={c.label} className={`rounded-xl border p-4 ${c.alert ? "border-primary/20 bg-primary/5" : "border-border bg-card"}`}>
-              <p className="text-xs text-muted-foreground uppercase tracking-wider">{c.label}</p>
-              <p className={`text-lg font-bold mt-1 ${c.alert ? "text-primary" : "text-foreground"}`}>{c.value}</p>
-            </div>
-          ))}
-        </div>
-
-        <div className="flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-foreground">Despesas do Evento</h2>
-          <Button onClick={() => setShowNovaDespesa(true)} size="sm" className="gold-gradient text-primary-foreground">
-            <Plus className="h-4 w-4 mr-1" /> Nova despesa
-          </Button>
-        </div>
-
-        <div className="rounded-xl border border-border bg-card overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-border bg-secondary/30">
-                  {["Descrição", "Valor Previsto", "Pago", "Saldo", "Vencimento", "Status", "Ações"].map(h => (
-                    <th key={h} className={`p-3 text-xs font-medium text-muted-foreground ${["Valor Previsto", "Pago", "Saldo"].includes(h) ? "text-right" : "text-left"}`}>{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {deps.length === 0 && (
-                  <tr><td colSpan={7} className="p-12 text-center text-muted-foreground">Nenhuma despesa cadastrada</td></tr>
-                )}
-                {deps.map(d => (
-                  <tr key={d.id} className="border-b border-border/50 hover:bg-surface-hover transition-colors">
-                    <td className="p-3 font-medium">{d.descricao}</td>
-                    <td className="p-3 text-right">{formatCurrency(d.valor_original)}</td>
-                    <td className="p-3 text-right text-muted-foreground">{formatCurrency(d.valor_pago_total)}</td>
-                    <td className="p-3 text-right text-primary">{formatCurrency(d.saldo_pendente)}</td>
-                    <td className="p-3 text-muted-foreground">{formatDate(d.data_vencimento)}</td>
-                    <td className="p-3">
-                      <Badge variant="outline" className={STATUS_STYLE[d.status ?? "A Vencer"] ?? STATUS_STYLE["A Vencer"]}>{d.status}</Badge>
-                    </td>
-                    <td className="p-3">
-                      <div className="flex gap-1">
-                        {d.status !== "Pago" && (
-                          <button onClick={() => { setShowPagamento(d); setPgValor(String(d.saldo_pendente ?? 0)); }} className="p-1.5 rounded hover:bg-primary/10 text-muted-foreground hover:text-primary transition-colors"><DollarSign className="h-3.5 w-3.5" /></button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div className="rounded-xl border border-border bg-card p-4">
+            <p className="text-xs text-muted-foreground uppercase">Total Fechado</p>
+            <p className="text-lg font-bold text-foreground mt-1">{formatCurrency(totalFechado)}</p>
+          </div>
+          <div className="rounded-xl border border-border bg-card p-4">
+            <p className="text-xs text-muted-foreground uppercase">Total Pago</p>
+            <p className="text-lg font-bold text-emerald-400 mt-1">{formatCurrency(totalPago)}</p>
+          </div>
+          <div className="rounded-xl border border-primary/20 bg-primary/5 p-4">
+            <p className="text-xs text-muted-foreground uppercase">Falta Pagar (fechado)</p>
+            <p className="text-lg font-bold text-primary mt-1">{formatCurrency(faltaFechado)}</p>
+          </div>
+          <div className="rounded-xl border border-yellow-500/20 bg-yellow-500/5 p-4">
+            <p className="text-xs text-muted-foreground uppercase">Precisa Fechar</p>
+            <p className="text-lg font-bold text-yellow-400 mt-1">{formatCurrency(totalPrecisaFechar)}</p>
           </div>
         </div>
 
-        {/* New expense for event */}
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm font-semibold text-foreground">Itens do Evento</h2>
+          <Button onClick={() => setShowNovaDespesa(true)} size="sm" className="gold-gradient text-primary-foreground">
+            <Plus className="h-4 w-4 mr-1" /> Novo item
+          </Button>
+        </div>
+
+        {renderDespesaTable(fechado, "Fechado", CATEGORIA_STYLE["Fechado"])}
+        {renderDespesaTable(precisaFechar, "Precisa Fechar", CATEGORIA_STYLE["Precisa Fechar"])}
+        {renderDespesaTable(pagoPresente, "Pago/Presente", CATEGORIA_STYLE["Pago/Presente"])}
+
         <Dialog open={showNovaDespesa} onOpenChange={setShowNovaDespesa}>
           <DialogContent className="bg-card border-border">
-            <DialogHeader><DialogTitle className="text-foreground">Nova Despesa do Evento</DialogTitle></DialogHeader>
+            <DialogHeader><DialogTitle className="text-foreground">Novo Item do Evento</DialogTitle></DialogHeader>
             <div className="space-y-4">
               <div><Label className="text-muted-foreground">Descrição *</Label><Input value={despesaForm.descricao} onChange={e => setDespesaForm(f => ({ ...f, descricao: e.target.value }))} className="bg-secondary/50 border-border" /></div>
+              <div><Label className="text-muted-foreground">Categoria *</Label>
+                <Select value={despesaForm.categoria_evento} onValueChange={v => setDespesaForm(f => ({ ...f, categoria_evento: v }))}>
+                  <SelectTrigger className="bg-secondary/50 border-border"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Fechado">Fechado</SelectItem>
+                    <SelectItem value="Precisa Fechar">Precisa Fechar</SelectItem>
+                    <SelectItem value="Pago/Presente">Pago/Presente</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
               <div className="grid grid-cols-2 gap-3">
-                <div><Label className="text-muted-foreground">Valor previsto *</Label><Input type="number" value={despesaForm.valor_original} onChange={e => setDespesaForm(f => ({ ...f, valor_original: e.target.value }))} className="bg-secondary/50 border-border" /></div>
-                <div><Label className="text-muted-foreground">Data vencimento</Label><Input type="date" value={despesaForm.data_vencimento} onChange={e => setDespesaForm(f => ({ ...f, data_vencimento: e.target.value }))} className="bg-secondary/50 border-border" /></div>
+                <div><Label className="text-muted-foreground">Valor *</Label><Input type="number" value={despesaForm.valor_original} onChange={e => setDespesaForm(f => ({ ...f, valor_original: e.target.value }))} className="bg-secondary/50 border-border" /></div>
+                <div><Label className="text-muted-foreground">Data pagamento</Label><Input type="date" value={despesaForm.data_vencimento} onChange={e => setDespesaForm(f => ({ ...f, data_vencimento: e.target.value }))} className="bg-secondary/50 border-border" /></div>
               </div>
               <div><Label className="text-muted-foreground">Observação</Label><Textarea value={despesaForm.observacao} onChange={e => setDespesaForm(f => ({ ...f, observacao: e.target.value }))} className="bg-secondary/50 border-border" rows={2} /></div>
             </div>
@@ -276,7 +253,6 @@ export default function EventosEspeciais() {
           </DialogContent>
         </Dialog>
 
-        {/* Payment modal */}
         <Dialog open={!!showPagamento} onOpenChange={() => setShowPagamento(null)}>
           <DialogContent className="bg-card border-border">
             <DialogHeader><DialogTitle className="text-foreground">Registrar Pagamento</DialogTitle></DialogHeader>
@@ -320,34 +296,17 @@ export default function EventosEspeciais() {
             const { total, pago, falta, progresso } = getEventTotals(ev.id);
             const status = getEventStatus(ev.data_evento);
             return (
-              <div
-                key={ev.id}
-                className="rounded-xl border border-border bg-card p-5 hover:border-primary/30 transition-colors cursor-pointer space-y-4"
-                onClick={() => setSelectedEvento(ev)}
-              >
+              <div key={ev.id} className="rounded-xl border border-border bg-card p-5 hover:border-primary/30 transition-colors cursor-pointer space-y-4" onClick={() => setSelectedEvento(ev)}>
                 <div className="flex items-start justify-between">
                   <div>
                     <h3 className="font-semibold text-foreground">{ev.nome}</h3>
-                    {ev.data_evento && (
-                      <div className="flex items-center gap-1.5 mt-1">
-                        <CalendarDays className="h-3 w-3 text-muted-foreground" />
-                        <span className="text-xs text-muted-foreground">{formatDate(ev.data_evento)}</span>
-                      </div>
-                    )}
+                    {ev.data_evento && <div className="flex items-center gap-1.5 mt-1"><CalendarDays className="h-3 w-3 text-muted-foreground" /><span className="text-xs text-muted-foreground">{formatDate(ev.data_evento)}</span></div>}
                   </div>
                   <div className="flex items-center gap-2">
                     <Badge variant="outline" className={status.className}>{status.label}</Badge>
-                    {role === "admin" && (
-                      <button
-                        onClick={(e) => { e.stopPropagation(); if (confirm("Excluir evento?")) deleteEvento.mutate(ev.id); }}
-                        className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
-                    )}
+                    {role === "admin" && <button onClick={e => { e.stopPropagation(); if (confirm("Excluir evento?")) deleteEvento.mutate(ev.id); }} className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"><Trash2 className="h-3.5 w-3.5" /></button>}
                   </div>
                 </div>
-
                 <div className="space-y-2">
                   <div className="flex justify-between text-xs">
                     <span className="text-muted-foreground">Previsto: {formatCurrency(total)}</span>
@@ -362,7 +321,6 @@ export default function EventosEspeciais() {
         </div>
       )}
 
-      {/* New event modal */}
       <Dialog open={showNovoEvento} onOpenChange={setShowNovoEvento}>
         <DialogContent className="bg-card border-border">
           <DialogHeader><DialogTitle className="text-foreground">Novo Evento</DialogTitle></DialogHeader>
