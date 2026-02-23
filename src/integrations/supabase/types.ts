@@ -14,6 +14,33 @@ export type Database = {
   }
   public: {
     Tables: {
+      clientes: {
+        Row: {
+          criado_em: string
+          email: string | null
+          id: string
+          nome: string
+          observacao: string | null
+          telefone: string | null
+        }
+        Insert: {
+          criado_em?: string
+          email?: string | null
+          id?: string
+          nome: string
+          observacao?: string | null
+          telefone?: string | null
+        }
+        Update: {
+          criado_em?: string
+          email?: string | null
+          id?: string
+          nome?: string
+          observacao?: string | null
+          telefone?: string | null
+        }
+        Relationships: []
+      }
       configuracoes: {
         Row: {
           chave: string
@@ -319,6 +346,7 @@ export type Database = {
       parcelas_mentoria: {
         Row: {
           cliente_email: string | null
+          cliente_id: string | null
           cliente_nome: string
           criado_em: string
           data_fim_prevista: string | null
@@ -338,6 +366,7 @@ export type Database = {
         }
         Insert: {
           cliente_email?: string | null
+          cliente_id?: string | null
           cliente_nome: string
           criado_em?: string
           data_fim_prevista?: string | null
@@ -357,6 +386,7 @@ export type Database = {
         }
         Update: {
           cliente_email?: string | null
+          cliente_id?: string | null
           cliente_nome?: string
           criado_em?: string
           data_fim_prevista?: string | null
@@ -375,6 +405,13 @@ export type Database = {
           valor_total?: number
         }
         Relationships: [
+          {
+            foreignKeyName: "parcelas_mentoria_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "clientes"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "parcelas_mentoria_receita_id_fkey"
             columns: ["receita_id"]
