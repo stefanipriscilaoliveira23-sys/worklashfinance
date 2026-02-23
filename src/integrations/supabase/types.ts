@@ -169,6 +169,7 @@ export type Database = {
       }
       eventos_despesas: {
         Row: {
+          categoria_evento: Database["public"]["Enums"]["evento_despesa_categoria"]
           data_pagamento: string | null
           data_vencimento: string | null
           descricao: string
@@ -181,6 +182,7 @@ export type Database = {
           valor_pago_total: number | null
         }
         Insert: {
+          categoria_evento?: Database["public"]["Enums"]["evento_despesa_categoria"]
           data_pagamento?: string | null
           data_vencimento?: string | null
           descricao: string
@@ -193,6 +195,7 @@ export type Database = {
           valor_pago_total?: number | null
         }
         Update: {
+          categoria_evento?: Database["public"]["Enums"]["evento_despesa_categoria"]
           data_pagamento?: string | null
           data_vencimento?: string | null
           descricao?: string
@@ -643,6 +646,7 @@ export type Database = {
         | "Pet"
         | "Estética"
         | "Outros"
+      evento_despesa_categoria: "Fechado" | "Precisa Fechar" | "Pago/Presente"
       periodicidade: "Semanal" | "Quinzenal" | "Mensal"
       plataforma_origem: "Hotmart" | "Kiwify" | "Eduzz" | "Direto Pix" | "Outro"
       produto_categoria:
@@ -816,6 +820,7 @@ export const Constants = {
         "Estética",
         "Outros",
       ],
+      evento_despesa_categoria: ["Fechado", "Precisa Fechar", "Pago/Presente"],
       periodicidade: ["Semanal", "Quinzenal", "Mensal"],
       plataforma_origem: ["Hotmart", "Kiwify", "Eduzz", "Direto Pix", "Outro"],
       produto_categoria: [

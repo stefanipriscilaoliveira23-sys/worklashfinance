@@ -16,6 +16,7 @@ import ProdutosMargem from "./pages/ProdutosMargem";
 import Projecao from "./pages/Projecao";
 import BusinessIntelligence from "./pages/BusinessIntelligence";
 import Configuracoes from "./pages/Configuracoes";
+import PLDiario from "./pages/PLDiario";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -38,6 +39,7 @@ const App = () => (
               <Route path="/eventos" element={<EventosEspeciais />} />
               <Route path="/produtos" element={<ProdutosMargem />} />
               <Route path="/projecao" element={<Projecao />} />
+              <Route path="/pl-diario" element={<PLDiario />} />
               <Route path="/bi" element={<BusinessIntelligence />} />
               <Route path="/config" element={<Configuracoes />} />
             </Route>
