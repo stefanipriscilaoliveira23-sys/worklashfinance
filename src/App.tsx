@@ -17,6 +17,7 @@ import Projecao from "./pages/Projecao";
 import BusinessIntelligence from "./pages/BusinessIntelligence";
 import Configuracoes from "./pages/Configuracoes";
 import PLDiario from "./pages/PLDiario";
+import Clientes from "./pages/Clientes";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -40,6 +41,7 @@ const App = () => (
               <Route path="/produtos" element={<ProdutosMargem />} />
               <Route path="/projecao" element={<Projecao />} />
               <Route path="/pl-diario" element={<PLDiario />} />
+              <Route path="/clientes" element={<Clientes />} />
               <Route path="/bi" element={<BusinessIntelligence />} />
               <Route path="/config" element={<Configuracoes />} />
             </Route>
