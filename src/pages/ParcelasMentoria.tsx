@@ -64,6 +64,9 @@ export default function ParcelasMentoria() {
   const { data: allDetalhes, isLoading } = useQuery({
     queryKey: ["parcelas-detalhe-all", selectedMonth],
     queryFn: async () => {
+      // Atualiza automaticamente parcelas vencidas para 'Atraso'
+      await supabase.rpc("atualizar_parcelas_atrasadas");
+
       const startDate = `${selectedMonth}-01`;
       const [year, month] = selectedMonth.split("-").map(Number);
       const lastDay = new Date(year, month, 0).getDate();
