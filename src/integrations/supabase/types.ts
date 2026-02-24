@@ -364,6 +364,7 @@ export type Database = {
           id: string
           is_renovacao: boolean | null
           periodicidade: Database["public"]["Enums"]["periodicidade"]
+          produto_id: string | null
           quant_parcelas: number
           receita_id: string | null
           status_geral: Database["public"]["Enums"]["status_parcela"] | null
@@ -384,6 +385,7 @@ export type Database = {
           id?: string
           is_renovacao?: boolean | null
           periodicidade?: Database["public"]["Enums"]["periodicidade"]
+          produto_id?: string | null
           quant_parcelas?: number
           receita_id?: string | null
           status_geral?: Database["public"]["Enums"]["status_parcela"] | null
@@ -404,6 +406,7 @@ export type Database = {
           id?: string
           is_renovacao?: boolean | null
           periodicidade?: Database["public"]["Enums"]["periodicidade"]
+          produto_id?: string | null
           quant_parcelas?: number
           receita_id?: string | null
           status_geral?: Database["public"]["Enums"]["status_parcela"] | null
@@ -416,6 +419,13 @@ export type Database = {
             columns: ["cliente_id"]
             isOneToOne: false
             referencedRelation: "clientes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "parcelas_mentoria_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
+            referencedRelation: "produtos_catalogo"
             referencedColumns: ["id"]
           },
           {
