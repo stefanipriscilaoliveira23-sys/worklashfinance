@@ -8,6 +8,7 @@ import { Pencil, Plus } from "lucide-react";
 import { statusBadge } from "@/pages/ParcelasMentoria";
 import EditarParcelaDialog from "@/components/parcelas/EditarParcelaDialog";
 import AdicionarParcelaDialog from "@/components/parcelas/AdicionarParcelaDialog";
+import EditarContratoDialog from "@/components/parcelas/EditarContratoDialog";
 import type { Tables } from "@/integrations/supabase/types";
 
 interface Props {
@@ -19,6 +20,8 @@ interface Props {
 export default function ParcelaDetalheSheet({ selectedAluna, onClose, onRegistrarPagamento }: Props) {
   const [editParcela, setEditParcela] = useState<Tables<"parcelas_mentoria_detalhe"> | null>(null);
   const [showAddParcela, setShowAddParcela] = useState(false);
+  const [editContrato, setEditContrato] = useState<Tables<"parcelas_mentoria"> | null>(null);
+
   const { data: detalhes } = useQuery({
     queryKey: ["parcelas-detalhe", selectedAluna?.id],
     enabled: !!selectedAluna,
@@ -51,7 +54,6 @@ export default function ParcelaDetalheSheet({ selectedAluna, onClose, onRegistra
     },
   });
 
-  // Calculate saldo restante do contrato
   const saldoContrato = (detalhes ?? []).reduce((acc, d) => acc + (d.saldo_parcela ?? 0), 0);
   const totalPago = (detalhes ?? []).reduce((acc, d) => acc + (d.valor_pago_parcial ?? 0), 0);
 
@@ -61,19 +63,34 @@ export default function ParcelaDetalheSheet({ selectedAluna, onClose, onRegistra
         {selectedAluna && (
           <div className="space-y-6">
             <SheetHeader>
-              <SheetTitle className="text-foreground">{selectedAluna.cliente_nome}</SheetTitle>
-              <p className="text-sm text-muted-foreground">{selectedAluna.cliente_email}</p>
+              <div className="flex items-center justify-between">
+                <div>
+                  <SheetTitle className="text-foreground">{selectedAluna.cliente_nome}</SheetTitle>
+                  <p className="text-sm text-muted-foreground">{selectedAluna.cliente_email}</p>
+                </div>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-8 text-xs border-primary/30 text-primary hover:bg-primary/10"
+                  onClick={() => setEditContrato(selectedAluna)}
+                >
+                  <Pencil className="h-3 w-3 mr-1" />
+                  Editar Contrato
+                </Button>
+              </div>
             </SheetHeader>
 
             {/* Summary */}
             <div className="grid grid-cols-2 gap-3">
               {[
+                { label: "Tipo", value: selectedAluna.tipo_mentoria },
                 { label: "Valor Total", value: formatCurrency(selectedAluna.valor_total) },
                 { label: "Entrada", value: formatCurrency(selectedAluna.entrada_valor) },
                 { label: "Total Pago", value: formatCurrency(totalPago + (selectedAluna.entrada_valor ?? 0)) },
                 { label: "Saldo Restante", value: formatCurrency(saldoContrato) },
                 { label: "Periodicidade", value: selectedAluna.periodicidade },
                 { label: "Data Início", value: formatDate(selectedAluna.data_inicio) },
+                { label: "Parcelas", value: `${selectedAluna.quant_parcelas}x` },
               ].map(item => (
                 <div key={item.label} className="rounded-lg border border-border bg-secondary/30 p-3">
                   <p className="text-[10px] text-muted-foreground uppercase tracking-wider">{item.label}</p>
@@ -172,6 +189,14 @@ export default function ParcelaDetalheSheet({ selectedAluna, onClose, onRegistra
       <AdicionarParcelaDialog
         parcelaMentoriaId={showAddParcela && selectedAluna ? selectedAluna.id : null}
         onClose={() => setShowAddParcela(false)}
+      />
+
+      <EditarContratoDialog
+        contrato={editContrato}
+        onClose={() => {
+          setEditContrato(null);
+          // Close the sheet too if contract was deleted
+        }}
       />
     </Sheet>
   );
