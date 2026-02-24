@@ -221,25 +221,19 @@ export default function Receitas() {
     <table className="w-full text-sm">
       <thead>
         <tr className="border-b border-border bg-secondary/30">
-          {["Data", "Produto", "Categoria", "Origem", "Cliente", "Bruto", "Taxa", "Líquido", "Status", "Ações"].map(h => (
+          {["Data", "Produto", "Origem", "Cliente", "Bruto", "Taxa", "Líquido", "Status", "Ações"].map(h => (
             <th key={h} className={`p-3 text-xs font-medium text-muted-foreground ${["Bruto", "Taxa", "Líquido"].includes(h) ? "text-right" : "text-left"}`}>{h}</th>
           ))}
         </tr>
       </thead>
       <tbody>
-        {tabData.length === 0 && <tr><td colSpan={10} className="p-12 text-center text-muted-foreground">Nenhuma receita encontrada</td></tr>}
+        {tabData.length === 0 && <tr><td colSpan={9} className="p-12 text-center text-muted-foreground">Nenhuma receita encontrada</td></tr>}
         {tabData.map((r: any) => {
           const isParcela = !!r.is_parcela;
           return (
             <tr key={r.id} className={`border-b border-border/50 hover:bg-surface-hover transition-colors ${isParcela ? "bg-primary/[0.02]" : ""}`}>
               <td className="p-3">{formatDate(r.data)}</td>
-              <td className="p-3 truncate max-w-[180px]">
-                <div className="flex items-center gap-1.5">
-                  {isParcela && <span className="px-1.5 py-0.5 text-[9px] rounded bg-primary/10 text-primary font-medium shrink-0">{r.parcela_label}</span>}
-                  <span className="truncate">{r.produto_nome}</span>
-                </div>
-              </td>
-              <td className="p-3 text-muted-foreground text-xs">{r.produto_categoria || "—"}</td>
+              <td className="p-3 truncate max-w-[200px]">{r.produto_nome}</td>
               <td className="p-3 text-muted-foreground text-xs">{r.plataforma || "—"}</td>
               <td className="p-3 truncate max-w-[120px]">{r.cliente_nome || "—"}</td>
               <td className="p-3 text-right">{formatCurrency(r.valor_bruto)}</td>
