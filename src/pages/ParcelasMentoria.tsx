@@ -149,7 +149,9 @@ export default function ParcelasMentoria() {
     return allDetalhes.filter((d: any) => {
       const parent = d.parcelas_mentoria;
       if (filtroTipo !== "all" && parent.tipo_mentoria !== filtroTipo) return false;
-      if (filtroStatus !== "all" && d.status !== filtroStatus) return false;
+      if (filtroStatus === "contrato_quitado") {
+        if (parent.status_geral !== "Quitado") return false;
+      } else if (filtroStatus !== "all" && d.status !== filtroStatus) return false;
       if (search) {
         const s = search.toLowerCase();
         return parent.cliente_nome.toLowerCase().includes(s) || (parent.cliente_email ?? "").toLowerCase().includes(s);
@@ -259,13 +261,14 @@ export default function ParcelasMentoria() {
           </SelectContent>
         </Select>
         <Select value={filtroStatus} onValueChange={setFiltroStatus}>
-          <SelectTrigger className="w-[160px] bg-secondary/50 border-border"><SelectValue placeholder="Status" /></SelectTrigger>
+          <SelectTrigger className="w-[200px] bg-secondary/50 border-border"><SelectValue placeholder="Status" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Todos</SelectItem>
-            <SelectItem value="Pendente">Pendente</SelectItem>
-            <SelectItem value="Quitado">Quitada</SelectItem>
-            <SelectItem value="Atraso">Atrasada</SelectItem>
-            <SelectItem value="Parcialmente Pago">Parcial</SelectItem>
+            <SelectItem value="Quitado">Parcela Paga</SelectItem>
+            <SelectItem value="Pendente">Parcela Pendente</SelectItem>
+            <SelectItem value="Atraso">Parcela Atrasada</SelectItem>
+            <SelectItem value="Parcialmente Pago">Parcialmente Paga</SelectItem>
+            <SelectItem value="contrato_quitado">Contrato Quitado</SelectItem>
           </SelectContent>
         </Select>
       </div>
