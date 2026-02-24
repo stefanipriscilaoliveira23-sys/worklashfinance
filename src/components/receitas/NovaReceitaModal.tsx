@@ -56,6 +56,7 @@ export function NovaReceitaModal({ open, onClose }: { open: boolean; onClose: ()
   const [origensVenda, setOrigensVenda] = useState<string[]>([]);
   const [produtoEntradaId, setProdutoEntradaId] = useState<string | null>(null);
   const [observacao, setObservacao] = useState("");
+  const [dataFimMentoria, setDataFimMentoria] = useState("");
 
   // Step 2 fields
   const [temParcelas, setTemParcelas] = useState(false);
@@ -151,6 +152,7 @@ export function NovaReceitaModal({ open, onClose }: { open: boolean; onClose: ()
         is_ascensao: origensVenda.includes("Ascensão"),
         observacao,
         lancado_por: user?.id,
+        data_fim_mentoria: dataFimMentoria || null,
       }).select().single();
       if (error) throw error;
 
