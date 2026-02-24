@@ -232,7 +232,7 @@ export default function Dashboard() {
             <Flame className="h-4 w-4 text-primary" />
           </div>
           <p className="text-2xl font-bold text-foreground">{formatCurrency(d.custoDiario)}</p>
-          <p className="text-xs text-muted-foreground mt-1">Você já queimou {formatCurrency(d.queimadoHoje)} hoje</p>
+          <p className="text-xs text-muted-foreground mt-1">Acumulado até hoje: {formatCurrency(d.queimadoHoje)}</p>
         </div>
 
         <div className="rounded-xl border border-border bg-card p-5">
