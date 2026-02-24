@@ -59,7 +59,6 @@ export default function ProdutosMargem() {
   });
 
   const isLoading = loadProd || loadRec;
-  if (isLoading) return <div className="flex items-center justify-center h-64"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
 
   const allReceitas = receitas ?? [];
   const receitasMes = allReceitas.filter(r => r.data >= start && r.data <= end);
@@ -154,6 +153,8 @@ export default function ProdutosMargem() {
 
   const prevMonth = () => { if (mes === 0) { setMes(11); setAno(a => a - 1); } else setMes(m => m - 1); };
   const nextMonth = () => { if (mes === 11) { setMes(0); setAno(a => a + 1); } else setMes(m => m + 1); };
+
+  if (isLoading) return <div className="flex items-center justify-center h-64"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
 
   return (
     <div className="space-y-6 animate-fade-in">
