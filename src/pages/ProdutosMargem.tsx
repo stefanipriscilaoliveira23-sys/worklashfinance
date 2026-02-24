@@ -138,10 +138,17 @@ export default function ProdutosMargem() {
       return pm.tipo_mentoria === p.categoria;
     });
     
-    const compradores: { nome: string; data: string; valor: number }[] = [];
-    vendasReceitas.forEach(r => compradores.push({ nome: r.cliente_nome ?? "—", data: r.data, valor: r.valor_bruto ?? 0 }));
-    vendasParcelas.forEach(pm => compradores.push({ nome: pm.cliente_nome, data: pm.data_inicio, valor: pm.valor_total ?? 0 }));
-    compradores.sort((a, b) => b.data.localeCompare(a.data));
+    const compradoresRaw: { nome: string; data: string; valor: number }[] = [];
+    vendasReceitas.forEach(r => compradoresRaw.push({ nome: r.cliente_nome ?? "—", data: r.data, valor: r.valor_bruto ?? 0 }));
+    vendasParcelas.forEach(pm => compradoresRaw.push({ nome: pm.cliente_nome, data: pm.data_inicio, valor: pm.valor_total ?? 0 }));
+    // Deduplicate by client name — keep most recent entry per client (count as 1 sale per person)
+    const clienteDedup = new Map<string, { nome: string; data: string; valor: number }>();
+    compradoresRaw.forEach(c => {
+      const key = c.nome.toLowerCase().trim();
+      const existing = clienteDedup.get(key);
+      if (!existing || c.data > existing.data) clienteDedup.set(key, c);
+    });
+    const compradores = Array.from(clienteDedup.values()).sort((a, b) => b.data.localeCompare(a.data));
 
     const totalVendas = compradores.length;
     const totalBruto = compradores.reduce((s, c) => s + c.valor, 0);
