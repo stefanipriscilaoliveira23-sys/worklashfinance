@@ -20,7 +20,7 @@ const TIPOS_MENTORIA = [
 ] as const;
 
 const STATUS_LABELS: Record<string, { label: string; className: string }> = {
-  Pendente: { label: "Pendente", className: "bg-yellow-500/10 text-yellow-400 border-yellow-500/20" },
+  Pendente: { label: "A vencer", className: "bg-yellow-500/10 text-yellow-400 border-yellow-500/20" },
   Quitado: { label: "Pago", className: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" },
   Atraso: { label: "Atrasada", className: "bg-destructive/10 text-destructive border-destructive/20" },
   "Parcialmente Pago": { label: "Parcial", className: "bg-orange-500/10 text-orange-400 border-orange-500/20" },
