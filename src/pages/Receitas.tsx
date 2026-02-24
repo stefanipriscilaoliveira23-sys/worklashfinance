@@ -53,9 +53,13 @@ export default function Receitas() {
     },
   });
 
-  const getProdutoNome = (tipoMentoria: string) => {
-    const prod = (produtosCatalogo ?? []).find(p => p.categoria === tipoMentoria);
-    return prod?.nome ?? tipoMentoria;
+  const getProdutoNome = (parcela: any) => {
+    if (parcela.produto_id) {
+      const prod = (produtosCatalogo ?? []).find(p => p.id === parcela.produto_id);
+      if (prod) return prod.nome;
+    }
+    const prod = (produtosCatalogo ?? []).find(p => p.categoria === parcela.tipo_mentoria);
+    return prod?.nome ?? parcela.tipo_mentoria;
   };
 
   const { data: parcelasData } = useQuery({
@@ -100,7 +104,7 @@ export default function Receitas() {
     return {
       id: `parcela-${pq.id}`,
       data: pq.data_pagamento ?? pq.data_vencimento,
-      produto_nome: getProdutoNome(parent.tipo_mentoria),
+      produto_nome: getProdutoNome(parent),
       produto_categoria: parent.tipo_mentoria,
       plataforma: "" as any,
       cliente_nome: parent.cliente_nome,

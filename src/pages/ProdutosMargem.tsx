@@ -126,17 +126,17 @@ export default function ProdutosMargem() {
   const receitasMes = allReceitas.filter(r => r.data >= start && r.data <= end);
   const proLabore = meta?.pro_labore ?? 30000;
 
-  // Helper: resolve product name from tipo_mentoria (same logic as parcelas page)
-  const getProdutoNome = (tipoMentoria: string) => {
-    const prod = (produtos ?? []).find(p => p.categoria === tipoMentoria);
-    return prod?.nome ?? tipoMentoria;
-  };
-
-  // CATÁLOGO — match by resolved product name
+  // CATÁLOGO — match by produto_id when available, fallback to category for non-ambiguous types
   const allParcelas = parcelasMentoria ?? [];
   const catalogData = (produtos ?? []).map(p => {
-    const vendasReceitas = allReceitas.filter(r => r.produto_id === p.id || r.produto_nome === p.nome || r.produto_categoria === p.categoria);
-    const vendasParcelas = allParcelas.filter(pm => getProdutoNome(pm.tipo_mentoria) === p.nome);
+    const vendasReceitas = allReceitas.filter(r => r.produto_id === p.id || r.produto_nome === p.nome);
+    const vendasParcelas = allParcelas.filter(pm => {
+      // Use produto_id when available (accurate link)
+      if ((pm as any).produto_id) return (pm as any).produto_id === p.id;
+      // Fallback: match by category only for non-ambiguous categories (not Renovação Mentoria)
+      if (pm.tipo_mentoria === "Renovação Mentoria") return false;
+      return pm.tipo_mentoria === p.categoria;
+    });
     
     const compradores: { nome: string; data: string; valor: number }[] = [];
     vendasReceitas.forEach(r => compradores.push({ nome: r.cliente_nome ?? "—", data: r.data, valor: r.valor_bruto ?? 0 }));
