@@ -31,7 +31,7 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const PLANILHA_URL = "https://id-preview--ba9f0779-be80-4140-af90-fcbccd1f89ea.lovable.app/mentoria-import.xlsx";
+// File is bundled alongside the function
 
 const STATUS_SCORE: Record<StatusParcela, number> = {
   Pendente: 1,
@@ -174,12 +174,8 @@ serve(async (req) => {
 
     const db = createClient(supabaseUrl, supabaseServiceRole);
 
-    const fileResponse = await fetch(PLANILHA_URL);
-    if (!fileResponse.ok) {
-      throw new Error(`Não foi possível baixar a planilha (${fileResponse.status})`);
-    }
-
-    const fileBuffer = await fileResponse.arrayBuffer();
+    const filePath = new URL("./Parcelas_mentoria_WORKLASH-2.xlsx", import.meta.url);
+    const fileBuffer = await Deno.readFile(filePath);
     const workbook = XLSX.read(fileBuffer, { type: "array" });
 
     const contracts = new Map<string, ContractAggregate>();
