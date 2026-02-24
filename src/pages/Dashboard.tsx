@@ -91,20 +91,23 @@ export default function Dashboard() {
   // E) Metas vs Realizado
   const diffMeta = d.totalBruto - d.metaValor;
 
-  // F) Comparação mensal
+  // F) Comparação mensal — Fev/2026 em diante
   const comparacaoMensal = [];
-  for (let i = 5; i >= 0; i--) {
-    const dt = new Date(now.getFullYear(), now.getMonth() - i, 1);
-    const { start: ms, end: me } = getMonthRange(dt.getFullYear(), dt.getMonth());
-    const label = dt.toLocaleString("pt-BR", { month: "short", year: "2-digit" });
+  const startMonth = new Date(2026, 1, 1); // Fev 2026
+  const currentMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  const tempDate = new Date(startMonth);
+  while (tempDate <= currentMonth) {
+    const { start: ms, end: me } = getMonthRange(tempDate.getFullYear(), tempDate.getMonth());
+    const label = tempDate.toLocaleString("pt-BR", { month: "short", year: "2-digit" });
     const rm = receitas.filter(r => r.data >= ms && r.data <= me);
     const mentorias = rm.filter(r => mentoriaCats.includes(r.produto_categoria ?? "")).reduce((s, r) => s + (r.valor_bruto ?? 0), 0);
     const renovacoes = rm.filter(r => r.produto_categoria === "Renovação Mentoria").reduce((s, r) => s + (r.valor_bruto ?? 0), 0);
-    const parcelas = detalhes.filter(p => p.data_vencimento >= ms && p.data_vencimento <= me && p.status === "Quitado").reduce((s, p) => s + (p.valor_real ?? p.valor_sugerido ?? 0), 0);
+    const parcelasVal = detalhes.filter(p => p.data_vencimento >= ms && p.data_vencimento <= me && p.status === "Quitado").reduce((s, p) => s + (p.valor_real ?? p.valor_sugerido ?? 0), 0);
     const fisicos = rm.filter(r => r.produto_categoria === "Produto Físico").reduce((s, r) => s + (r.valor_bruto ?? 0), 0);
     const digitais = rm.filter(r => ["Curso/Formação", "Ferramenta", "Apostila"].includes(r.produto_categoria ?? "")).reduce((s, r) => s + (r.valor_bruto ?? 0), 0);
-    const total = rm.reduce((s, r) => s + (r.valor_bruto ?? 0), 0);
-    comparacaoMensal.push({ periodo: label, mentorias, renovacoes, parcelas, fisicos, digitais, total });
+    const total = rm.reduce((s, r) => s + (r.valor_bruto ?? 0), 0) + parcelasVal;
+    comparacaoMensal.push({ periodo: label, mentorias, renovacoes, parcelas: parcelasVal, fisicos, digitais, total });
+    tempDate.setMonth(tempDate.getMonth() + 1);
   }
 
   const metaColor = d.metaPercent >= 80 ? "bg-emerald-500" : d.metaPercent >= 50 ? "bg-yellow-500" : "bg-destructive";
@@ -297,39 +300,68 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* LINHA 5 — Últimas 10 receitas */}
+      {/* LINHA 5 — Últimas 10 entradas (receitas + parcelas) */}
       <div className="rounded-xl border border-border bg-card overflow-hidden">
         <div className="p-5 border-b border-border flex items-center justify-between">
-          <h3 className="text-sm font-medium text-foreground">Últimas 10 receitas</h3>
+          <h3 className="text-sm font-medium text-foreground">Últimas 10 entradas</h3>
           <button onClick={() => navigate("/receitas")} className="text-xs text-primary hover:underline flex items-center gap-1">Ver todas <ArrowRight className="h-3 w-3" /></button>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border bg-secondary/30">
-                {["Data", "Produto", "Categoria", "Plataforma", "Cliente", "Bruto", "Líquido", "Origens"].map(h => (
-                  <th key={h} className={`p-3 text-xs font-medium text-muted-foreground ${["Bruto", "Líquido"].includes(h) ? "text-right" : "text-left"}`}>{h}</th>
+                {["Data", "Descrição", "Categoria", "Origem", "Cliente", "Valor"].map(h => (
+                  <th key={h} className={`p-3 text-xs font-medium text-muted-foreground ${h === "Valor" ? "text-right" : "text-left"}`}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
-              {d.ultimasReceitas.length === 0 && <tr><td colSpan={8} className="p-8 text-center text-muted-foreground">Nenhuma receita registrada</td></tr>}
-              {d.ultimasReceitas.map(r => (
-                <tr key={r.id} className="border-b border-border/50 hover:bg-surface-hover transition-colors">
-                  <td className="p-3 text-foreground">{formatDate(r.data)}</td>
-                  <td className="p-3 text-foreground truncate max-w-[150px]">{r.produto_nome}</td>
-                  <td className="p-3 text-muted-foreground">{r.produto_categoria || "—"}</td>
-                  <td className="p-3 text-muted-foreground">{r.plataforma}</td>
-                  <td className="p-3 text-foreground truncate max-w-[120px]">{r.cliente_nome || "—"}</td>
-                  <td className="p-3 text-right text-foreground">{formatCurrency(r.valor_bruto)}</td>
-                  <td className="p-3 text-right text-primary">{formatCurrency(r.valor_liquido)}</td>
-                  <td className="p-3">
-                    <div className="flex flex-wrap gap-1">
-                      {(r.origens_venda ?? []).map((o, i) => <span key={i} className="px-1.5 py-0.5 text-[10px] rounded bg-primary/10 text-primary">{o}</span>)}
-                    </div>
-                  </td>
-                </tr>
-              ))}
+              {(() => {
+                // Merge receitas + parcelas quitadas, sorted by date desc, take 10
+                const parcelasRecentes = detalhes
+                  .filter(p => p.status === "Quitado")
+                  .map((p: any) => ({
+                    id: `p-${p.id}`,
+                    data: p.data_pagamento ?? p.data_vencimento,
+                    descricao: `Parcela ${p.numero_parcela}/${(p.parcelas_mentoria as any)?.quant_parcelas} — ${(p.parcelas_mentoria as any)?.cliente_nome}`,
+                    categoria: (p.parcelas_mentoria as any)?.tipo_mentoria,
+                    origem: "Parcela",
+                    cliente: (p.parcelas_mentoria as any)?.cliente_nome,
+                    valor: p.valor_real ?? p.valor_sugerido ?? 0,
+                    isParcela: true,
+                  }));
+                const receitasRecentes = d.ultimasReceitas.map(r => ({
+                  id: r.id,
+                  data: r.data,
+                  descricao: r.produto_nome,
+                  categoria: r.produto_categoria,
+                  origem: r.plataforma,
+                  cliente: r.cliente_nome,
+                  valor: r.valor_bruto,
+                  isParcela: false,
+                }));
+                const merged = [...receitasRecentes, ...parcelasRecentes]
+                  .sort((a, b) => (b.data ?? "").localeCompare(a.data ?? ""))
+                  .slice(0, 10);
+
+                if (merged.length === 0) return <tr><td colSpan={6} className="p-8 text-center text-muted-foreground">Nenhuma entrada registrada</td></tr>;
+
+                return merged.map(r => (
+                  <tr key={r.id} className="border-b border-border/50 hover:bg-surface-hover transition-colors">
+                    <td className="p-3 text-foreground">{formatDate(r.data)}</td>
+                    <td className="p-3 text-foreground truncate max-w-[180px]">
+                      <div className="flex items-center gap-1.5">
+                        {r.isParcela && <span className="px-1.5 py-0.5 text-[9px] rounded bg-primary/10 text-primary font-medium shrink-0">Parcela</span>}
+                        <span className="truncate">{r.descricao}</span>
+                      </div>
+                    </td>
+                    <td className="p-3 text-muted-foreground">{r.categoria || "—"}</td>
+                    <td className="p-3 text-muted-foreground">{r.origem}</td>
+                    <td className="p-3 text-foreground truncate max-w-[120px]">{r.cliente || "—"}</td>
+                    <td className="p-3 text-right text-primary">{formatCurrency(r.valor)}</td>
+                  </tr>
+                ));
+              })()}
             </tbody>
           </table>
         </div>

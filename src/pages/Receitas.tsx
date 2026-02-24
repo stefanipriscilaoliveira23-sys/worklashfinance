@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { NovaReceitaModal } from "@/components/receitas/NovaReceitaModal";
 import { ImportarPlanilhaModal } from "@/components/receitas/ImportarPlanilhaModal";
+import { EditarReceitaModal } from "@/components/receitas/EditarReceitaModal";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
 const PLATAFORMAS = ["Hotmart", "Kiwify", "Eduzz", "Direto Pix", "Outro"] as const;
@@ -29,6 +30,7 @@ export default function Receitas() {
   const queryClient = useQueryClient();
   const [showNova, setShowNova] = useState(false);
   const [showImport, setShowImport] = useState(false);
+  const [editReceita, setEditReceita] = useState<any>(null);
   const [search, setSearch] = useState("");
   const [filtroPlataforma, setFiltroPlataforma] = useState("all");
   const [filtroCategoria, setFiltroCategoria] = useState("all");
@@ -186,6 +188,7 @@ export default function Receitas() {
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild><button className="p-1.5 rounded hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors"><MoreHorizontal className="h-4 w-4" /></button></DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="bg-card border-border">
+                      <DropdownMenuItem onClick={() => setEditReceita(r)} className="gap-2"><Pencil className="h-3.5 w-3.5" /> Editar</DropdownMenuItem>
                       {role === "admin" && <DropdownMenuItem onClick={() => { if (confirm("Excluir esta receita?")) deleteMutation.mutate(r.id); }} className="gap-2 text-destructive"><Trash2 className="h-3.5 w-3.5" /> Excluir</DropdownMenuItem>}
                     </DropdownMenuContent>
                   </DropdownMenu>
@@ -392,6 +395,7 @@ export default function Receitas() {
 
       {showNova && <NovaReceitaModal open={showNova} onClose={() => setShowNova(false)} />}
       {showImport && <ImportarPlanilhaModal open={showImport} onClose={() => setShowImport(false)} />}
+      {editReceita && <EditarReceitaModal receita={editReceita} open={!!editReceita} onClose={() => setEditReceita(null)} />}
     </div>
   );
 }
