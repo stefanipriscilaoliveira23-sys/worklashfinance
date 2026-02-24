@@ -67,8 +67,16 @@ export function useDashboardData() {
 
   // Compute values
   const receitasMes = receitas.data ?? [];
-  const totalBruto = receitasMes.reduce((s, r) => s + (r.valor_bruto ?? 0), 0);
-  const totalLiquido = receitasMes.reduce((s, r) => s + (r.valor_liquido ?? 0), 0);
+  const allParcelasDet = parcelas.data ?? [];
+  const parcelasMesQuitadas = allParcelasDet.filter(p => 
+    p.data_vencimento >= mesInicio && p.data_vencimento <= mesFim && p.status === "Quitado"
+  );
+  const receitaParcelasMes = parcelasMesQuitadas.reduce((s, p) => s + (p.valor_real ?? p.valor_sugerido ?? 0), 0);
+
+  const totalBrutoReceitas = receitasMes.reduce((s, r) => s + (r.valor_bruto ?? 0), 0);
+  const totalLiquidoReceitas = receitasMes.reduce((s, r) => s + (r.valor_liquido ?? 0), 0);
+  const totalBruto = totalBrutoReceitas + receitaParcelasMes;
+  const totalLiquido = totalLiquidoReceitas + receitaParcelasMes;
 
   const metaValor = meta.data?.valor_meta ?? 0;
   const metaPercent = metaValor > 0 ? (totalBruto / metaValor) * 100 : 0;
@@ -103,7 +111,7 @@ export function useDashboardData() {
     d => d.data_vencimento && d.data_vencimento >= semInicio && d.data_vencimento <= semFim && d.status !== "Pago"
   );
 
-  const allParcelas = parcelas.data ?? [];
+  const allParcelas = allParcelasDet;
   const parcelasAtraso = allParcelas.filter(p => p.status === "Atraso" || (p.data_vencimento < today && p.status === "Pendente"));
   const alunosInadimplentes = new Set(parcelasAtraso.map(p => {
     const pm = p.parcelas_mentoria as any;
