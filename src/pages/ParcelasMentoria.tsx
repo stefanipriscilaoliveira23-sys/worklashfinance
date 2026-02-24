@@ -8,11 +8,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
 import ParcelaDetalheSheet from "@/components/parcelas/ParcelaDetalheSheet";
 import PagamentoDialog from "@/components/parcelas/PagamentoDialog";
 import NovoContratoDialog from "@/components/parcelas/NovoContratoDialog";
+import MonthNavigator, { getCurrentMonthKey, type DateFilter, getDateRange } from "@/components/MonthNavigator";
 import type { Tables } from "@/integrations/supabase/types";
 
 const TIPOS_MENTORIA = [
@@ -32,30 +32,13 @@ export function statusBadge(status: string | null) {
   return <Badge variant="outline" className={s.className}>{s.label}</Badge>;
 }
 
-// Generate month tabs: Feb/2026 through Dec/2026
-function generateMonths() {
-  const months: { key: string; label: string }[] = [];
-  for (let m = 1; m <= 11; m++) { // m=1 is Feb, m=11 is Dec
-    const d = new Date(2026, m, 1);
-    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-    const label = d.toLocaleString("pt-BR", { month: "short", year: "2-digit" }).replace(".", "");
-    months.push({ key, label: label.charAt(0).toUpperCase() + label.slice(1) });
-  }
-  return months;
-}
-const MONTHS = generateMonths();
-
-function getCurrentMonthKey() {
-  const now = new Date();
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-}
 
 export default function ParcelasMentoria() {
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
   const [filtroTipo, setFiltroTipo] = useState("all");
   const [filtroStatus, setFiltroStatus] = useState("all");
-  const [selectedMonth, setSelectedMonth] = useState(getCurrentMonthKey());
+  const [dateFilter, setDateFilter] = useState<DateFilter>({ type: "month", key: getCurrentMonthKey() });
   const [selectedAluna, setSelectedAluna] = useState<Tables<"parcelas_mentoria"> | null>(null);
   const [showPagamento, setShowPagamento] = useState<Tables<"parcelas_mentoria_detalhe"> | null>(null);
   const [showNovoContrato, setShowNovoContrato] = useState(false);
@@ -79,23 +62,18 @@ export default function ParcelasMentoria() {
     return prod?.nome ?? parcela.tipo_mentoria;
   };
 
-  // Fetch all parcelas with their details for the selected month
+  // Fetch all parcelas with their details for the selected date range
+  const dateRange = getDateRange(dateFilter);
   const { data: allDetalhes, isLoading } = useQuery({
-    queryKey: ["parcelas-detalhe-all", selectedMonth],
+    queryKey: ["parcelas-detalhe-all", dateRange.start, dateRange.end],
     queryFn: async () => {
-      // Atualiza automaticamente parcelas vencidas para 'Atraso'
       await supabase.rpc("atualizar_parcelas_atrasadas");
-
-      const startDate = `${selectedMonth}-01`;
-      const [year, month] = selectedMonth.split("-").map(Number);
-      const lastDay = new Date(year, month, 0).getDate();
-      const endDate = `${selectedMonth}-${String(lastDay).padStart(2, "0")}`;
 
       const { data, error } = await supabase
         .from("parcelas_mentoria_detalhe")
         .select("*, parcelas_mentoria!inner(*)")
-        .gte("data_vencimento", startDate)
-        .lte("data_vencimento", endDate)
+        .gte("data_vencimento", dateRange.start)
+        .lte("data_vencimento", dateRange.end)
         .order("data_vencimento");
       if (error) throw error;
       return data as any[];
@@ -176,14 +154,7 @@ export default function ParcelasMentoria() {
         </Button>
       </div>
 
-      {/* Month tabs */}
-      <Tabs value={selectedMonth} onValueChange={setSelectedMonth}>
-        <TabsList className="bg-secondary/50">
-          {MONTHS.map(m => (
-            <TabsTrigger key={m.key} value={m.key} className="text-xs">{m.label}</TabsTrigger>
-          ))}
-        </TabsList>
-      </Tabs>
+      <MonthNavigator filter={dateFilter} onChange={setDateFilter} />
 
       {/* Metrics */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
