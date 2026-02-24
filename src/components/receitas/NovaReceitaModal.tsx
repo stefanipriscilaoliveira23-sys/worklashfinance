@@ -9,7 +9,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
 import { AlertTriangle, Loader2, ArrowRight, ArrowLeft } from "lucide-react";
 import { format, addDays, addWeeks } from "date-fns";
 import { ClienteAutocomplete } from "@/components/receitas/ClienteAutocomplete";
@@ -127,7 +126,13 @@ export function NovaReceitaModal({ open, onClose }: { open: boolean; onClose: ()
     }
   };
 
-  const showStep2 = MENTORIA_CATS.includes(categoria);
+  const isMentoria = MENTORIA_CATS.includes(categoria);
+  const showStep2 = isMentoria;
+
+  // Auto-enable parcelas when mentorship is selected
+  useEffect(() => {
+    if (isMentoria) setTemParcelas(true);
+  }, [isMentoria]);
 
   const insertMutation = useMutation({
     mutationFn: async () => {
@@ -156,12 +161,13 @@ export function NovaReceitaModal({ open, onClose }: { open: boolean; onClose: ()
       }).select().single();
       if (error) throw error;
 
-      // Create parcelas if needed
-      if (temParcelas && showStep2 && receita) {
+      // Create parcelas if mentorship
+      if (showStep2 && receita) {
         const { error: pmErr } = await supabase.from("parcelas_mentoria").insert({
           cliente_nome: clienteNome,
           cliente_email: clienteEmail,
-          tipo_mentoria: categoria,
+           tipo_mentoria: categoria,
+           produto_id: produtoId,
           valor_total: valorBruto,
           entrada_valor: entradaValor,
           entrada_data: entradaData || null,
@@ -267,7 +273,7 @@ export function NovaReceitaModal({ open, onClose }: { open: boolean; onClose: ()
             </div>
 
             <div className="space-y-1.5">
-              <Label className="text-foreground/80">Valor bruto</Label>
+              <Label className="text-foreground/80">{isMentoria ? "Valor total do contrato" : "Valor bruto"}</Label>
               <Input type="number" step="0.01" value={valorBruto || ""} onChange={(e) => setValorBruto(Number(e.target.value))} className="bg-secondary/50 border-border" />
             </div>
 
@@ -398,43 +404,39 @@ export function NovaReceitaModal({ open, onClose }: { open: boolean; onClose: ()
 
         {step === 2 && (
           <div className="space-y-4">
-            {/* Toggle parcelamento */}
-            <div className="flex items-center gap-3">
-              <Switch checked={temParcelas} onCheckedChange={setTemParcelas} />
-              <Label className="text-foreground/80">Esta venda tem parcelamento?</Label>
-            </div>
-
-            {temParcelas && (
-              <>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
-                    <Label className="text-foreground/80">Valor da entrada</Label>
-                    <Input type="number" step="0.01" value={entradaValor || ""} onChange={(e) => setEntradaValor(Number(e.target.value))} className="bg-secondary/50 border-border" />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-foreground/80">Data da entrada</Label>
-                    <Input type="date" value={entradaData} onChange={(e) => setEntradaData(e.target.value)} className="bg-secondary/50 border-border" />
-                  </div>
+            {/* Parcelas section - always shown for mentorship */}
+            <div className="p-3 rounded-lg bg-primary/5 border border-primary/20 space-y-4">
+              <h3 className="text-sm font-medium text-foreground">Parcelamento do contrato</h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <Label className="text-foreground/80">Valor da entrada</Label>
+                  <Input type="number" step="0.01" value={entradaValor || ""} onChange={(e) => setEntradaValor(Number(e.target.value))} className="bg-secondary/50 border-border" />
                 </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
-                    <Label className="text-foreground/80">Periodicidade</Label>
-                    <Select value={periodicidade} onValueChange={(v) => setPeriodicidade(v as Periodicidade)}>
-                      <SelectTrigger className="bg-secondary/50 border-border"><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Semanal">Semanal</SelectItem>
-                        <SelectItem value="Quinzenal">Quinzenal</SelectItem>
-                        <SelectItem value="Mensal">Mensal</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-foreground/80">Quantidade de parcelas</Label>
-                    <Input type="number" min={1} value={quantParcelas} onChange={(e) => setQuantParcelas(Number(e.target.value))} className="bg-secondary/50 border-border" />
-                  </div>
+                <div className="space-y-1.5">
+                  <Label className="text-foreground/80">Data da entrada</Label>
+                  <Input type="date" value={entradaData} onChange={(e) => setEntradaData(e.target.value)} className="bg-secondary/50 border-border" />
                 </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <Label className="text-foreground/80">Periodicidade</Label>
+                  <Select value={periodicidade} onValueChange={(v) => setPeriodicidade(v as Periodicidade)}>
+                    <SelectTrigger className="bg-secondary/50 border-border"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Semanal">Semanal</SelectItem>
+                      <SelectItem value="Quinzenal">Quinzenal</SelectItem>
+                      <SelectItem value="Mensal">Mensal</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-foreground/80">Quantidade de parcelas</Label>
+                  <Input type="number" min={1} value={quantParcelas} onChange={(e) => setQuantParcelas(Number(e.target.value))} className="bg-secondary/50 border-border" />
+                </div>
+              </div>
 
-                {/* Tabela parcelas */}
+              {/* Tabela parcelas */}
+              {parcelas.length > 0 && (
                 <div className="rounded-lg border border-border overflow-hidden">
                   <table className="w-full text-sm">
                     <thead>
@@ -478,8 +480,8 @@ export function NovaReceitaModal({ open, onClose }: { open: boolean; onClose: ()
                     </tbody>
                   </table>
                 </div>
-              </>
-            )}
+              )}
+            </div>
 
             {categoria === "Renovação Mentoria" && (
               <div className="grid grid-cols-2 gap-4">
