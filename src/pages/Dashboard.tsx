@@ -112,12 +112,24 @@ export default function Dashboard() {
 
   const metaColor = d.metaPercent >= 80 ? "bg-emerald-500" : d.metaPercent >= 50 ? "bg-yellow-500" : "bg-destructive";
 
+  // Faturamento anual (soma de todos os meses da comparação)
+  const faturamentoAnual = comparacaoMensal.reduce((s, m) => s + m.total, 0);
+
   return (
     <div className="space-y-6 animate-fade-in">
       <h1 className="text-xl font-bold text-foreground">Dashboard</h1>
 
-      {/* LINHA 1 — 4 cards grandes */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+      {/* LINHA 1 — 5 cards grandes */}
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4">
+        <div className="rounded-xl border border-primary/30 bg-primary/5 p-5">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Faturamento Anual</span>
+            <TrendingUp className="h-4 w-4 text-primary" />
+          </div>
+          <p className="text-2xl font-bold text-primary">{formatCurrency(faturamentoAnual)}</p>
+          <p className="text-xs text-muted-foreground mt-1">Acumulado 2026</p>
+        </div>
+
         <div className="rounded-xl border border-border bg-card p-5">
           <div className="flex items-center justify-between mb-2">
             <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Faturado este mês</span>
