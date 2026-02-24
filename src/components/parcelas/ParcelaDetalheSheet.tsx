@@ -22,6 +22,19 @@ export default function ParcelaDetalheSheet({ selectedAluna, onClose, onRegistra
   const [showAddParcela, setShowAddParcela] = useState(false);
   const [editContrato, setEditContrato] = useState<Tables<"parcelas_mentoria"> | null>(null);
 
+  const { data: produtosCatalogo } = useQuery({
+    queryKey: ["produtos-catalogo"],
+    queryFn: async () => {
+      const { data } = await supabase.from("produtos_catalogo").select("*").eq("ativo", true);
+      return data ?? [];
+    },
+  });
+
+  const getProdutoNome = (tipoMentoria: string) => {
+    const prod = (produtosCatalogo ?? []).find(p => p.categoria === tipoMentoria);
+    return prod?.nome ?? tipoMentoria;
+  };
+
   const { data: detalhes } = useQuery({
     queryKey: ["parcelas-detalhe", selectedAluna?.id],
     enabled: !!selectedAluna,
@@ -83,7 +96,7 @@ export default function ParcelaDetalheSheet({ selectedAluna, onClose, onRegistra
             {/* Summary */}
             <div className="grid grid-cols-2 gap-3">
               {[
-                { label: "Tipo", value: selectedAluna.tipo_mentoria },
+                { label: "Produto", value: getProdutoNome(selectedAluna.tipo_mentoria) },
                 { label: "Valor Total", value: formatCurrency(selectedAluna.valor_total) },
                 { label: "Entrada", value: formatCurrency(selectedAluna.entrada_valor) },
                 { label: "Total Pago", value: formatCurrency(totalPago + (selectedAluna.entrada_valor ?? 0)) },
