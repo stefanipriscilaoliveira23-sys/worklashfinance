@@ -4,13 +4,14 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { toast } from "sonner";
-import { Plus, Upload, Search, Trash2, Loader2 } from "lucide-react";
+import { Plus, Upload, Search, Loader2, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { NovaReceitaModal } from "@/components/receitas/NovaReceitaModal";
 import { ImportarPlanilhaModal } from "@/components/receitas/ImportarPlanilhaModal";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
 const PLATAFORMAS = ["Hotmart", "Kiwify", "Eduzz", "Direto Pix", "Outro"] as const;
 const CATEGORIAS = [
@@ -36,7 +37,7 @@ export default function Receitas() {
   const { data: receitas, isLoading } = useQuery({
     queryKey: ["receitas-all"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("receitas").select("*").order("data", { ascending: false });
+      const { data, error } = await supabase.from("receitas").select("*").order("data", { ascending: true });
       if (error) throw error;
       return data;
     },
@@ -125,7 +126,14 @@ export default function Receitas() {
             <td className="p-3 text-muted-foreground">{r.moeda_original}</td>
             <td className="p-3"><div className="flex flex-wrap gap-1">{(r.origens_venda ?? []).map((o, i) => <span key={i} className="px-1.5 py-0.5 text-[10px] rounded bg-primary/10 text-primary">{o}</span>)}</div></td>
             <td className="p-3"><span className={`px-2 py-0.5 text-[10px] rounded-full ${r.status === "ativo" ? "bg-emerald-500/10 text-emerald-400" : "bg-muted text-muted-foreground"}`}>{r.status}</span></td>
-            <td className="p-3">{role === "admin" && <button onClick={() => { if (confirm("Excluir?")) deleteMutation.mutate(r.id); }} className="p-1.5 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"><Trash2 className="h-3.5 w-3.5" /></button>}</td>
+            <td className="p-3">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild><button className="p-1.5 rounded hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors"><MoreHorizontal className="h-4 w-4" /></button></DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="bg-card border-border">
+                  {role === "admin" && <DropdownMenuItem onClick={() => { if (confirm("Excluir esta receita?")) deleteMutation.mutate(r.id); }} className="gap-2 text-destructive"><Trash2 className="h-3.5 w-3.5" /> Excluir</DropdownMenuItem>}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </td>
           </tr>
         ))}
       </tbody>
