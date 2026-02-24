@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { AlertTriangle, Loader2, ArrowRight, ArrowLeft } from "lucide-react";
 import { format, addDays, addWeeks } from "date-fns";
+import { ClienteAutocomplete } from "@/components/receitas/ClienteAutocomplete";
 import type { Database } from "@/integrations/supabase/types";
 
 type PlataformaOrigem = Database["public"]["Enums"]["plataforma_origem"];
@@ -23,7 +24,7 @@ const CATEGORIAS: ProdutoCategoria[] = [
   "Mentoria Outsider", "Mentoria Digital Beauty", "Consultoria Premium", "Consultoria Express",
   "Curso/Formação", "Ferramenta", "Apostila", "Produto Físico", "Renovação Mentoria", "Outros"
 ];
-const MENTORIA_CATS: ProdutoCategoria[] = ["Mentoria Outsider", "Mentoria Digital Beauty", "Consultoria Premium", "Renovação Mentoria"];
+const MENTORIA_CATS: ProdutoCategoria[] = ["Mentoria Outsider", "Mentoria Digital Beauty", "Consultoria Premium", "Consultoria Express", "Renovação Mentoria"];
 
 interface ParcelaRow {
   numero: number;
@@ -202,8 +203,8 @@ export function NovaReceitaModal({ open, onClose }: { open: boolean; onClose: ()
   });
 
   const handleSubmit = () => {
-    if (!produtoNome || !clienteNome || !clienteEmail || origensVenda.length === 0) {
-      toast.error("Preencha todos os campos obrigatórios");
+    if (!produtoId || !clienteNome || !clienteEmail || origensVenda.length === 0) {
+      toast.error("Preencha todos os campos obrigatórios (produto, cliente, email, origens)");
       return;
     }
     if (categoria === "Renovação Mentoria" && (!dataTerminoAnterior || !dataUltimoAcesso)) {
@@ -250,30 +251,22 @@ export function NovaReceitaModal({ open, onClose }: { open: boolean; onClose: ()
               </div>
             </div>
 
-            {/* Produto */}
+            {/* Produto from catalog */}
             <div className="space-y-1.5">
-              <Label className="text-foreground/80">Produto</Label>
-              <Select onValueChange={handleProdutoSelect}>
-                <SelectTrigger className="bg-secondary/50 border-border"><SelectValue placeholder="Selecionar do catálogo (opcional)" /></SelectTrigger>
+              <Label className="text-foreground/80">Produto *</Label>
+              <Select onValueChange={handleProdutoSelect} value={produtoId ?? ""}>
+                <SelectTrigger className="bg-secondary/50 border-border">
+                  <SelectValue placeholder="Selecionar do catálogo" />
+                </SelectTrigger>
                 <SelectContent>
                   {(produtos ?? []).map((p) => <SelectItem key={p.id} value={p.id}>{p.nome}</SelectItem>)}
                 </SelectContent>
               </Select>
-              <Input value={produtoNome} onChange={(e) => setProdutoNome(e.target.value)} placeholder="Ou digite o nome do produto" className="bg-secondary/50 border-border mt-1" />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <Label className="text-foreground/80">Categoria</Label>
-                <Select value={categoria} onValueChange={(v) => setCategoria(v as ProdutoCategoria)}>
-                  <SelectTrigger className="bg-secondary/50 border-border"><SelectValue /></SelectTrigger>
-                  <SelectContent>{CATEGORIAS.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-foreground/80">Valor bruto</Label>
-                <Input type="number" step="0.01" value={valorBruto || ""} onChange={(e) => setValorBruto(Number(e.target.value))} className="bg-secondary/50 border-border" />
-              </div>
+            <div className="space-y-1.5">
+              <Label className="text-foreground/80">Valor bruto</Label>
+              <Input type="number" step="0.01" value={valorBruto || ""} onChange={(e) => setValorBruto(Number(e.target.value))} className="bg-secondary/50 border-border" />
             </div>
 
             <div className="grid grid-cols-3 gap-4">
@@ -318,11 +311,17 @@ export function NovaReceitaModal({ open, onClose }: { open: boolean; onClose: ()
               )}
             </div>
 
-            {/* Cliente */}
+            {/* Cliente with autocomplete */}
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <Label className="text-foreground/80">Cliente nome *</Label>
-                <Input value={clienteNome} onChange={(e) => setClienteNome(e.target.value)} className="bg-secondary/50 border-border" />
+                <ClienteAutocomplete
+                  value={clienteNome}
+                  onChange={(nome, email) => {
+                    setClienteNome(nome);
+                    if (email) setClienteEmail(email);
+                  }}
+                />
               </div>
               <div className="space-y-1.5">
                 <Label className="text-foreground/80">Cliente email *</Label>

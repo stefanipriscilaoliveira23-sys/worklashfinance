@@ -33,7 +33,7 @@ export default function Receitas() {
   const [editReceita, setEditReceita] = useState<any>(null);
   const [search, setSearch] = useState("");
   const [filtroPlataforma, setFiltroPlataforma] = useState("all");
-  const [filtroCategoria, setFiltroCategoria] = useState("all");
+  const [filtroProduto, setFiltroProduto] = useState("all");
   const [tab, setTab] = useState("todas");
 
   const { data: receitas, isLoading } = useQuery({
@@ -124,7 +124,7 @@ export default function Receitas() {
 
   const filtered = allReceitas.filter((r) => {
     if (filtroPlataforma !== "all" && r.plataforma !== filtroPlataforma) return false;
-    if (filtroCategoria !== "all" && r.produto_categoria !== filtroCategoria) return false;
+    if (filtroProduto !== "all" && r.produto_nome !== filtroProduto) return false;
     if (search) {
       const s = search.toLowerCase();
       return r.produto_nome.toLowerCase().includes(s) || (r.cliente_nome ?? "").toLowerCase().includes(s) || (r.cliente_email ?? "").toLowerCase().includes(s);
@@ -135,7 +135,7 @@ export default function Receitas() {
   // Filter parcelas the same way
   const filteredParcelas = parcelasComoReceitas.filter((r: any) => {
     if (filtroPlataforma !== "all" && r.plataforma !== filtroPlataforma) return false;
-    if (filtroCategoria !== "all" && r.produto_categoria !== filtroCategoria) return false;
+    if (filtroProduto !== "all" && r.produto_nome !== filtroProduto) return false;
     if (search) {
       const s = search.toLowerCase();
       return r.produto_nome.toLowerCase().includes(s) || (r.cliente_nome ?? "").toLowerCase().includes(s) || (r.cliente_email ?? "").toLowerCase().includes(s);
@@ -373,11 +373,11 @@ export default function Receitas() {
             {PLATAFORMAS.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
           </SelectContent>
         </Select>
-        <Select value={filtroCategoria} onValueChange={setFiltroCategoria}>
-          <SelectTrigger className="w-[200px] bg-secondary/50 border-border"><SelectValue placeholder="Categoria" /></SelectTrigger>
+        <Select value={filtroProduto} onValueChange={setFiltroProduto}>
+          <SelectTrigger className="w-[200px] bg-secondary/50 border-border"><SelectValue placeholder="Produto" /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Todas</SelectItem>
-            {CATEGORIAS.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+            <SelectItem value="all">Todos</SelectItem>
+            {(produtosCatalogo ?? []).map(p => <SelectItem key={p.id} value={p.nome}>{p.nome}</SelectItem>)}
           </SelectContent>
         </Select>
       </div>

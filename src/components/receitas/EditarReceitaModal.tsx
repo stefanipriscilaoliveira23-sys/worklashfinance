@@ -8,16 +8,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ClienteAutocomplete } from "@/components/receitas/ClienteAutocomplete";
 import type { Database } from "@/integrations/supabase/types";
 
 type PlataformaOrigem = Database["public"]["Enums"]["plataforma_origem"];
 type ProdutoCategoria = Database["public"]["Enums"]["produto_categoria"];
 
 const PLATAFORMAS: PlataformaOrigem[] = ["Hotmart", "Kiwify", "Eduzz", "Direto Pix", "Outro"];
-const CATEGORIAS: ProdutoCategoria[] = [
-  "Mentoria Outsider", "Mentoria Digital Beauty", "Consultoria Premium", "Consultoria Express",
-  "Curso/Formação", "Ferramenta", "Apostila", "Produto Físico", "Renovação Mentoria", "Outros"
-];
 
 interface EditarReceitaModalProps {
   receita: any;
@@ -30,6 +27,7 @@ export function EditarReceitaModal({ receita, open, onClose }: EditarReceitaModa
 
   const [data, setData] = useState("");
   const [produtoNome, setProdutoNome] = useState("");
+  const [produtoId, setProdutoId] = useState<string | null>(null);
   const [categoria, setCategoria] = useState<ProdutoCategoria>("Outros");
   const [plataforma, setPlataforma] = useState<PlataformaOrigem>("Hotmart");
   const [valorBruto, setValorBruto] = useState(0);
@@ -47,6 +45,14 @@ export function EditarReceitaModal({ receita, open, onClose }: EditarReceitaModa
   const [status, setStatus] = useState("ativo");
   const [dataFimMentoria, setDataFimMentoria] = useState("");
 
+  const { data: produtos } = useQuery({
+    queryKey: ["produtos-catalogo"],
+    queryFn: async () => {
+      const { data } = await supabase.from("produtos_catalogo").select("*").eq("ativo", true);
+      return data ?? [];
+    },
+  });
+
   const { data: origensOpcoes } = useQuery({
     queryKey: ["origens-venda-opcoes"],
     queryFn: async () => {
@@ -55,11 +61,11 @@ export function EditarReceitaModal({ receita, open, onClose }: EditarReceitaModa
     },
   });
 
-  // Populate form when receita changes
   useEffect(() => {
     if (receita) {
       setData(receita.data ?? "");
       setProdutoNome(receita.produto_nome ?? "");
+      setProdutoId(receita.produto_id ?? null);
       setCategoria(receita.produto_categoria ?? "Outros");
       setPlataforma(receita.plataforma ?? "Hotmart");
       setValorBruto(receita.valor_bruto ?? 0);
@@ -79,14 +85,12 @@ export function EditarReceitaModal({ receita, open, onClose }: EditarReceitaModa
     }
   }, [receita]);
 
-  // Auto-calc taxa
   useEffect(() => {
     const tv = valorBruto * (taxaPercent / 100);
     setTaxaValor(tv);
     setValorLiquido(valorBruto - tv);
   }, [valorBruto, taxaPercent]);
 
-  // Auto-calc cambio
   useEffect(() => {
     if (moeda !== "BRL" && taxaCambio > 0) {
       setValorBrl(valorBruto * taxaCambio);
@@ -95,11 +99,22 @@ export function EditarReceitaModal({ receita, open, onClose }: EditarReceitaModa
     }
   }, [valorBruto, taxaCambio, moeda]);
 
+  const handleProdutoSelect = (id: string) => {
+    const p = produtos?.find((x) => x.id === id);
+    if (p) {
+      setProdutoId(p.id);
+      setProdutoNome(p.nome);
+      setCategoria(p.categoria);
+      setTaxaPercent(p.custo_direto_percentual ?? 0);
+    }
+  };
+
   const updateMutation = useMutation({
     mutationFn: async () => {
       const { error } = await supabase.from("receitas").update({
         data,
         produto_nome: produtoNome,
+        produto_id: produtoId,
         produto_categoria: categoria,
         plataforma,
         valor_bruto: valorBruto,
@@ -149,19 +164,20 @@ export function EditarReceitaModal({ receita, open, onClose }: EditarReceitaModa
             </div>
           </div>
 
+          {/* Produto from catalog */}
           <div className="space-y-1.5">
             <Label className="text-foreground/80">Produto</Label>
-            <Input value={produtoNome} onChange={(e) => setProdutoNome(e.target.value)} className="bg-secondary/50 border-border" />
+            <Select value={produtoId ?? ""} onValueChange={handleProdutoSelect}>
+              <SelectTrigger className="bg-secondary/50 border-border">
+                <SelectValue placeholder="Selecionar do catálogo" />
+              </SelectTrigger>
+              <SelectContent>
+                {(produtos ?? []).map((p) => <SelectItem key={p.id} value={p.id}>{p.nome}</SelectItem>)}
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1.5">
-              <Label className="text-foreground/80">Categoria</Label>
-              <Select value={categoria} onValueChange={(v) => setCategoria(v as ProdutoCategoria)}>
-                <SelectTrigger className="bg-secondary/50 border-border"><SelectValue /></SelectTrigger>
-                <SelectContent>{CATEGORIAS.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
-              </Select>
-            </div>
             <div className="space-y-1.5">
               <Label className="text-foreground/80">Plataforma</Label>
               <Select value={plataforma} onValueChange={(v) => setPlataforma(v as PlataformaOrigem)}>
@@ -169,16 +185,20 @@ export function EditarReceitaModal({ receita, open, onClose }: EditarReceitaModa
                 <SelectContent>{PLATAFORMAS.map((p) => <SelectItem key={p} value={p}>{p}</SelectItem>)}</SelectContent>
               </Select>
             </div>
-          </div>
-
-          <div className="grid grid-cols-3 gap-4">
             <div className="space-y-1.5">
               <Label className="text-foreground/80">Valor bruto</Label>
               <Input type="number" step="0.01" value={valorBruto || ""} onChange={(e) => setValorBruto(Number(e.target.value))} className="bg-secondary/50 border-border" />
             </div>
+          </div>
+
+          <div className="grid grid-cols-3 gap-4">
             <div className="space-y-1.5">
               <Label className="text-foreground/80">Taxa %</Label>
               <Input type="number" step="0.1" value={taxaPercent || ""} onChange={(e) => setTaxaPercent(Number(e.target.value))} className="bg-secondary/50 border-border" />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-foreground/80">Valor taxa</Label>
+              <Input type="number" step="0.01" value={taxaValor || ""} onChange={(e) => setTaxaValor(Number(e.target.value))} className="bg-secondary/50 border-border" readOnly />
             </div>
             <div className="space-y-1.5">
               <Label className="text-foreground/80">Valor líquido</Label>
@@ -212,10 +232,17 @@ export function EditarReceitaModal({ receita, open, onClose }: EditarReceitaModa
             )}
           </div>
 
+          {/* Cliente with autocomplete */}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">
               <Label className="text-foreground/80">Cliente nome</Label>
-              <Input value={clienteNome} onChange={(e) => setClienteNome(e.target.value)} className="bg-secondary/50 border-border" />
+              <ClienteAutocomplete
+                value={clienteNome}
+                onChange={(nome, email) => {
+                  setClienteNome(nome);
+                  if (email) setClienteEmail(email);
+                }}
+              />
             </div>
             <div className="space-y-1.5">
               <Label className="text-foreground/80">Cliente email</Label>
