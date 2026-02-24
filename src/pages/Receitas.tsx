@@ -45,6 +45,19 @@ export default function Receitas() {
     },
   });
 
+  const { data: produtosCatalogo } = useQuery({
+    queryKey: ["produtos-catalogo"],
+    queryFn: async () => {
+      const { data } = await supabase.from("produtos_catalogo").select("*").eq("ativo", true);
+      return data ?? [];
+    },
+  });
+
+  const getProdutoNome = (tipoMentoria: string) => {
+    const prod = (produtosCatalogo ?? []).find(p => p.categoria === tipoMentoria);
+    return prod?.nome ?? tipoMentoria;
+  };
+
   const { data: parcelasData } = useQuery({
     queryKey: ["receitas-parcelas-info"],
     queryFn: async () => {
@@ -87,7 +100,7 @@ export default function Receitas() {
     return {
       id: `parcela-${pq.id}`,
       data: pq.data_pagamento ?? pq.data_vencimento,
-      produto_nome: parent.tipo_mentoria,
+      produto_nome: getProdutoNome(parent.tipo_mentoria),
       produto_categoria: parent.tipo_mentoria,
       plataforma: "" as any,
       cliente_nome: parent.cliente_nome,
