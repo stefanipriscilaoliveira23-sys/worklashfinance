@@ -30,9 +30,13 @@ export default function ParcelaDetalheSheet({ selectedAluna, onClose, onRegistra
     },
   });
 
-  const getProdutoNome = (tipoMentoria: string) => {
-    const prod = (produtosCatalogo ?? []).find(p => p.categoria === tipoMentoria);
-    return prod?.nome ?? tipoMentoria;
+  const getProdutoNome = (parcela: any) => {
+    if (parcela.produto_id) {
+      const prod = (produtosCatalogo ?? []).find(p => p.id === parcela.produto_id);
+      if (prod) return prod.nome;
+    }
+    const prod = (produtosCatalogo ?? []).find(p => p.categoria === parcela.tipo_mentoria);
+    return prod?.nome ?? parcela.tipo_mentoria;
   };
 
   const { data: detalhes } = useQuery({
@@ -96,7 +100,7 @@ export default function ParcelaDetalheSheet({ selectedAluna, onClose, onRegistra
             {/* Summary */}
             <div className="grid grid-cols-2 gap-3">
               {[
-                { label: "Produto", value: getProdutoNome(selectedAluna.tipo_mentoria) },
+                { label: "Produto", value: getProdutoNome(selectedAluna) },
                 { label: "Valor Total", value: formatCurrency(selectedAluna.valor_total) },
                 { label: "Entrada", value: formatCurrency(selectedAluna.entrada_valor) },
                 { label: "Total Pago", value: formatCurrency(totalPago + (selectedAluna.entrada_valor ?? 0)) },

@@ -69,10 +69,14 @@ export default function ParcelasMentoria() {
     },
   });
 
-  // Helper: resolve product name from tipo_mentoria
-  const getProdutoNome = (tipoMentoria: string) => {
-    const prod = (produtosCatalogo ?? []).find(p => p.categoria === tipoMentoria);
-    return prod?.nome ?? tipoMentoria;
+  // Helper: resolve product name from produto_id or tipo_mentoria
+  const getProdutoNome = (parcela: any) => {
+    if (parcela.produto_id) {
+      const prod = (produtosCatalogo ?? []).find(p => p.id === parcela.produto_id);
+      if (prod) return prod.nome;
+    }
+    const prod = (produtosCatalogo ?? []).find(p => p.categoria === parcela.tipo_mentoria);
+    return prod?.nome ?? parcela.tipo_mentoria;
   };
 
   // Fetch all parcelas with their details for the selected month
@@ -297,7 +301,7 @@ export default function ParcelasMentoria() {
                       }}
                     >
                       <td className="p-3 font-medium">{parent.cliente_nome}</td>
-                      <td className="p-3 text-muted-foreground text-xs">{getProdutoNome(parent.tipo_mentoria)}</td>
+                      <td className="p-3 text-muted-foreground text-xs">{getProdutoNome(parent)}</td>
                       <td className="p-3 text-xs">
                         <span className="text-primary font-medium">{d.numero_parcela}</span>
                         <span className="text-muted-foreground">/{parent.quant_parcelas}</span>
