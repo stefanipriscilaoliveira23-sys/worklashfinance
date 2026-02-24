@@ -1,22 +1,46 @@
 import { useState, useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 import { formatCurrency, formatPercent, getMonthRange, getDaysInMonth } from "@/lib/format";
-import { Loader2, Package, TrendingUp, Users, BarChart3, PieChart as PieIcon, ChevronLeft, ChevronRight } from "lucide-react";
+import { toast } from "sonner";
+import { Loader2, Package, TrendingUp, Users, BarChart3, PieChart as PieIcon, ChevronLeft, ChevronRight, Plus, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, BarChart, Bar } from "recharts";
+import type { Database } from "@/integrations/supabase/types";
+
+type ProdutoCategoria = Database["public"]["Enums"]["produto_categoria"];
 
 const GOLD_COLORS = ["#C9A84C", "#E5C76B", "#A68A3E", "#D4B85A", "#8B7432", "#F0D87E"];
 const ENTRY_CATEGORIES = ["Apostila", "Ferramenta", "Produto Físico"];
 
+const CATEGORIAS: ProdutoCategoria[] = [
+  "Mentoria Outsider", "Mentoria Digital Beauty", "Consultoria Premium", "Consultoria Express",
+  "Curso/Formação", "Ferramenta", "Apostila", "Produto Físico", "Renovação Mentoria", "Outros"
+];
+const PLATAFORMAS = ["Hotmart", "Kiwify", "Eduzz", "Direto Pix", "Outro"];
+
 export default function ProdutosMargem() {
+  const { role } = useAuth();
+  const queryClient = useQueryClient();
   const [tab, setTab] = useState("catalogo");
   const now = new Date();
   const [ano, setAno] = useState(now.getFullYear());
   const [mes, setMes] = useState(now.getMonth());
   const { start, end } = getMonthRange(ano, mes);
   const mesLabel = new Date(ano, mes).toLocaleString("pt-BR", { month: "long", year: "numeric" });
+
+  // Product form state
+  const [showProdForm, setShowProdForm] = useState(false);
+  const [editProd, setEditProd] = useState<any>(null);
+  const [prodForm, setProdForm] = useState({ nome: "", categoria: "Outros" as ProdutoCategoria, plataformas: [] as string[], custo_direto_percentual: 0, observacao: "" });
 
   const { data: produtos, isLoading: loadProd } = useQuery({
     queryKey: ["produtos-catalogo"],
@@ -60,13 +84,42 @@ export default function ProdutosMargem() {
 
   const isLoading = loadProd || loadRec;
 
+  const openAddProd = () => { setEditProd(null); setProdForm({ nome: "", categoria: "Outros", plataformas: [], custo_direto_percentual: 0, observacao: "" }); setShowProdForm(true); };
+  const openEditProd = (p: any) => { setEditProd(p); setProdForm({ nome: p.nome, categoria: p.categoria, plataformas: p.plataformas ?? [], custo_direto_percentual: p.custo_direto_percentual ?? 0, observacao: p.observacao ?? "" }); setShowProdForm(true); };
+  const closeProdForm = () => { setShowProdForm(false); setEditProd(null); };
+
+  const saveProd = useMutation({
+    mutationFn: async () => {
+      if (!prodForm.nome) throw new Error("Nome obrigatório");
+      const payload = { nome: prodForm.nome, categoria: prodForm.categoria, plataformas: prodForm.plataformas, custo_direto_percentual: prodForm.custo_direto_percentual, observacao: prodForm.observacao || null };
+      if (editProd) {
+        const { error } = await supabase.from("produtos_catalogo").update(payload).eq("id", editProd.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.from("produtos_catalogo").insert(payload);
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["produtos-catalogo"] }); toast.success(editProd ? "Produto atualizado" : "Produto adicionado"); closeProdForm(); },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  const deleteProd = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("produtos_catalogo").update({ ativo: false }).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["produtos-catalogo"] }); toast.success("Produto removido"); },
+    onError: () => toast.error("Erro ao remover produto"),
+  });
+
   const allReceitas = receitas ?? [];
   const receitasMes = allReceitas.filter(r => r.data >= start && r.data <= end);
   const proLabore = meta?.pro_labore ?? 30000;
 
-  // CATÁLOGO
+  // CATÁLOGO — match by id, name, or category (for parcelas that use tipo_mentoria as categoria)
   const catalogData = (produtos ?? []).map(p => {
-    const vendas = allReceitas.filter(r => r.produto_id === p.id || r.produto_nome === p.nome);
+    const vendas = allReceitas.filter(r => r.produto_id === p.id || r.produto_nome === p.nome || r.produto_categoria === p.categoria);
     const totalBruto = vendas.reduce((s, r) => s + (r.valor_bruto ?? 0), 0);
     const precoMedio = vendas.length > 0 ? totalBruto / vendas.length : 0;
     const custoPerc = p.custo_direto_percentual ?? 0;
@@ -171,16 +224,19 @@ export default function ProdutosMargem() {
 
         {/* CATÁLOGO */}
         <TabsContent value="catalogo">
+          <div className="flex justify-end mb-3">
+            <Button onClick={openAddProd} className="gold-gradient text-primary-foreground"><Plus className="h-4 w-4 mr-2" /> Novo produto</Button>
+          </div>
           <div className="rounded-xl border border-border bg-card overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead><tr className="border-b border-border bg-secondary/30">
-                  {["Produto", "Categoria", "Plataforma(s)", "Custo Direto %", "Preço Médio", "Margem Média %", "Vendas"].map(h => (
+                  {["Produto", "Categoria", "Plataforma(s)", "Custo Direto %", "Preço Médio", "Margem Média %", "Vendas", "Ações"].map(h => (
                     <th key={h} className={`p-3 text-xs font-medium text-muted-foreground ${["Custo Direto %", "Preço Médio", "Margem Média %", "Vendas"].includes(h) ? "text-right" : "text-left"}`}>{h}</th>
                   ))}
                 </tr></thead>
                 <tbody>
-                  {catalogData.length === 0 && <tr><td colSpan={7} className="p-12 text-center text-muted-foreground">Nenhum produto no catálogo</td></tr>}
+                  {catalogData.length === 0 && <tr><td colSpan={8} className="p-12 text-center text-muted-foreground">Nenhum produto no catálogo</td></tr>}
                   {catalogData.map(p => (
                     <tr key={p.id} className="border-b border-border/50 hover:bg-surface-hover transition-colors">
                       <td className="p-3 font-medium">{p.nome}</td>
@@ -190,6 +246,15 @@ export default function ProdutosMargem() {
                       <td className="p-3 text-right">{formatCurrency(p.precoMedio)}</td>
                       <td className={`p-3 text-right font-medium ${p.margemPerc >= 70 ? "text-emerald-400" : "text-foreground"}`}>{formatPercent(p.margemPerc)}</td>
                       <td className="p-3 text-right text-muted-foreground">{p.vendas}</td>
+                      <td className="p-3">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild><button className="p-1.5 rounded hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors"><MoreHorizontal className="h-4 w-4" /></button></DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="bg-card border-border">
+                            <DropdownMenuItem onClick={() => openEditProd(p)} className="gap-2"><Pencil className="h-3.5 w-3.5" /> Editar</DropdownMenuItem>
+                            {role === "admin" && <DropdownMenuItem onClick={() => { if (confirm("Remover produto?")) deleteProd.mutate(p.id); }} className="gap-2 text-destructive"><Trash2 className="h-3.5 w-3.5" /> Excluir</DropdownMenuItem>}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -392,6 +457,53 @@ export default function ProdutosMargem() {
           </div>
         </TabsContent>
       </Tabs>
+
+      {/* Product Add/Edit Dialog */}
+      <Dialog open={showProdForm} onOpenChange={() => closeProdForm()}>
+        <DialogContent className="max-w-lg bg-card border-border">
+          <DialogHeader><DialogTitle className="text-foreground">{editProd ? "Editar Produto" : "Novo Produto"}</DialogTitle></DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-1.5">
+              <Label className="text-foreground/80">Nome *</Label>
+              <Input value={prodForm.nome} onChange={e => setProdForm(f => ({ ...f, nome: e.target.value }))} className="bg-secondary/50 border-border" />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label className="text-foreground/80">Categoria</Label>
+                <Select value={prodForm.categoria} onValueChange={v => setProdForm(f => ({ ...f, categoria: v as ProdutoCategoria }))}>
+                  <SelectTrigger className="bg-secondary/50 border-border"><SelectValue /></SelectTrigger>
+                  <SelectContent>{CATEGORIAS.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-foreground/80">Custo Direto %</Label>
+                <Input type="number" step="0.1" value={prodForm.custo_direto_percentual || ""} onChange={e => setProdForm(f => ({ ...f, custo_direto_percentual: Number(e.target.value) }))} className="bg-secondary/50 border-border" />
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-foreground/80">Plataformas</Label>
+              <div className="flex flex-wrap gap-2">
+                {PLATAFORMAS.map(p => (
+                  <button key={p} type="button" onClick={() => setProdForm(f => ({ ...f, plataformas: f.plataformas.includes(p) ? f.plataformas.filter(x => x !== p) : [...f.plataformas, p] }))}
+                    className={`px-3 py-1.5 text-xs rounded-full border transition-colors ${prodForm.plataformas.includes(p) ? "bg-primary/20 border-primary text-primary" : "border-border text-muted-foreground hover:border-primary/50"}`}>
+                    {p}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-foreground/80">Observação</Label>
+              <Textarea value={prodForm.observacao} onChange={e => setProdForm(f => ({ ...f, observacao: e.target.value }))} className="bg-secondary/50 border-border" rows={2} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={closeProdForm} className="border-border">Cancelar</Button>
+            <Button onClick={() => saveProd.mutate()} disabled={saveProd.isPending} className="gold-gradient text-primary-foreground">
+              {saveProd.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Salvar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
