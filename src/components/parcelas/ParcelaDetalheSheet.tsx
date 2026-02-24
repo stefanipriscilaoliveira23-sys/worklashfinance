@@ -4,9 +4,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { Pencil } from "lucide-react";
+import { Pencil, Plus } from "lucide-react";
 import { statusBadge } from "@/pages/ParcelasMentoria";
 import EditarParcelaDialog from "@/components/parcelas/EditarParcelaDialog";
+import AdicionarParcelaDialog from "@/components/parcelas/AdicionarParcelaDialog";
 import type { Tables } from "@/integrations/supabase/types";
 
 interface Props {
@@ -17,6 +18,7 @@ interface Props {
 
 export default function ParcelaDetalheSheet({ selectedAluna, onClose, onRegistrarPagamento }: Props) {
   const [editParcela, setEditParcela] = useState<Tables<"parcelas_mentoria_detalhe"> | null>(null);
+  const [showAddParcela, setShowAddParcela] = useState(false);
   const { data: detalhes } = useQuery({
     queryKey: ["parcelas-detalhe", selectedAluna?.id],
     enabled: !!selectedAluna,
@@ -82,7 +84,18 @@ export default function ParcelaDetalheSheet({ selectedAluna, onClose, onRegistra
 
             {/* Parcelas detail */}
             <div>
-              <h3 className="text-sm font-semibold text-foreground mb-3">Parcelas</h3>
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-semibold text-foreground">Parcelas</h3>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-7 text-xs border-primary/30 text-primary hover:bg-primary/10"
+                  onClick={() => setShowAddParcela(true)}
+                >
+                  <Plus className="h-3 w-3 mr-1" />
+                  Adicionar
+                </Button>
+              </div>
               <div className="space-y-2">
                 {(detalhes ?? []).map(d => {
                   const pagamentos = (historicoPagamentos ?? []).filter(hp => hp.referencia_id === d.id);
@@ -154,6 +167,11 @@ export default function ParcelaDetalheSheet({ selectedAluna, onClose, onRegistra
       <EditarParcelaDialog
         parcela={editParcela}
         onClose={() => setEditParcela(null)}
+      />
+
+      <AdicionarParcelaDialog
+        parcelaMentoriaId={showAddParcela && selectedAluna ? selectedAluna.id : null}
+        onClose={() => setShowAddParcela(false)}
       />
     </Sheet>
   );
