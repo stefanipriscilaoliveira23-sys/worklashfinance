@@ -289,14 +289,7 @@ export default function ParcelasMentoria() {
                       </td>
                       <td className="p-3 text-right">{formatCurrency(valorParcela)}</td>
                       <td className="p-3 text-muted-foreground text-xs">{formatDate(d.data_vencimento)}</td>
-                      <td className="p-3 text-right text-primary">{formatCurrency(
-                        // Saldo do contrato = valor_total - entrada - soma de todas parcelas pagas
-                        Math.max(0, (parent.valor_total ?? 0) - (parent.entrada_valor ?? 0) - 
-                          ((allDetalhes ?? [])
-                            .filter((p: any) => p.parcela_mentoria_id === parent.id && p.status === "Quitado")
-                            .reduce((s: number, p: any) => s + (p.valor_real ?? p.valor_sugerido ?? 0), 0))
-                        )
-                      )}</td>
+                      <td className="p-3 text-right text-primary">{formatCurrency(d.saldo_parcela ?? 0)}</td>
                       <td className="p-3">{statusBadge(d.status)}</td>
                       <td className="p-3 text-muted-foreground text-xs truncate max-w-[100px]">{d.observacao || "—"}</td>
                       <td className="p-3"><ChevronRight className="h-4 w-4 text-muted-foreground" /></td>
