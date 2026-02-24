@@ -65,7 +65,13 @@ export function EditarReceitaModal({ receita, open, onClose }: EditarReceitaModa
     if (receita) {
       setData(receita.data ?? "");
       setProdutoNome(receita.produto_nome ?? "");
-      setProdutoId(receita.produto_id ?? null);
+      // Try to match product from catalog
+      let matchedId = receita.produto_id ?? null;
+      if (!matchedId && receita.produto_nome && produtos) {
+        const match = produtos.find(p => p.nome === receita.produto_nome);
+        if (match) matchedId = match.id;
+      }
+      setProdutoId(matchedId);
       setCategoria(receita.produto_categoria ?? "Outros");
       setPlataforma(receita.plataforma ?? "Hotmart");
       setValorBruto(receita.valor_bruto ?? 0);
@@ -83,7 +89,7 @@ export function EditarReceitaModal({ receita, open, onClose }: EditarReceitaModa
       setStatus(receita.status ?? "ativo");
       setDataFimMentoria(receita.data_fim_mentoria ?? "");
     }
-  }, [receita]);
+  }, [receita, produtos]);
 
   useEffect(() => {
     const tv = valorBruto * (taxaPercent / 100);
