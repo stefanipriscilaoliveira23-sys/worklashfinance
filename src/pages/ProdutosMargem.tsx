@@ -2,7 +2,7 @@ import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { formatCurrency, formatPercent, getMonthRange, getDaysInMonth } from "@/lib/format";
+import { formatCurrency, formatPercent, formatDate, getMonthRange, getDaysInMonth } from "@/lib/format";
 import { toast } from "sonner";
 import { Loader2, Package, TrendingUp, Users, BarChart3, PieChart as PieIcon, ChevronLeft, ChevronRight, Plus, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -41,6 +41,7 @@ export default function ProdutosMargem() {
   const [showProdForm, setShowProdForm] = useState(false);
   const [editProd, setEditProd] = useState<any>(null);
   const [prodForm, setProdForm] = useState({ nome: "", categoria: "Outros" as ProdutoCategoria, plataformas: [] as string[], custo_direto_percentual: 0, observacao: "" });
+  const [showCompradores, setShowCompradores] = useState<{ nome: string; compradores: { nome: string; data: string; valor: number }[] } | null>(null);
 
   const { data: produtos, isLoading: loadProd } = useQuery({
     queryKey: ["produtos-catalogo"],
@@ -134,19 +135,20 @@ export default function ProdutosMargem() {
   // CATÁLOGO — match by resolved product name
   const allParcelas = parcelasMentoria ?? [];
   const catalogData = (produtos ?? []).map(p => {
-    // Match receitas by id, name, or category
     const vendasReceitas = allReceitas.filter(r => r.produto_id === p.id || r.produto_nome === p.nome || r.produto_categoria === p.categoria);
-    // Match parcelas by resolved product name
     const vendasParcelas = allParcelas.filter(pm => getProdutoNome(pm.tipo_mentoria) === p.nome);
     
-    const totalVendas = vendasReceitas.length + vendasParcelas.length;
-    const totalBrutoReceitas = vendasReceitas.reduce((s, r) => s + (r.valor_bruto ?? 0), 0);
-    const totalBrutoParcelas = vendasParcelas.reduce((s, pm) => s + (pm.valor_total ?? 0), 0);
-    const totalBruto = totalBrutoReceitas + totalBrutoParcelas;
+    const compradores: { nome: string; data: string; valor: number }[] = [];
+    vendasReceitas.forEach(r => compradores.push({ nome: r.cliente_nome ?? "—", data: r.data, valor: r.valor_bruto ?? 0 }));
+    vendasParcelas.forEach(pm => compradores.push({ nome: pm.cliente_nome, data: pm.data_inicio, valor: pm.valor_total ?? 0 }));
+    compradores.sort((a, b) => b.data.localeCompare(a.data));
+
+    const totalVendas = compradores.length;
+    const totalBruto = compradores.reduce((s, c) => s + c.valor, 0);
     const precoMedio = totalVendas > 0 ? totalBruto / totalVendas : 0;
     const custoPerc = p.custo_direto_percentual ?? 0;
     const margemPerc = precoMedio > 0 ? 100 - custoPerc : 0;
-    return { ...p, vendas: totalVendas, precoMedio, margemPerc, totalBruto };
+    return { ...p, vendas: totalVendas, precoMedio, margemPerc, totalBruto, compradores };
   });
 
   // DESEMPENHO DO MÊS
@@ -267,7 +269,18 @@ export default function ProdutosMargem() {
                       <td className="p-3 text-right text-muted-foreground">{formatPercent(p.custo_direto_percentual)}</td>
                       <td className="p-3 text-right">{formatCurrency(p.precoMedio)}</td>
                       <td className={`p-3 text-right font-medium ${p.margemPerc >= 70 ? "text-emerald-400" : "text-foreground"}`}>{formatPercent(p.margemPerc)}</td>
-                      <td className="p-3 text-right text-muted-foreground">{p.vendas}</td>
+                      <td className="p-3 text-right">
+                        {p.vendas > 0 ? (
+                          <button
+                            onClick={() => setShowCompradores({ nome: p.nome, compradores: p.compradores })}
+                            className="text-primary underline underline-offset-2 hover:text-primary/80 transition-colors cursor-pointer font-medium"
+                          >
+                            {p.vendas}
+                          </button>
+                        ) : (
+                          <span className="text-muted-foreground">0</span>
+                        )}
+                      </td>
                       <td className="p-3">
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild><button className="p-1.5 rounded hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors"><MoreHorizontal className="h-4 w-4" /></button></DropdownMenuTrigger>
@@ -524,6 +537,35 @@ export default function ProdutosMargem() {
               {saveProd.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Salvar"}
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Compradores Dialog */}
+      <Dialog open={!!showCompradores} onOpenChange={() => setShowCompradores(null)}>
+        <DialogContent className="max-w-lg bg-card border-border max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-foreground">Compradores — {showCompradores?.nome}</DialogTitle>
+          </DialogHeader>
+          <div className="rounded-lg border border-border overflow-hidden">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border bg-secondary/30">
+                  <th className="p-3 text-xs font-medium text-muted-foreground text-left">Cliente</th>
+                  <th className="p-3 text-xs font-medium text-muted-foreground text-left">Data</th>
+                  <th className="p-3 text-xs font-medium text-muted-foreground text-right">Valor</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(showCompradores?.compradores ?? []).map((c, i) => (
+                  <tr key={i} className="border-b border-border/50 hover:bg-surface-hover transition-colors">
+                    <td className="p-3 font-medium">{c.nome}</td>
+                    <td className="p-3 text-muted-foreground">{formatDate(c.data)}</td>
+                    <td className="p-3 text-right text-primary">{formatCurrency(c.valor)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </DialogContent>
       </Dialog>
     </div>
