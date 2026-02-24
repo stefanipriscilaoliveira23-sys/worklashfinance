@@ -276,12 +276,26 @@ export default function Clientes() {
           {selectedCliente && (
             <div className="space-y-6">
               <SheetHeader>
-                <SheetTitle className="text-foreground">{selectedCliente.nome}</SheetTitle>
-                <div className="space-y-1">
-                  <p className="text-sm text-muted-foreground">{selectedCliente.email || "Sem email"}</p>
-                  {(selectedCliente as any).whatsapp && <p className="text-xs text-muted-foreground">📱 {(selectedCliente as any).whatsapp}</p>}
-                  {(selectedCliente as any).instagram && <p className="text-xs text-muted-foreground">📸 {(selectedCliente as any).instagram}</p>}
-                  {selectedCliente.observacao && <p className="text-xs text-muted-foreground italic mt-2">{selectedCliente.observacao}</p>}
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <SheetTitle className="text-foreground">{selectedCliente.nome}</SheetTitle>
+                    <div className="space-y-1 mt-1">
+                      <p className="text-sm text-muted-foreground">{selectedCliente.email || "Sem email"}</p>
+                      {(selectedCliente as any).whatsapp && <p className="text-xs text-muted-foreground">📱 {(selectedCliente as any).whatsapp}</p>}
+                      {(selectedCliente as any).instagram && <p className="text-xs text-muted-foreground">📸 {(selectedCliente as any).instagram}</p>}
+                      {selectedCliente.observacao && <p className="text-xs text-muted-foreground italic mt-2">{selectedCliente.observacao}</p>}
+                    </div>
+                  </div>
+
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-8 text-xs border-primary/30 text-primary hover:bg-primary/10"
+                    onClick={() => openEdit(selectedCliente)}
+                  >
+                    <Pencil className="h-3 w-3 mr-1" />
+                    Editar perfil
+                  </Button>
                 </div>
               </SheetHeader>
 
