@@ -2,9 +2,10 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { formatCurrency, formatDate, getMonthRange, getWeekRange } from "@/lib/format";
+import { formatCurrency, formatDate } from "@/lib/format";
 import { toast } from "sonner";
 import { Plus, Search, Loader2, DollarSign, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
+import MonthNavigator, { getCurrentMonthKey, type DateFilter, filterByDate, getDateRange } from "@/components/MonthNavigator";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -33,6 +34,7 @@ export default function DespesasEmpresa() {
   const [search, setSearch] = useState("");
   const [filtroCategoria, setFiltroCategoria] = useState("all");
   const [filtroStatus, setFiltroStatus] = useState("all");
+  const [dateFilter, setDateFilter] = useState<DateFilter>({ type: "month", key: getCurrentMonthKey() });
 
   // New expense modal
   const [showNova, setShowNova] = useState(false);
@@ -185,21 +187,19 @@ export default function DespesasEmpresa() {
     if (tab !== "cmv" && d.tipo_despesa !== tipoFiltro) return false;
     if (filtroCategoria !== "all" && d.categoria !== filtroCategoria) return false;
     if (filtroStatus !== "all" && d.status !== filtroStatus) return false;
+    if (!filterByDate(d.data_vencimento, dateFilter)) return false;
     if (search) {
       return d.descricao.toLowerCase().includes(search.toLowerCase());
     }
     return true;
   });
 
-  const now = new Date();
-  const { start: mesStart, end: mesEnd } = getMonthRange(now.getFullYear(), now.getMonth());
+  const { start: mesStart, end: mesEnd } = getDateRange(dateFilter);
   const mesAtual = (despesas ?? []).filter(d => d.data_vencimento && d.data_vencimento >= mesStart && d.data_vencimento <= mesEnd);
   const totalMes = mesAtual.reduce((s, d) => s + (d.valor_original ?? 0), 0);
   const pagoMes = mesAtual.reduce((s, d) => s + (d.valor_pago_total ?? 0), 0);
-  const emAtraso = (despesas ?? []).filter(d => d.status === "Em Atraso").reduce((s, d) => s + (d.saldo_pendente ?? 0), 0);
-  const weekRange = getWeekRange();
-  const aVencerSemana = (despesas ?? []).filter(d => d.status === "A Vencer" && d.data_vencimento && d.data_vencimento >= weekRange.start && d.data_vencimento <= weekRange.end)
-    .reduce((s, d) => s + (d.saldo_pendente ?? 0), 0);
+  const emAtraso = mesAtual.filter(d => d.status === "Em Atraso").reduce((s, d) => s + (d.saldo_pendente ?? 0), 0);
+  const pendenteMes = mesAtual.filter(d => d.status === "A Vencer").reduce((s, d) => s + (d.saldo_pendente ?? 0), 0);
 
   const renderTable = (items: typeof filtered) => (
     <div className="rounded-xl border border-border bg-card overflow-hidden">
@@ -263,13 +263,15 @@ export default function DespesasEmpresa() {
         </Button>
       </div>
 
+      <MonthNavigator filter={dateFilter} onChange={setDateFilter} />
+
       {/* Summary cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[
-          { label: "Total do mês", value: formatCurrency(totalMes) },
+          { label: "Total do período", value: formatCurrency(totalMes) },
           { label: "Pago", value: formatCurrency(pagoMes) },
           { label: "Em atraso", value: formatCurrency(emAtraso), alert: emAtraso > 0 },
-          { label: "Vence esta semana", value: formatCurrency(aVencerSemana) },
+          { label: "Pendente", value: formatCurrency(pendenteMes) },
         ].map(c => (
           <div key={c.label} className={`rounded-xl border p-4 ${c.alert ? "border-destructive/30 bg-destructive/5" : "border-border bg-card"}`}>
             <p className="text-xs text-muted-foreground uppercase tracking-wider">{c.label}</p>

@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { toast } from "sonner";
-import { Plus, Upload, Search, Loader2, MoreHorizontal, Pencil, Trash2, ChevronLeft, ChevronRight } from "lucide-react";
+import { Plus, Upload, Search, Loader2, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -13,6 +13,7 @@ import { NovaReceitaModal } from "@/components/receitas/NovaReceitaModal";
 import { ImportarPlanilhaModal } from "@/components/receitas/ImportarPlanilhaModal";
 import { EditarReceitaModal } from "@/components/receitas/EditarReceitaModal";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import MonthNavigator, { getCurrentMonthKey, type DateFilter, filterByDate } from "@/components/MonthNavigator";
 
 const PLATAFORMAS = ["Hotmart", "Kiwify", "Eduzz", "Direto Pix", "Outro"] as const;
 const CATEGORIAS = [
@@ -25,28 +26,6 @@ const RENOVACAO_CATS = ["Renovação Mentoria"];
 const DIGITAL_CATS = ["Curso/Formação", "Ferramenta", "Apostila"];
 const FISICO_CATS = ["Produto Físico"];
 
-// Generate month tabs: Feb/2026 onwards
-function generateMonths() {
-  const months: { key: string; label: string }[] = [];
-  const now = new Date();
-  const endYear = now.getFullYear();
-  const endMonth = now.getMonth(); // 0-indexed
-  for (let m = 1; m <= 11; m++) { // m=1 is Feb(index), m=11 is Dec
-    const d = new Date(2026, m, 1);
-    if (d.getFullYear() > endYear || (d.getFullYear() === endYear && d.getMonth() > endMonth + 1)) break;
-    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-    const label = d.toLocaleString("pt-BR", { month: "short" }).replace(".", "");
-    months.push({ key, label: label.charAt(0).toUpperCase() + label.slice(1) });
-  }
-  return months;
-}
-const MONTHS = generateMonths();
-
-function getCurrentMonthKey() {
-  const now = new Date();
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-}
-
 export default function Receitas() {
   const { role } = useAuth();
   const queryClient = useQueryClient();
@@ -56,7 +35,7 @@ export default function Receitas() {
   const [search, setSearch] = useState("");
   const [filtroPlataforma, setFiltroPlataforma] = useState("all");
   const [filtroProduto, setFiltroProduto] = useState("all");
-  const [selectedMonth, setSelectedMonth] = useState(getCurrentMonthKey());
+  const [dateFilter, setDateFilter] = useState<DateFilter>({ type: "month", key: getCurrentMonthKey() });
   const [tab, setTab] = useState("todas");
 
   const { data: receitas, isLoading } = useQuery({
@@ -169,13 +148,9 @@ export default function Receitas() {
     return true;
   });
 
-  // Merge, filter by month, and sort
+  // Merge, filter by date, and sort
   const allEntries = [...filtered, ...filteredParcelas]
-    .filter(r => {
-      if (!r.data) return false;
-      const monthKey = r.data.substring(0, 7); // "YYYY-MM"
-      return monthKey === selectedMonth;
-    })
+    .filter(r => filterByDate(r.data, dateFilter))
     .sort((a, b) => (a.data ?? "").localeCompare(b.data ?? ""));
 
   // Tab filtering
@@ -383,42 +358,7 @@ export default function Receitas() {
         </div>
       </div>
 
-      {/* Month navigation */}
-      <div className="flex items-center gap-1 overflow-x-auto">
-        <button
-          onClick={() => {
-            const idx = MONTHS.findIndex(m => m.key === selectedMonth);
-            if (idx > 0) setSelectedMonth(MONTHS[idx - 1].key);
-          }}
-          disabled={MONTHS.findIndex(m => m.key === selectedMonth) <= 0}
-          className="p-1.5 rounded hover:bg-secondary text-muted-foreground disabled:opacity-30 shrink-0"
-        >
-          <ChevronLeft className="h-4 w-4" />
-        </button>
-        {MONTHS.map(m => (
-          <button
-            key={m.key}
-            onClick={() => setSelectedMonth(m.key)}
-            className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors shrink-0 ${
-              selectedMonth === m.key
-                ? "bg-primary text-primary-foreground"
-                : "text-muted-foreground hover:text-foreground hover:bg-secondary/50"
-            }`}
-          >
-            {m.label}
-          </button>
-        ))}
-        <button
-          onClick={() => {
-            const idx = MONTHS.findIndex(m => m.key === selectedMonth);
-            if (idx < MONTHS.length - 1) setSelectedMonth(MONTHS[idx + 1].key);
-          }}
-          disabled={MONTHS.findIndex(m => m.key === selectedMonth) >= MONTHS.length - 1}
-          className="p-1.5 rounded hover:bg-secondary text-muted-foreground disabled:opacity-30 shrink-0"
-        >
-          <ChevronRight className="h-4 w-4" />
-        </button>
-      </div>
+      <MonthNavigator filter={dateFilter} onChange={setDateFilter} />
 
       {/* Cards de resumo */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
