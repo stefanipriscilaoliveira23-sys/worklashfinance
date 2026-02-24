@@ -43,22 +43,29 @@ export default function Clientes() {
   });
 
   const { data: contratos } = useQuery({
-    queryKey: ["cliente-contratos", selectedCliente?.id],
+    queryKey: ["cliente-contratos", selectedCliente?.id, selectedCliente?.nome],
     enabled: !!selectedCliente,
     queryFn: async () => {
-      const { data, error } = await supabase.from("parcelas_mentoria").select("*, parcelas_mentoria_detalhe(*)").eq("cliente_id", selectedCliente!.id).order("criado_em", { ascending: false });
-      if (error) throw error;
-      return data as any[];
+      // Match by cliente_id OR by cliente_nome (many imported contracts only have nome)
+      const { data: byId } = await supabase.from("parcelas_mentoria").select("*, parcelas_mentoria_detalhe(*)").eq("cliente_id", selectedCliente!.id).order("criado_em", { ascending: false });
+      const { data: byNome } = await supabase.from("parcelas_mentoria").select("*, parcelas_mentoria_detalhe(*)").eq("cliente_nome", selectedCliente!.nome).is("cliente_id", null).order("criado_em", { ascending: false });
+      const merged = [...(byId ?? []), ...(byNome ?? [])];
+      // Deduplicate by id
+      const seen = new Set<string>();
+      return merged.filter((c: any) => { if (seen.has(c.id)) return false; seen.add(c.id); return true; }) as any[];
     },
   });
 
   const { data: receitas } = useQuery({
-    queryKey: ["cliente-receitas", selectedCliente?.nome],
+    queryKey: ["cliente-receitas", selectedCliente?.nome, selectedCliente?.email],
     enabled: !!selectedCliente,
     queryFn: async () => {
-      const { data, error } = await supabase.from("receitas").select("*").eq("cliente_nome", selectedCliente!.nome).order("data", { ascending: false });
-      if (error) throw error;
-      return data;
+      // Match by nome OR email
+      let query = supabase.from("receitas").select("*").order("data", { ascending: false });
+      const conditions = [`cliente_nome.eq.${selectedCliente!.nome}`];
+      if (selectedCliente!.email) conditions.push(`cliente_email.eq.${selectedCliente!.email}`);
+      const { data } = await query.or(conditions.join(","));
+      return data ?? [];
     },
   });
 
@@ -281,7 +288,10 @@ export default function Clientes() {
               {/* Total gasto */}
               <div className="rounded-lg border border-border bg-secondary/20 p-4">
                 <p className="text-xs text-muted-foreground uppercase">Total gasto conosco</p>
-                <p className="text-xl font-bold text-primary">{formatCurrency((receitas ?? []).reduce((s, r) => s + (r.valor_bruto ?? 0), 0))}</p>
+                <p className="text-xl font-bold text-primary">{formatCurrency(
+                  (receitas ?? []).reduce((s, r) => s + (r.valor_bruto ?? 0), 0) +
+                  (contratos ?? []).reduce((s: number, c: any) => s + ((c.parcelas_mentoria_detalhe ?? []).filter((d: any) => d.status === "Quitado").reduce((a: number, d: any) => a + (d.valor_real ?? d.valor_sugerido ?? 0), 0)), 0)
+                )}</p>
               </div>
 
               {/* Contracts */}
