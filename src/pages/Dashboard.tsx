@@ -118,9 +118,25 @@ export default function Dashboard() {
     return s + entrada + parcRecebidas;
   }, 0);
 
-  const totalVendasContratos = valorTotalRenovacoes + valorTotalMentorias;
-  const pctRenovacoes = totalVendasContratos > 0 ? (valorTotalRenovacoes / totalVendasContratos) * 100 : 0;
-  const pctMentorias = totalVendasContratos > 0 ? (valorTotalMentorias / totalVendasContratos) * 100 : 0;
+  // D) KPIs Digitais (Curso/Formação, Ferramenta, Apostila, Outros — receitas avulsas)
+  const categoriasDigitais = ["Curso/Formação", "Ferramenta", "Apostila", "Outros"];
+  const digitaisMes = receitasMes.filter(r => categoriasDigitais.includes(r.produto_categoria ?? ""));
+  const qtdDigitais = digitaisMes.length;
+  const valorTotalDigitais = digitaisMes.reduce((s, r) => s + (r.valor_bruto ?? 0), 0);
+  const recebidoDigitaisMes = digitaisMes.reduce((s, r) => s + (r.valor_liquido ?? r.valor_bruto ?? 0), 0);
+
+  // E) KPIs Produtos Físicos (receitas avulsas)
+  const produtosFisicosMes = receitasMes.filter(r => r.produto_categoria === "Produto Físico");
+  const qtdProdutosFisicos = produtosFisicosMes.length;
+  const valorTotalProdutosFisicos = produtosFisicosMes.reduce((s, r) => s + (r.valor_bruto ?? 0), 0);
+  const recebidoProdutosFisicosMes = produtosFisicosMes.reduce((s, r) => s + (r.valor_liquido ?? r.valor_bruto ?? 0), 0);
+
+  // Percentuais sobre o total geral vendido (contratos + digitais + produtos)
+  const totalGeralVendido = valorTotalRenovacoes + valorTotalMentorias + valorTotalDigitais + valorTotalProdutosFisicos;
+  const pctRenovacoes = totalGeralVendido > 0 ? (valorTotalRenovacoes / totalGeralVendido) * 100 : 0;
+  const pctMentorias = totalGeralVendido > 0 ? (valorTotalMentorias / totalGeralVendido) * 100 : 0;
+  const pctDigitais = totalGeralVendido > 0 ? (valorTotalDigitais / totalGeralVendido) * 100 : 0;
+  const pctProdutosFisicos = totalGeralVendido > 0 ? (valorTotalProdutosFisicos / totalGeralVendido) * 100 : 0;
 
   // D) Controle parcelas
   const parcelasPagas = detalhesMes.filter(p => p.status === "Quitado");
@@ -325,6 +341,18 @@ export default function Dashboard() {
         <MetricCard label="Valor Total Mentorias" value={formatCurrency(valorTotalMentorias)} icon={BookOpen} sub="Valor dos contratos vendidos" />
         <MetricCard label="Recebido Mentorias" value={formatCurrency(recebidoMentoriasMes)} icon={BookOpen} sub="Entradas + parcelas pagas no mês" />
         <MetricCard label="% das Vendas" value={formatPercent(pctMentorias)} icon={BookOpen} sub={`${formatPercent(pctMentorias)} do valor total vendido`} />
+      </div>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <MetricCard label="Digitais Vendidos" value={String(qtdDigitais)} icon={ShoppingCart} sub="Cursos, ferramentas, apostilas" />
+        <MetricCard label="Valor Total Digitais" value={formatCurrency(valorTotalDigitais)} icon={ShoppingCart} sub="Valor bruto das vendas" />
+        <MetricCard label="Recebido Digitais" value={formatCurrency(recebidoDigitaisMes)} icon={ShoppingCart} sub="Valor líquido recebido no mês" />
+        <MetricCard label="% das Vendas" value={formatPercent(pctDigitais)} icon={ShoppingCart} sub={`${formatPercent(pctDigitais)} do valor total vendido`} />
+      </div>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <MetricCard label="Produtos Vendidos" value={String(qtdProdutosFisicos)} icon={BarChart3} sub="Produtos físicos" />
+        <MetricCard label="Valor Total Produtos" value={formatCurrency(valorTotalProdutosFisicos)} icon={BarChart3} sub="Valor bruto das vendas" />
+        <MetricCard label="Recebido Produtos" value={formatCurrency(recebidoProdutosFisicosMes)} icon={BarChart3} sub="Valor líquido recebido no mês" />
+        <MetricCard label="% das Vendas" value={formatPercent(pctProdutosFisicos)} icon={BarChart3} sub={`${formatPercent(pctProdutosFisicos)} do valor total vendido`} />
       </div>
 
       {/* LINHA 3 — Gráficos */}
