@@ -243,7 +243,7 @@ export default function Receitas() {
       <tbody>
         {tabData.length === 0 && <tr><td colSpan={11} className="p-12 text-center text-muted-foreground">Nenhuma mentoria</td></tr>}
         {tabData.map(r => {
-          const pi = getParcelaInfo(r.id);
+          const pi = getParcelaInfo(r);
           return (
             <tr key={r.id} className="border-b border-border/50 hover:bg-surface-hover transition-colors">
               <td className="p-3">{formatDate(r.data)}</td>
@@ -274,7 +274,7 @@ export default function Receitas() {
       <tbody>
         {tabData.length === 0 && <tr><td colSpan={12} className="p-12 text-center text-muted-foreground">Nenhuma renovação</td></tr>}
         {tabData.map(r => {
-          const pi = getParcelaInfo(r.id);
+          const pi = getParcelaInfo(r);
           const fimAnterior = pi?.pm?.data_termino_mentoria_anterior;
           const diasRenov = fimAnterior ? Math.floor((new Date(r.data).getTime() - new Date(fimAnterior).getTime()) / 86400000) : null;
           return (
