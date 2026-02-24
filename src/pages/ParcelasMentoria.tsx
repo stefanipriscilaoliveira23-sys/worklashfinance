@@ -245,7 +245,7 @@ export default function ParcelasMentoria() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border bg-secondary/30">
-                  {["Nome", "Tipo", "Parcela", "Valor Parcela", "Vencimento", "Saldo Contrato", "Status", "Obs.", ""].map(h => (
+                  {["Nome", "Tipo", "Parcela", "Valor Parcela", "Vencimento", "Saldo Restante", "Status", "Obs.", ""].map(h => (
                     <th key={h} className={`p-3 text-xs font-medium text-muted-foreground ${["Valor Parcela", "Saldo Contrato"].includes(h) ? "text-right" : "text-left"}`}>{h}</th>
                   ))}
                 </tr>
