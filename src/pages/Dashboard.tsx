@@ -100,6 +100,7 @@ export default function Dashboard() {
   const contratosMes = (allContratos ?? []).filter(c => c.data_inicio >= mesInicio && c.data_inicio <= mesFim);
   const renovacoesMes = contratosMes.filter(c => c.is_renovacao);
   const valorTotalRenovacoes = renovacoesMes.reduce((s, c) => s + (c.valor_total ?? 0), 0);
+  const entradasRenovacoesMes = renovacoesMes.reduce((s, c) => s + (c.entrada_valor ?? 0), 0);
   const recebidoRenovacoesMes = renovacoesMes.reduce((s, c) => {
     const entrada = c.entrada_valor ?? 0;
     const parcRecebidas = ((c as any).parcelas_mentoria_detalhe ?? [])
@@ -110,6 +111,7 @@ export default function Dashboard() {
   // C) KPIs de mentoria (contratos não-renovação vendidos no mês)
   const mentoriasMes = contratosMes.filter(c => !c.is_renovacao);
   const valorTotalMentorias = mentoriasMes.reduce((s, c) => s + (c.valor_total ?? 0), 0);
+  const entradasMentoriasMes = mentoriasMes.reduce((s, c) => s + (c.entrada_valor ?? 0), 0);
   const recebidoMentoriasMes = mentoriasMes.reduce((s, c) => {
     const entrada = c.entrada_valor ?? 0;
     const parcRecebidas = ((c as any).parcelas_mentoria_detalhe ?? [])
@@ -330,16 +332,18 @@ export default function Dashboard() {
       </div>
 
       {/* B) KPIs Renovação + C) KPIs Mentoria */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <MetricCard label="Renovações Vendidas" value={String(renovacoesMes.length)} icon={RefreshCw} sub="Valor total das vendas" />
-        <MetricCard label="Valor Total Renovações" value={formatCurrency(valorTotalRenovacoes)} icon={RefreshCw} sub="Valor dos contratos vendidos" />
-        <MetricCard label="Recebido Renovações" value={formatCurrency(recebidoRenovacoesMes)} icon={RefreshCw} sub="Entradas + parcelas pagas no mês" />
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+        <MetricCard label="Renovações Vendidas" value={String(renovacoesMes.length)} icon={RefreshCw} sub="Contratos no mês" />
+        <MetricCard label="Valor Total Renovações" value={formatCurrency(valorTotalRenovacoes)} icon={RefreshCw} sub="Valor dos contratos" />
+        <MetricCard label="Entradas Renovações" value={formatCurrency(entradasRenovacoesMes)} icon={RefreshCw} sub="Recebido no ato da venda" />
+        <MetricCard label="Recebido Renovações" value={formatCurrency(recebidoRenovacoesMes)} icon={RefreshCw} sub="Entradas + parcelas pagas" />
         <MetricCard label="% das Vendas" value={formatPercent(pctRenovacoes)} icon={RefreshCw} sub={`${formatPercent(pctRenovacoes)} do valor total vendido`} />
       </div>
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <MetricCard label="Mentorias Vendidas" value={String(mentoriasMes.length)} icon={BookOpen} sub="Valor total das vendas" />
-        <MetricCard label="Valor Total Mentorias" value={formatCurrency(valorTotalMentorias)} icon={BookOpen} sub="Valor dos contratos vendidos" />
-        <MetricCard label="Recebido Mentorias" value={formatCurrency(recebidoMentoriasMes)} icon={BookOpen} sub="Entradas + parcelas pagas no mês" />
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+        <MetricCard label="Mentorias Vendidas" value={String(mentoriasMes.length)} icon={BookOpen} sub="Contratos no mês" />
+        <MetricCard label="Valor Total Mentorias" value={formatCurrency(valorTotalMentorias)} icon={BookOpen} sub="Valor dos contratos" />
+        <MetricCard label="Entradas Mentorias" value={formatCurrency(entradasMentoriasMes)} icon={BookOpen} sub="Recebido no ato da venda" />
+        <MetricCard label="Recebido Mentorias" value={formatCurrency(recebidoMentoriasMes)} icon={BookOpen} sub="Entradas + parcelas pagas" />
         <MetricCard label="% das Vendas" value={formatPercent(pctMentorias)} icon={BookOpen} sub={`${formatPercent(pctMentorias)} do valor total vendido`} />
       </div>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
