@@ -14,6 +14,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import EditarContratoDialog from "@/components/parcelas/EditarContratoDialog";
+import { EditarReceitaModal } from "@/components/receitas/EditarReceitaModal";
 import type { Tables } from "@/integrations/supabase/types";
 
 export default function Clientes() {
@@ -24,6 +26,8 @@ export default function Clientes() {
   const [showForm, setShowForm] = useState(false);
   const [editCliente, setEditCliente] = useState<Tables<"clientes"> | null>(null);
   const [form, setForm] = useState({ nome: "", email: "", telefone: "", whatsapp: "", instagram: "", observacao: "" });
+  const [editContrato, setEditContrato] = useState<Tables<"parcelas_mentoria"> | null>(null);
+  const [editReceita, setEditReceita] = useState<any>(null);
 
   const { data: clientes, isLoading } = useQuery({
     queryKey: ["clientes"],
@@ -335,9 +339,18 @@ export default function Clientes() {
                         <div key={contrato.id} className="rounded-lg border border-border bg-secondary/20 p-4 space-y-3">
                           <div className="flex items-center justify-between">
                             <div>
-                              <p className="text-sm font-medium text-foreground">{contrato.tipo_mentoria}</p>
+                             <p className="text-sm font-medium text-foreground">{contrato.tipo_mentoria}</p>
                               <p className="text-xs text-muted-foreground">Início: {formatDate(contrato.data_inicio)}</p>
                             </div>
+                            <div className="flex items-center gap-2">
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-7 w-7 p-0 text-muted-foreground hover:text-primary"
+                                onClick={(e) => { e.stopPropagation(); setEditContrato(contrato); }}
+                              >
+                                <Pencil className="h-3 w-3" />
+                              </Button>
                             <Badge variant="outline" className={
                               contrato.status_geral === "Quitado" ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" :
                               contrato.status_geral === "Atraso" ? "bg-destructive/10 text-destructive border-destructive/20" :
@@ -345,8 +358,8 @@ export default function Clientes() {
                             }>
                               {contrato.status_geral}
                             </Badge>
+                            </div>
                           </div>
-                          
                           {/* Mentoria timing */}
                           <div className="rounded-lg bg-secondary/30 p-2 space-y-1">
                             {fimPrevista && (
@@ -415,7 +428,17 @@ export default function Clientes() {
                           <p className="text-sm text-foreground">{r.produto_nome}</p>
                           <p className="text-xs text-muted-foreground">{formatDate(r.data)} • {r.plataforma}</p>
                         </div>
-                        <span className="text-sm font-medium text-emerald-400">{formatCurrency(r.valor_bruto)}</span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-medium text-emerald-400">{formatCurrency(r.valor_bruto)}</span>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-7 w-7 p-0 text-muted-foreground hover:text-primary"
+                            onClick={(e) => { e.stopPropagation(); setEditReceita(r); }}
+                          >
+                            <Pencil className="h-3 w-3" />
+                          </Button>
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -450,6 +473,20 @@ export default function Clientes() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <EditarContratoDialog
+        contrato={editContrato}
+        onClose={() => setEditContrato(null)}
+      />
+
+      <EditarReceitaModal
+        receita={editReceita}
+        open={!!editReceita}
+        onClose={() => {
+          setEditReceita(null);
+          queryClient.invalidateQueries({ queryKey: ["cliente-receitas"] });
+        }}
+      />
     </div>
   );
 }
