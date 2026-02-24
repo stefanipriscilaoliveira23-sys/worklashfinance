@@ -60,6 +60,21 @@ export default function ParcelasMentoria() {
   const [showPagamento, setShowPagamento] = useState<Tables<"parcelas_mentoria_detalhe"> | null>(null);
   const [showNovoContrato, setShowNovoContrato] = useState(false);
 
+  // Fetch produtos_catalogo for product name display
+  const { data: produtosCatalogo } = useQuery({
+    queryKey: ["produtos-catalogo"],
+    queryFn: async () => {
+      const { data } = await supabase.from("produtos_catalogo").select("*").eq("ativo", true);
+      return data ?? [];
+    },
+  });
+
+  // Helper: resolve product name from tipo_mentoria
+  const getProdutoNome = (tipoMentoria: string) => {
+    const prod = (produtosCatalogo ?? []).find(p => p.categoria === tipoMentoria);
+    return prod?.nome ?? tipoMentoria;
+  };
+
   // Fetch all parcelas with their details for the selected month
   const { data: allDetalhes, isLoading } = useQuery({
     queryKey: ["parcelas-detalhe-all", selectedMonth],
@@ -260,7 +275,7 @@ export default function ParcelasMentoria() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border bg-secondary/30">
-                  {["Nome", "Tipo", "Parcela", "Valor Parcela", "Vencimento", "Saldo Restante", "Status", "Obs.", ""].map(h => (
+                  {["Nome", "Produto", "Parcela", "Valor Parcela", "Vencimento", "Saldo Restante", "Status", "Obs.", ""].map(h => (
                     <th key={h} className={`p-3 text-xs font-medium text-muted-foreground ${["Valor Parcela", "Saldo Contrato"].includes(h) ? "text-right" : "text-left"}`}>{h}</th>
                   ))}
                 </tr>
@@ -282,7 +297,7 @@ export default function ParcelasMentoria() {
                       }}
                     >
                       <td className="p-3 font-medium">{parent.cliente_nome}</td>
-                      <td className="p-3 text-muted-foreground text-xs">{parent.tipo_mentoria}</td>
+                      <td className="p-3 text-muted-foreground text-xs">{getProdutoNome(parent.tipo_mentoria)}</td>
                       <td className="p-3 text-xs">
                         <span className="text-primary font-medium">{d.numero_parcela}</span>
                         <span className="text-muted-foreground">/{parent.quant_parcelas}</span>
