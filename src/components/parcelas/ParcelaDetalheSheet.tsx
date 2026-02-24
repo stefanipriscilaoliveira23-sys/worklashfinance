@@ -71,8 +71,8 @@ export default function ParcelaDetalheSheet({ selectedAluna, onClose, onRegistra
     },
   });
 
-  const saldoContrato = (detalhes ?? []).reduce((acc, d) => acc + (d.saldo_parcela ?? 0), 0);
   const totalPago = (detalhes ?? []).reduce((acc, d) => acc + (d.valor_pago_parcial ?? 0), 0);
+  const saldoContrato = (selectedAluna?.valor_total ?? 0) - (selectedAluna?.entrada_valor ?? 0) - totalPago;
 
   return (
     <Sheet open={!!selectedAluna} onOpenChange={() => onClose()}>
