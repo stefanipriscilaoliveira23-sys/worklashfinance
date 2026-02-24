@@ -47,10 +47,18 @@ export default function PLDiario() {
     },
   });
 
-  const { data: despesasEmp } = useQuery({
-    queryKey: ["pl-desp-emp", start, end],
+  const { data: despesasEmpFixas } = useQuery({
+    queryKey: ["pl-desp-emp-fixas"],
     queryFn: async () => {
-      const { data } = await supabase.from("despesas_empresa").select("*");
+      const { data } = await supabase.from("despesas_empresa").select("*").eq("tipo_despesa", "Fixa");
+      return data ?? [];
+    },
+  });
+
+  const { data: despesasEmpVar } = useQuery({
+    queryKey: ["pl-desp-emp-var", start, end],
+    queryFn: async () => {
+      const { data } = await supabase.from("despesas_empresa").select("*").eq("tipo_despesa", "Variável");
       return data ?? [];
     },
   });
@@ -67,14 +75,14 @@ export default function PLDiario() {
 
   const allReceitas = receitas ?? [];
   const allParcelas = parcelasDetalhe ?? [];
-  const allDespEmp = despesasEmp ?? [];
+  const allFixas = despesasEmpFixas ?? [];
+  const allVariaveis = despesasEmpVar ?? [];
   const proLabore = meta?.pro_labore ?? 30000;
 
   // Fixed expenses (monthly) rationed daily
   const fixosMap = useMemo(() => {
-    const fixas = allDespEmp.filter(d => d.tipo_despesa === "Fixa");
     const result: Record<string, number> = { aluguel: 0, salarios: 0, assinaturas: 0, outrosFixos: 0 };
-    fixas.forEach(d => {
+    allFixas.forEach(d => {
       const fc = FIXED_CATEGORIES.find(fc => fc.cats.includes(d.categoria));
       if (fc) result[fc.key] += (d.valor_original ?? 0);
       else result.outrosFixos += (d.valor_original ?? 0);
@@ -82,7 +90,7 @@ export default function PLDiario() {
     // Add pro-labore to salarios
     result.salarios += proLabore;
     return result;
-  }, [allDespEmp, proLabore]);
+  }, [allFixas, proLabore]);
 
   const fixosDiarios = useMemo(() => {
     const r: Record<string, number> = {};
@@ -95,13 +103,13 @@ export default function PLDiario() {
   // Variable costs by day
   const variavelPorDia = useMemo(() => {
     const map: Record<string, { impostos: number; comissoes: number; trafego: number; taxas: number; outros: number }> = {};
-    const variaveis = allDespEmp.filter(d => d.tipo_despesa === "Variável");
-    variaveis.forEach(d => {
+    allVariaveis.forEach(d => {
       const dia = d.data_pagamento ?? d.data_vencimento;
       if (!dia || dia < start || dia > end) return;
       if (!map[dia]) map[dia] = { impostos: 0, comissoes: 0, trafego: 0, taxas: 0, outros: 0 };
-      if (d.categoria === "Tráfego Pago") map[dia].trafego += (d.valor_pago_total ?? 0);
-      else map[dia].outros += (d.valor_pago_total ?? 0);
+      if (d.categoria === "Tráfego Pago") map[dia].trafego += (d.valor_pago_total ?? d.valor_original ?? 0);
+      else if (d.categoria === "Variável") map[dia].outros += (d.valor_pago_total ?? d.valor_original ?? 0);
+      else map[dia].outros += (d.valor_pago_total ?? d.valor_original ?? 0);
     });
     // Taxas from receitas
     allReceitas.forEach(r => {
@@ -109,7 +117,7 @@ export default function PLDiario() {
       map[r.data].taxas += (r.taxa_plataforma_valor ?? 0);
     });
     return map;
-  }, [allDespEmp, allReceitas, start, end]);
+  }, [allVariaveis, allReceitas, start, end]);
 
   // Build rows
   const rows = useMemo(() => {
