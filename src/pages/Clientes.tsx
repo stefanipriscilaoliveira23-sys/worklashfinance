@@ -308,7 +308,7 @@ export default function Clientes() {
                 <p className="text-xs text-muted-foreground uppercase">Total gasto conosco</p>
                 <p className="text-xl font-bold text-primary">{formatCurrency(
                   (receitas ?? []).reduce((s, r) => s + (r.valor_bruto ?? 0), 0) +
-                  (contratos ?? []).reduce((s: number, c: any) => s + ((c.parcelas_mentoria_detalhe ?? []).filter((d: any) => d.status === "Quitado").reduce((a: number, d: any) => a + (d.valor_real ?? d.valor_sugerido ?? 0), 0)), 0)
+                  (contratos ?? []).reduce((s: number, c: any) => s + (c.entrada_valor ?? 0) + ((c.parcelas_mentoria_detalhe ?? []).filter((d: any) => d.status === "Quitado").reduce((a: number, d: any) => a + (d.valor_real ?? d.valor_sugerido ?? 0), 0)), 0)
                 )}</p>
               </div>
 
