@@ -383,6 +383,43 @@ export default function Receitas() {
         </div>
       </div>
 
+      {/* Month navigation */}
+      <div className="flex items-center gap-1 overflow-x-auto">
+        <button
+          onClick={() => {
+            const idx = MONTHS.findIndex(m => m.key === selectedMonth);
+            if (idx > 0) setSelectedMonth(MONTHS[idx - 1].key);
+          }}
+          disabled={MONTHS.findIndex(m => m.key === selectedMonth) <= 0}
+          className="p-1.5 rounded hover:bg-secondary text-muted-foreground disabled:opacity-30 shrink-0"
+        >
+          <ChevronLeft className="h-4 w-4" />
+        </button>
+        {MONTHS.map(m => (
+          <button
+            key={m.key}
+            onClick={() => setSelectedMonth(m.key)}
+            className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors shrink-0 ${
+              selectedMonth === m.key
+                ? "bg-primary text-primary-foreground"
+                : "text-muted-foreground hover:text-foreground hover:bg-secondary/50"
+            }`}
+          >
+            {m.label}
+          </button>
+        ))}
+        <button
+          onClick={() => {
+            const idx = MONTHS.findIndex(m => m.key === selectedMonth);
+            if (idx < MONTHS.length - 1) setSelectedMonth(MONTHS[idx + 1].key);
+          }}
+          disabled={MONTHS.findIndex(m => m.key === selectedMonth) >= MONTHS.length - 1}
+          className="p-1.5 rounded hover:bg-secondary text-muted-foreground disabled:opacity-30 shrink-0"
+        >
+          <ChevronRight className="h-4 w-4" />
+        </button>
+      </div>
+
       {/* Cards de resumo */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
         {[
@@ -448,47 +485,7 @@ export default function Receitas() {
         </div>
       </Tabs>
 
-      {/* Month navigation bar */}
-      <div className="fixed bottom-0 left-0 right-0 z-40 bg-card/95 backdrop-blur border-t border-border">
-        <div className="flex items-center justify-center gap-1 px-4 py-2 overflow-x-auto">
-          <button
-            onClick={() => {
-              const idx = MONTHS.findIndex(m => m.key === selectedMonth);
-              if (idx > 0) setSelectedMonth(MONTHS[idx - 1].key);
-            }}
-            disabled={MONTHS.findIndex(m => m.key === selectedMonth) <= 0}
-            className="p-1.5 rounded hover:bg-secondary text-muted-foreground disabled:opacity-30 shrink-0"
-          >
-            <ChevronLeft className="h-4 w-4" />
-          </button>
-          {MONTHS.map(m => (
-            <button
-              key={m.key}
-              onClick={() => setSelectedMonth(m.key)}
-              className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors shrink-0 ${
-                selectedMonth === m.key
-                  ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground hover:text-foreground hover:bg-secondary/50"
-              }`}
-            >
-              {m.label}
-            </button>
-          ))}
-          <button
-            onClick={() => {
-              const idx = MONTHS.findIndex(m => m.key === selectedMonth);
-              if (idx < MONTHS.length - 1) setSelectedMonth(MONTHS[idx + 1].key);
-            }}
-            disabled={MONTHS.findIndex(m => m.key === selectedMonth) >= MONTHS.length - 1}
-            className="p-1.5 rounded hover:bg-secondary text-muted-foreground disabled:opacity-30 shrink-0"
-          >
-            <ChevronRight className="h-4 w-4" />
-          </button>
-        </div>
-      </div>
 
-      {/* Spacer for fixed bottom bar */}
-      <div className="h-12" />
 
       {showNova && <NovaReceitaModal open={showNova} onClose={() => setShowNova(false)} />}
       {showImport && <ImportarPlanilhaModal open={showImport} onClose={() => setShowImport(false)} />}
