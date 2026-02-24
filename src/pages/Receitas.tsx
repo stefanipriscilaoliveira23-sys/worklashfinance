@@ -119,6 +119,9 @@ export default function Receitas() {
       forma_pagamento: null,
       is_parcela: true,
       parcela_label: `${pq.numero_parcela}/${parent.quant_parcelas}`,
+      // Carry parent parcela info for renovações/mentorias tabs
+      _parent_parcela: parent,
+      _parent_detalhes: parent,
     };
   });
 
