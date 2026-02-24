@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { toast } from "sonner";
-import { Plus, Loader2, ArrowLeft, DollarSign, Trash2, CalendarDays, PartyPopper } from "lucide-react";
+import { Plus, Loader2, ArrowLeft, DollarSign, Trash2, CalendarDays, PartyPopper, MoreHorizontal, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -13,6 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import type { Tables } from "@/integrations/supabase/types";
 
 const STATUS_STYLE: Record<string, string> = {
@@ -159,7 +160,7 @@ export default function EventosEspeciais() {
           <div className="rounded-xl border border-border bg-card overflow-hidden">
             <table className="w-full text-sm">
               <thead><tr className="border-b border-border bg-secondary/30">
-                {["Descrição", "Data PGT", "Valor Total", "Valor Pago", "Status", "Ações"].map(h => (
+                {["Descrição", "Data PGT", "Valor Total", "Valor Pago", "Status", ""].map(h => (
                   <th key={h} className={`p-3 text-xs font-medium text-muted-foreground ${["Valor Total", "Valor Pago"].includes(h) ? "text-right" : "text-left"}`}>{h}</th>
                 ))}
               </tr></thead>
@@ -171,7 +172,14 @@ export default function EventosEspeciais() {
                     <td className="p-3 text-right">{formatCurrency(d.valor_original)}</td>
                     <td className="p-3 text-right text-muted-foreground">{formatCurrency(d.valor_pago_total)}</td>
                     <td className="p-3"><Badge variant="outline" className={STATUS_STYLE[d.status ?? "A Vencer"] ?? STATUS_STYLE["A Vencer"]}>{d.status}</Badge></td>
-                    <td className="p-3">{d.status !== "Pago" && <button onClick={() => { setShowPagamento(d); setPgValor(String(d.saldo_pendente ?? 0)); }} className="p-1.5 rounded hover:bg-primary/10 text-muted-foreground hover:text-primary transition-colors"><DollarSign className="h-3.5 w-3.5" /></button>}</td>
+                    <td className="p-3">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild><button className="p-1.5 rounded hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors"><MoreHorizontal className="h-4 w-4" /></button></DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="bg-card border-border">
+                          {d.status !== "Pago" && <DropdownMenuItem onClick={() => { setShowPagamento(d); setPgValor(String(d.saldo_pendente ?? 0)); }} className="gap-2"><DollarSign className="h-3.5 w-3.5" /> Registrar pagamento</DropdownMenuItem>}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </td>
                   </tr>
                 ))}
               </tbody>
