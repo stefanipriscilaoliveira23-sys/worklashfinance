@@ -125,36 +125,24 @@ export default function ProdutosMargem() {
   const receitasMes = allReceitas.filter(r => r.data >= start && r.data <= end);
   const proLabore = meta?.pro_labore ?? 30000;
 
-  // CATÁLOGO — match receitas + parcelas_mentoria contracts (strict matching only)
+  // Helper: resolve product name from tipo_mentoria (same logic as parcelas page)
+  const getProdutoNome = (tipoMentoria: string) => {
+    const prod = (produtos ?? []).find(p => p.categoria === tipoMentoria);
+    return prod?.nome ?? tipoMentoria;
+  };
+
+  // CATÁLOGO — match by resolved product name
   const allParcelas = parcelasMentoria ?? [];
   const catalogData = (produtos ?? []).map(p => {
     // Match receitas by id, name, or category
     const vendasReceitas = allReceitas.filter(r => r.produto_id === p.id || r.produto_nome === p.nome || r.produto_categoria === p.categoria);
-    // Match parcelas_mentoria: strict match by categoria only for non-renovation products
-    // Renovations all share "Renovação Mentoria" so we can't reliably distinguish them
-    const vendasParcelas = allParcelas.filter(pm => {
-      if (p.categoria !== "Renovação Mentoria") {
-        return pm.tipo_mentoria === p.categoria;
-      }
-      return false;
-    });
-    // For the first renovation product found, assign ALL renovation contracts (avoid double-counting)
-    let vendasRenovacao = 0;
-    let brutoRenovacao = 0;
-    if (p.categoria === "Renovação Mentoria") {
-      const allRenovProds = (produtos ?? []).filter(pr => pr.categoria === "Renovação Mentoria").sort((a, b) => a.nome.localeCompare(b.nome));
-      // Only assign to the first renovation product to avoid duplicating
-      if (allRenovProds.length > 0 && allRenovProds[0].id === p.id) {
-        const renovContracts = allParcelas.filter(pm => pm.tipo_mentoria === "Renovação Mentoria");
-        vendasRenovacao = renovContracts.length;
-        brutoRenovacao = renovContracts.reduce((s, pm) => s + (pm.valor_total ?? 0), 0);
-      }
-    }
+    // Match parcelas by resolved product name
+    const vendasParcelas = allParcelas.filter(pm => getProdutoNome(pm.tipo_mentoria) === p.nome);
     
-    const totalVendas = vendasReceitas.length + vendasParcelas.length + vendasRenovacao;
+    const totalVendas = vendasReceitas.length + vendasParcelas.length;
     const totalBrutoReceitas = vendasReceitas.reduce((s, r) => s + (r.valor_bruto ?? 0), 0);
     const totalBrutoParcelas = vendasParcelas.reduce((s, pm) => s + (pm.valor_total ?? 0), 0);
-    const totalBruto = totalBrutoReceitas + totalBrutoParcelas + brutoRenovacao;
+    const totalBruto = totalBrutoReceitas + totalBrutoParcelas;
     const precoMedio = totalVendas > 0 ? totalBruto / totalVendas : 0;
     const custoPerc = p.custo_direto_percentual ?? 0;
     const margemPerc = precoMedio > 0 ? 100 - custoPerc : 0;
