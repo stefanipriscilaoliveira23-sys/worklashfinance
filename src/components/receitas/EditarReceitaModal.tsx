@@ -45,6 +45,7 @@ export function EditarReceitaModal({ receita, open, onClose }: EditarReceitaModa
   const [origensVenda, setOrigensVenda] = useState<string[]>([]);
   const [observacao, setObservacao] = useState("");
   const [status, setStatus] = useState("ativo");
+  const [dataFimMentoria, setDataFimMentoria] = useState("");
 
   const { data: origensOpcoes } = useQuery({
     queryKey: ["origens-venda-opcoes"],
@@ -74,6 +75,7 @@ export function EditarReceitaModal({ receita, open, onClose }: EditarReceitaModa
       setOrigensVenda(receita.origens_venda ?? []);
       setObservacao(receita.observacao ?? "");
       setStatus(receita.status ?? "ativo");
+      setDataFimMentoria(receita.data_fim_mentoria ?? "");
     }
   }, [receita]);
 
@@ -114,6 +116,7 @@ export function EditarReceitaModal({ receita, open, onClose }: EditarReceitaModa
         is_ascensao: origensVenda.includes("Ascensão"),
         observacao,
         status,
+        data_fim_mentoria: dataFimMentoria || null,
       }).eq("id", receita.id);
       if (error) throw error;
     },
@@ -255,6 +258,10 @@ export function EditarReceitaModal({ receita, open, onClose }: EditarReceitaModa
                   <SelectItem value="reembolsado">Reembolsado</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-foreground/80">Fim da mentoria</Label>
+              <Input type="date" value={dataFimMentoria} onChange={(e) => setDataFimMentoria(e.target.value)} className="bg-secondary/50 border-border" />
             </div>
           </div>
 

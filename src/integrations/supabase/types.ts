@@ -543,6 +543,7 @@ export type Database = {
           cliente_nome: string | null
           criado_em: string
           data: string
+          data_fim_mentoria: string | null
           forma_pagamento: string | null
           id: string
           is_ascensao: boolean | null
@@ -570,6 +571,7 @@ export type Database = {
           cliente_nome?: string | null
           criado_em?: string
           data: string
+          data_fim_mentoria?: string | null
           forma_pagamento?: string | null
           id?: string
           is_ascensao?: boolean | null
@@ -597,6 +599,7 @@ export type Database = {
           cliente_nome?: string | null
           criado_em?: string
           data?: string
+          data_fim_mentoria?: string | null
           forma_pagamento?: string | null
           id?: string
           is_ascensao?: boolean | null
