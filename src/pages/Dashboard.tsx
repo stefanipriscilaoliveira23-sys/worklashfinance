@@ -74,6 +74,14 @@ export default function Dashboard() {
     },
   });
 
+  const { data: allContratos } = useQuery({
+    queryKey: ["dash-contratos-mentoria"],
+    queryFn: async () => {
+      const { data } = await supabase.from("parcelas_mentoria").select("*, parcelas_mentoria_detalhe(*)");
+      return data ?? [];
+    },
+  });
+
   if (d.isLoading) {
     return <div className="flex items-center justify-center h-64"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
   }
@@ -88,16 +96,30 @@ export default function Dashboard() {
   const qtdVendas = (d.qtdReceitasMes ?? 0) + (d.qtdParcelasQuitadasMes ?? 0);
   const ticketMedio = qtdVendas > 0 ? d.totalBruto / qtdVendas : 0;
 
-  // B) KPIs de renovação
-  const renovacoesMes = receitasMes.filter(r => r.produto_categoria === "Renovação Mentoria");
-  const receitaRenovacoes = renovacoesMes.reduce((s, r) => s + (r.valor_bruto ?? 0), 0);
-  const pctRenovacoes = d.totalBruto > 0 ? (receitaRenovacoes / d.totalBruto) * 100 : 0;
+  // B) KPIs de renovação (contratos vendidos no mês, pela data_inicio)
+  const contratosMes = (allContratos ?? []).filter(c => c.data_inicio >= mesInicio && c.data_inicio <= mesFim);
+  const renovacoesMes = contratosMes.filter(c => c.is_renovacao);
+  const valorTotalRenovacoes = renovacoesMes.reduce((s, c) => s + (c.valor_total ?? 0), 0);
+  const recebidoRenovacoesMes = renovacoesMes.reduce((s, c) => {
+    const entrada = c.entrada_valor ?? 0;
+    const parcRecebidas = ((c as any).parcelas_mentoria_detalhe ?? [])
+      .filter((p: any) => p.status === "Quitado" && p.data_pagamento >= mesInicio && p.data_pagamento <= mesFim)
+      .reduce((acc: number, p: any) => acc + (p.valor_real ?? p.valor_sugerido ?? 0), 0);
+    return s + entrada + parcRecebidas;
+  }, 0);
+  const pctRenovacoes = d.totalBruto > 0 ? (valorTotalRenovacoes / d.totalBruto) * 100 : 0;
 
-  // C) KPIs de mentoria
-  const mentoriaCats = ["Mentoria Outsider", "Mentoria Digital Beauty", "Consultoria Premium", "Consultoria Express"];
-  const mentoriasMes = receitasMes.filter(r => mentoriaCats.includes(r.produto_categoria ?? ""));
-  const receitaMentorias = mentoriasMes.reduce((s, r) => s + (r.valor_bruto ?? 0), 0);
-  const pctMentorias = d.totalBruto > 0 ? (receitaMentorias / d.totalBruto) * 100 : 0;
+  // C) KPIs de mentoria (contratos não-renovação vendidos no mês)
+  const mentoriasMes = contratosMes.filter(c => !c.is_renovacao);
+  const valorTotalMentorias = mentoriasMes.reduce((s, c) => s + (c.valor_total ?? 0), 0);
+  const recebidoMentoriasMes = mentoriasMes.reduce((s, c) => {
+    const entrada = c.entrada_valor ?? 0;
+    const parcRecebidas = ((c as any).parcelas_mentoria_detalhe ?? [])
+      .filter((p: any) => p.status === "Quitado" && p.data_pagamento >= mesInicio && p.data_pagamento <= mesFim)
+      .reduce((acc: number, p: any) => acc + (p.valor_real ?? p.valor_sugerido ?? 0), 0);
+    return s + entrada + parcRecebidas;
+  }, 0);
+  const pctMentorias = d.totalBruto > 0 ? (valorTotalMentorias / d.totalBruto) * 100 : 0;
 
   // D) Controle parcelas
   const parcelasPagas = detalhesMes.filter(p => p.status === "Quitado");
@@ -129,7 +151,8 @@ export default function Dashboard() {
     const { start: ms, end: me } = getMonthRange(tempDate.getFullYear(), tempDate.getMonth());
     const label = tempDate.toLocaleString("pt-BR", { month: "short", year: "2-digit" });
     const rm = receitas.filter(r => r.data >= ms && r.data <= me);
-    const mentorias = rm.filter(r => mentoriaCats.includes(r.produto_categoria ?? "")).reduce((s, r) => s + (r.valor_bruto ?? 0), 0);
+    const mentoriaCatsHist = ["Mentoria Outsider", "Mentoria Digital Beauty", "Consultoria Premium", "Consultoria Express"];
+    const mentorias = rm.filter(r => mentoriaCatsHist.includes(r.produto_categoria ?? "")).reduce((s, r) => s + (r.valor_bruto ?? 0), 0);
     const renovacoes = rm.filter(r => r.produto_categoria === "Renovação Mentoria").reduce((s, r) => s + (r.valor_bruto ?? 0), 0);
     const parcelasVal = detalhes.filter(p => p.data_vencimento >= ms && p.data_vencimento <= me && p.status === "Quitado").reduce((s, p) => s + (p.valor_real ?? p.valor_sugerido ?? 0), 0);
     const fisicos = rm.filter(r => r.produto_categoria === "Produto Físico").reduce((s, r) => s + (r.valor_bruto ?? 0), 0);
@@ -290,12 +313,16 @@ export default function Dashboard() {
       </div>
 
       {/* B) KPIs Renovação + C) KPIs Mentoria */}
-      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
-        <MetricCard label="Renovações Vendidas" value={String(renovacoesMes.length)} icon={RefreshCw} />
-        <MetricCard label="Receita Renovações" value={formatCurrency(receitaRenovacoes)} icon={RefreshCw} />
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <MetricCard label="Renovações Vendidas" value={String(renovacoesMes.length)} icon={RefreshCw} sub="Valor total das vendas" />
+        <MetricCard label="Valor Total Renovações" value={formatCurrency(valorTotalRenovacoes)} icon={RefreshCw} sub="Valor dos contratos vendidos" />
+        <MetricCard label="Recebido Renovações" value={formatCurrency(recebidoRenovacoesMes)} icon={RefreshCw} sub="Entradas + parcelas pagas no mês" />
         <MetricCard label="% Renovações" value={formatPercent(pctRenovacoes)} icon={RefreshCw} />
-        <MetricCard label="Mentorias Vendidas" value={String(mentoriasMes.length)} icon={BookOpen} />
-        <MetricCard label="Receita Mentorias" value={formatCurrency(receitaMentorias)} icon={BookOpen} />
+      </div>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <MetricCard label="Mentorias Vendidas" value={String(mentoriasMes.length)} icon={BookOpen} sub="Valor total das vendas" />
+        <MetricCard label="Valor Total Mentorias" value={formatCurrency(valorTotalMentorias)} icon={BookOpen} sub="Valor dos contratos vendidos" />
+        <MetricCard label="Recebido Mentorias" value={formatCurrency(recebidoMentoriasMes)} icon={BookOpen} sub="Entradas + parcelas pagas no mês" />
         <MetricCard label="% Mentorias" value={formatPercent(pctMentorias)} icon={BookOpen} />
       </div>
 
