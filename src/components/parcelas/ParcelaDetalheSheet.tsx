@@ -1,9 +1,12 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
+import { Pencil } from "lucide-react";
 import { statusBadge } from "@/pages/ParcelasMentoria";
+import EditarParcelaDialog from "@/components/parcelas/EditarParcelaDialog";
 import type { Tables } from "@/integrations/supabase/types";
 
 interface Props {
@@ -13,6 +16,7 @@ interface Props {
 }
 
 export default function ParcelaDetalheSheet({ selectedAluna, onClose, onRegistrarPagamento }: Props) {
+  const [editParcela, setEditParcela] = useState<Tables<"parcelas_mentoria_detalhe"> | null>(null);
   const { data: detalhes } = useQuery({
     queryKey: ["parcelas-detalhe", selectedAluna?.id],
     enabled: !!selectedAluna,
@@ -92,6 +96,14 @@ export default function ParcelaDetalheSheet({ selectedAluna, onClose, onRegistra
                         </div>
                         <div className="flex items-center gap-2">
                           <span className="text-xs text-muted-foreground">{formatDate(d.data_vencimento)}</span>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-7 w-7 p-0 text-muted-foreground hover:text-primary"
+                            onClick={() => setEditParcela(d)}
+                          >
+                            <Pencil className="h-3 w-3" />
+                          </Button>
                           {d.status !== "Quitado" && (
                             <Button
                               size="sm"
@@ -138,6 +150,11 @@ export default function ParcelaDetalheSheet({ selectedAluna, onClose, onRegistra
           </div>
         )}
       </SheetContent>
+
+      <EditarParcelaDialog
+        parcela={editParcela}
+        onClose={() => setEditParcela(null)}
+      />
     </Sheet>
   );
 }

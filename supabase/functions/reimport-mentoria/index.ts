@@ -31,8 +31,6 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// File is bundled alongside the function
-
 const STATUS_SCORE: Record<StatusParcela, number> = {
   Pendente: 1,
   Atraso: 2,
@@ -51,15 +49,10 @@ const parseMoney = (value: unknown): number => {
   if (typeof value === "number") return Number.isFinite(value) ? value : 0;
   let s = String(value ?? "").trim();
   if (!s || s === "-") return 0;
-
-  s = s.replace(/r\$/gi, "").replace(/\s/g, "");
-  s = s.replace(/[^\d.,-]/g, "");
-
+  s = s.replace(/r\$/gi, "").replace(/\s/g, "").replace(/[^\d.,-]/g, "");
   if (!s) return 0;
-
   const lastComma = s.lastIndexOf(",");
   const lastDot = s.lastIndexOf(".");
-
   if (lastComma > lastDot) {
     s = s.replace(/\./g, "").replace(",", ".");
   } else if (lastDot > lastComma) {
@@ -67,7 +60,6 @@ const parseMoney = (value: unknown): number => {
   } else {
     s = s.replace(/,/g, "");
   }
-
   const n = Number(s);
   return Number.isFinite(n) ? n : 0;
 };
@@ -86,25 +78,23 @@ const formatYMD = (date: Date): string => {
 
 const parseDate = (value: unknown): string | null => {
   if (value == null || value === "") return null;
-
   if (typeof value === "number") {
     const parsed = XLSX.SSF.parse_date_code(value);
     if (!parsed) return null;
     return formatYMD(new Date(parsed.y, parsed.m - 1, parsed.d));
   }
-
   const s = String(value).trim();
   if (!s || s === "-") return null;
-
   if (/^\d{2}\/\d{2}\/\d{4}$/.test(s)) {
     const [dd, mm, yyyy] = s.split("/").map(Number);
-    return formatYMD(new Date(yyyy, mm - 1, dd));
+    if (yyyy > 1900 && yyyy < 2100) return formatYMD(new Date(yyyy, mm - 1, dd));
   }
-
-  if (/^\d{4}-\d{2}-\d{2}/.test(s)) {
-    return s.slice(0, 10);
+  if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(s)) {
+    const parts = s.split("/").map(Number);
+    const [dd, mm, yyyy] = parts;
+    if (yyyy > 1900 && yyyy < 2100) return formatYMD(new Date(yyyy, mm - 1, dd));
   }
-
+  if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10);
   const dt = new Date(s);
   return Number.isNaN(dt.getTime()) ? null : formatYMD(dt);
 };
@@ -112,11 +102,9 @@ const parseDate = (value: unknown): string | null => {
 const addInstallmentInterval = (baseDate: string, index: number, periodicidade: Periodicidade): string => {
   const [year, month, day] = baseDate.split("-").map(Number);
   const dt = new Date(year, month - 1, day);
-
   if (periodicidade === "Semanal") dt.setDate(dt.getDate() + index * 7);
   if (periodicidade === "Quinzenal") dt.setDate(dt.getDate() + index * 14);
   if (periodicidade === "Mensal") dt.setMonth(dt.getMonth() + index);
-
   return formatYMD(dt);
 };
 
@@ -126,6 +114,7 @@ const mapTipoMentoria = (raw: unknown): string => {
   if (s.includes("digital beauty") || s.includes("mentoria db") || s === "db") return "Mentoria Digital Beauty";
   if (s.includes("consultoria premium")) return "Consultoria Premium";
   if (s.includes("consultoria express")) return "Consultoria Express";
+  if (s.includes("consultoria")) return "Consultoria Premium";
   if (s.includes("outsider")) return "Mentoria Outsider";
   return "Outros";
 };
@@ -142,6 +131,7 @@ const mapStatus = (raw: unknown): StatusParcela => {
   if (s.includes("quit")) return "Quitado";
   if (s.includes("parcial")) return "Parcialmente Pago";
   if (s.includes("atras")) return "Atraso";
+  if (s.includes("receber")) return "Pendente";
   return "Pendente";
 };
 
@@ -150,12 +140,10 @@ const getCell = (row: Record<string, unknown>, ...headers: string[]) => {
     acc[normalizeText(k)] = v;
     return acc;
   }, {});
-
   for (const h of headers) {
     const v = normalized[normalizeText(h)];
-    if (v !== undefined) return v;
+    if (v !== undefined && v !== "") return v;
   }
-
   return undefined;
 };
 
@@ -167,15 +155,15 @@ serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
     const supabaseServiceRole = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
-
-    if (!supabaseUrl || !supabaseServiceRole) {
-      throw new Error("Missing backend environment secrets");
-    }
+    if (!supabaseUrl || !supabaseServiceRole) throw new Error("Missing env");
 
     const db = createClient(supabaseUrl, supabaseServiceRole);
 
-    const filePath = new URL("./Parcelas_mentoria_WORKLASH-2.xlsx", import.meta.url);
-    const fileBuffer = await Deno.readFile(filePath);
+    // Fetch xlsx from storage
+    const storageUrl = `${supabaseUrl}/storage/v1/object/public/mentoria-imports/Parcelas_mentoria_WORKLASH-2.xlsx`;
+    const fileResponse = await fetch(storageUrl);
+    if (!fileResponse.ok) throw new Error(`Download failed: ${fileResponse.status}`);
+    const fileBuffer = await fileResponse.arrayBuffer();
     const workbook = XLSX.read(fileBuffer, { type: "array" });
 
     const contracts = new Map<string, ContractAggregate>();
@@ -194,7 +182,8 @@ serve(async (req) => {
         const quant_parcelas = parseInteger(getCell(row, "Quant. parcela", "Quant parcela"));
         const periodicidade = mapPeriodicidade(getCell(row, "PAGAMENTO", "Pagamento"));
         const numero_parcela = parseInteger(getCell(row, "Numero parcela", "Número parcela"));
-        const data_vencimento = parseDate(getCell(row, "Data parcela"));
+        // Handle different column names across tabs
+        const data_vencimento = parseDate(getCell(row, "Data parcela", "Data Venda")) ?? parseDate(Object.values(row)[0]);
         const data_pagamento = parseDate(getCell(row, "Data de pagamento"));
         const valor_parcela = parseMoney(getCell(row, "Valor Parcela"));
         const observacaoRaw = String(getCell(row, "Observação", "Observacao") ?? "").trim();
@@ -227,24 +216,11 @@ serve(async (req) => {
         }
 
         const contract = contracts.get(key)!;
+        if (data_vencimento < contract.data_inicio) contract.data_inicio = data_vencimento;
+        if (valor_parcela > 0 && contract.fallback_valor_parcela === 0) contract.fallback_valor_parcela = valor_parcela;
 
-        if (data_vencimento < contract.data_inicio) {
-          contract.data_inicio = data_vencimento;
-        }
-
-        if (valor_parcela > 0 && contract.fallback_valor_parcela === 0) {
-          contract.fallback_valor_parcela = valor_parcela;
-        }
-
+        const candidate: Detalhe = { numero_parcela, data_vencimento, valor: valor_parcela, status, data_pagamento, observacao };
         const existing = contract.detalhes.get(numero_parcela);
-        const candidate: Detalhe = {
-          numero_parcela,
-          data_vencimento,
-          valor: valor_parcela,
-          status,
-          data_pagamento,
-          observacao,
-        };
 
         if (!existing) {
           contract.detalhes.set(numero_parcela, candidate);
@@ -252,32 +228,33 @@ serve(async (req) => {
           const keepCandidate = STATUS_SCORE[candidate.status] > STATUS_SCORE[existing.status] ||
             (STATUS_SCORE[candidate.status] === STATUS_SCORE[existing.status] &&
               (candidate.data_pagamento ?? "") > (existing.data_pagamento ?? ""));
-
-          if (keepCandidate) {
-            contract.detalhes.set(numero_parcela, candidate);
-          }
+          if (keepCandidate) contract.detalhes.set(numero_parcela, candidate);
         }
       }
     }
 
     const today = formatYMD(new Date());
 
+    // Delete old data
     await db.from("pagamentos_parciais").delete().eq("referencia_tipo", "parcela_mentoria_detalhe");
     await db.from("parcelas_mentoria_detalhe").delete().not("id", "is", null);
     await db.from("parcelas_mentoria").delete().not("id", "is", null);
 
+    // Get clients
     const { data: clientes } = await db.from("clientes").select("id, nome");
     const clientesByNome = new Map<string, string>();
-    (clientes ?? []).forEach((c) => clientesByNome.set(normalizeText(c.nome), c.id));
+    (clientes ?? []).forEach((c: any) => clientesByNome.set(normalizeText(c.nome), c.id));
 
-    let insertedContracts = 0;
-    let insertedDetalhes = 0;
+    // Prepare all contract inserts
+    const contractInserts: any[] = [];
+    const contractKeys: string[] = [];
 
-    for (const contract of contracts.values()) {
+    for (const [key, contract] of contracts) {
       const valorBase = contract.fallback_valor_parcela > 0
         ? contract.fallback_valor_parcela
         : Number(((contract.valor_total - contract.entrada_valor) / Math.max(contract.quant_parcelas, 1)).toFixed(2));
 
+      // Fill missing parcelas
       for (let i = 1; i <= contract.quant_parcelas; i++) {
         if (!contract.detalhes.has(i)) {
           const data = addInstallmentInterval(contract.data_inicio, i - 1, contract.periodicidade);
@@ -292,52 +269,56 @@ serve(async (req) => {
         }
       }
 
+      const detalhes = Array.from(contract.detalhes.values());
+      const hasAtraso = detalhes.some(d => d.status !== "Quitado" && d.data_vencimento < today);
+      const allQuitado = detalhes.every(d => d.status === "Quitado");
+      const status_geral: StatusParcela = allQuitado ? "Quitado" : hasAtraso ? "Atraso" : "Pendente";
+
+      contractInserts.push({
+        cliente_nome: contract.cliente_nome,
+        cliente_id: clientesByNome.get(normalizeText(contract.cliente_nome)) ?? null,
+        tipo_mentoria: contract.tipo_mentoria,
+        valor_total: Number(contract.valor_total.toFixed(2)),
+        entrada_valor: Number(contract.entrada_valor.toFixed(2)),
+        quant_parcelas: contract.quant_parcelas,
+        periodicidade: contract.periodicidade,
+        data_inicio: contract.data_inicio,
+        status_geral,
+        is_renovacao: contract.tipo_mentoria === "Renovação Mentoria",
+      });
+      contractKeys.push(key);
+    }
+
+    // Batch insert contracts (in chunks of 50)
+    const CHUNK = 50;
+    const insertedIds: string[] = [];
+
+    for (let i = 0; i < contractInserts.length; i += CHUNK) {
+      const chunk = contractInserts.slice(i, i + CHUNK);
+      const { data: inserted, error } = await db
+        .from("parcelas_mentoria")
+        .insert(chunk)
+        .select("id");
+      if (error) throw error;
+      for (const row of inserted) insertedIds.push(row.id);
+    }
+
+    // Build all detalhe inserts
+    const allDetalhesInsert: any[] = [];
+    let idx = 0;
+    for (const [key, contract] of contracts) {
+      const parentId = insertedIds[idx++];
       const detalhes = Array.from(contract.detalhes.values()).sort((a, b) => a.numero_parcela - b.numero_parcela);
 
-      const hasAtraso = detalhes.some((d) => d.status !== "Quitado" && d.data_vencimento < today);
-      const hasParcial = detalhes.some((d) => d.status === "Parcialmente Pago");
-      const allQuitado = detalhes.every((d) => d.status === "Quitado");
-
-      const status_geral: StatusParcela = allQuitado
-        ? "Quitado"
-        : hasAtraso
-          ? "Atraso"
-          : hasParcial
-            ? "Parcialmente Pago"
-            : "Pendente";
-
-      const { data: inserted, error: contractError } = await db
-        .from("parcelas_mentoria")
-        .insert({
-          cliente_nome: contract.cliente_nome,
-          cliente_id: clientesByNome.get(normalizeText(contract.cliente_nome)) ?? null,
-          tipo_mentoria: contract.tipo_mentoria,
-          valor_total: Number(contract.valor_total.toFixed(2)),
-          entrada_valor: Number(contract.entrada_valor.toFixed(2)),
-          quant_parcelas: contract.quant_parcelas,
-          periodicidade: contract.periodicidade,
-          data_inicio: contract.data_inicio,
-          status_geral,
-          is_renovacao: contract.tipo_mentoria === "Renovação Mentoria",
-        })
-        .select("id")
-        .single();
-
-      if (contractError) throw contractError;
-      insertedContracts += 1;
-
-      const detalhesInsert = detalhes.map((d) => {
+      for (const d of detalhes) {
         const statusFinal: StatusParcela = d.status === "Quitado"
           ? "Quitado"
-          : d.data_vencimento < today
-            ? "Atraso"
-            : d.status;
-
+          : d.data_vencimento < today ? "Atraso" : d.status;
         const valorPago = statusFinal === "Quitado" ? d.valor : 0;
         const saldoParcela = Math.max(0, Number((d.valor - valorPago).toFixed(2)));
 
-        return {
-          parcela_mentoria_id: inserted.id,
+        allDetalhesInsert.push({
+          parcela_mentoria_id: parentId,
           numero_parcela: d.numero_parcela,
           data_vencimento: d.data_vencimento,
           valor_sugerido: Number(d.valor.toFixed(2)),
@@ -347,15 +328,18 @@ serve(async (req) => {
           status: statusFinal,
           data_pagamento: statusFinal === "Quitado" ? d.data_pagamento ?? d.data_vencimento : null,
           observacao: d.observacao,
-        };
-      });
-
-      const { error: detalhesError } = await db.from("parcelas_mentoria_detalhe").insert(detalhesInsert);
-      if (detalhesError) throw detalhesError;
-      insertedDetalhes += detalhesInsert.length;
+        });
+      }
     }
 
-    return new Response(JSON.stringify({ ok: true, contratos: insertedContracts, parcelas: insertedDetalhes }), {
+    // Batch insert detalhes
+    for (let i = 0; i < allDetalhesInsert.length; i += CHUNK) {
+      const chunk = allDetalhesInsert.slice(i, i + CHUNK);
+      const { error } = await db.from("parcelas_mentoria_detalhe").insert(chunk);
+      if (error) throw error;
+    }
+
+    return new Response(JSON.stringify({ ok: true, contratos: contractInserts.length, parcelas: allDetalhesInsert.length }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 200,
     });
@@ -363,10 +347,7 @@ serve(async (req) => {
     console.error(error);
     return new Response(
       JSON.stringify({ ok: false, error: error instanceof Error ? error.message : "Erro desconhecido" }),
-      {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 500,
-      },
+      { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
     );
   }
 });
