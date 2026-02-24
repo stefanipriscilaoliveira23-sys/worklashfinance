@@ -1,10 +1,13 @@
+import { useState } from "react";
 import { useDashboardData } from "@/hooks/useDashboardData";
 import { formatCurrency, formatPercent, formatDate, getMonthRange } from "@/lib/format";
-import { Loader2, AlertTriangle, TrendingUp, Target, Flame, DollarSign, Users, CalendarClock, ArrowRight, ShoppingCart, RefreshCw, BookOpen, CreditCard, BarChart3 } from "lucide-react";
+import { Loader2, AlertTriangle, TrendingUp, Target, Flame, DollarSign, Users, CalendarClock, ArrowRight, ShoppingCart, RefreshCw, BookOpen, CreditCard, BarChart3, Pencil } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
 import { useNavigate } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { Input } from "@/components/ui/input";
+import { toast } from "sonner";
 
 const GOLD_COLORS = ["#C9A84C", "#E5C76B", "#A68A3E", "#D4B85A", "#8B7432", "#F0D87E"];
 
@@ -24,6 +27,31 @@ function MetricCard({ label, value, sub, icon: Icon, variant }: { label: string;
 export default function Dashboard() {
   const d = useDashboardData();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const [editingMeta, setEditingMeta] = useState(false);
+  const [metaInput, setMetaInput] = useState("");
+
+  const saveMeta = useMutation({
+    mutationFn: async (valor: number) => {
+      const now = new Date();
+      const mes = now.getMonth() + 1;
+      const ano = now.getFullYear();
+      // Upsert: try update first, then insert
+      const { data: existing } = await supabase.from("metas").select("id").eq("mes", mes).eq("ano", ano).maybeSingle();
+      if (existing) {
+        await supabase.from("metas").update({ valor_meta: valor }).eq("id", existing.id);
+      } else {
+        await supabase.from("metas").insert({ mes, ano, valor_meta: valor });
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["meta-mes"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      toast.success("Meta atualizada");
+      setEditingMeta(false);
+    },
+    onError: () => toast.error("Erro ao salvar meta"),
+  });
 
   // Extra data for new KPIs
   const now = new Date();
@@ -142,9 +170,49 @@ export default function Dashboard() {
         <div className="rounded-xl border border-border bg-card p-5">
           <div className="flex items-center justify-between mb-2">
             <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Meta do mês</span>
-            <Target className="h-4 w-4 text-primary" />
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => {
+                  setMetaInput(String(d.metaValor));
+                  setEditingMeta(true);
+                }}
+                className="p-1 rounded hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors"
+                title="Editar meta"
+              >
+                <Pencil className="h-3.5 w-3.5" />
+              </button>
+              <Target className="h-4 w-4 text-primary" />
+            </div>
           </div>
-          <p className="text-2xl font-bold text-foreground">{formatCurrency(d.metaValor)}</p>
+          {editingMeta ? (
+            <div className="flex items-center gap-2">
+              <Input
+                type="number"
+                value={metaInput}
+                onChange={e => setMetaInput(e.target.value)}
+                className="h-8 text-sm bg-secondary/50 border-border"
+                autoFocus
+                onKeyDown={e => {
+                  if (e.key === "Enter") {
+                    const v = parseFloat(metaInput);
+                    if (!isNaN(v) && v > 0) saveMeta.mutate(v);
+                  }
+                  if (e.key === "Escape") setEditingMeta(false);
+                }}
+              />
+              <button
+                onClick={() => {
+                  const v = parseFloat(metaInput);
+                  if (!isNaN(v) && v > 0) saveMeta.mutate(v);
+                }}
+                className="text-xs text-primary hover:underline whitespace-nowrap"
+              >
+                Salvar
+              </button>
+            </div>
+          ) : (
+            <p className="text-2xl font-bold text-foreground">{formatCurrency(d.metaValor)}</p>
+          )}
           <div className="mt-2">
             <div className="h-2 bg-secondary rounded-full overflow-hidden">
               <div className={`h-full ${metaColor} rounded-full transition-all`} style={{ width: `${Math.min(d.metaPercent, 100)}%` }} />
@@ -175,8 +243,7 @@ export default function Dashboard() {
       </div>
 
       {/* A) KPIs PRINCIPAIS */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-        <MetricCard label="Faturamento Total" value={formatCurrency(d.totalBruto)} icon={DollarSign} />
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <MetricCard label="Ticket Médio" value={formatCurrency(ticketMedio)} icon={ShoppingCart} />
         <MetricCard label="Total Vendas" value={String(qtdVendas)} icon={BarChart3} />
         <MetricCard label="Meta Atingida" value={formatPercent(d.metaPercent)} icon={Target} sub={`Falta: ${formatCurrency(d.metaFaltante)}`} />
