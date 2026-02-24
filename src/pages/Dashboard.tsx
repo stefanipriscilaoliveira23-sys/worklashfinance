@@ -318,13 +318,13 @@ export default function Dashboard() {
         <MetricCard label="Renovações Vendidas" value={String(renovacoesMes.length)} icon={RefreshCw} sub="Valor total das vendas" />
         <MetricCard label="Valor Total Renovações" value={formatCurrency(valorTotalRenovacoes)} icon={RefreshCw} sub="Valor dos contratos vendidos" />
         <MetricCard label="Recebido Renovações" value={formatCurrency(recebidoRenovacoesMes)} icon={RefreshCw} sub="Entradas + parcelas pagas no mês" />
-        <MetricCard label="% Renovações" value={formatPercent(pctRenovacoes)} icon={RefreshCw} />
+        <MetricCard label="% das Vendas" value={formatPercent(pctRenovacoes)} icon={RefreshCw} sub={`${formatPercent(pctRenovacoes)} do valor total vendido`} />
       </div>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <MetricCard label="Mentorias Vendidas" value={String(mentoriasMes.length)} icon={BookOpen} sub="Valor total das vendas" />
         <MetricCard label="Valor Total Mentorias" value={formatCurrency(valorTotalMentorias)} icon={BookOpen} sub="Valor dos contratos vendidos" />
         <MetricCard label="Recebido Mentorias" value={formatCurrency(recebidoMentoriasMes)} icon={BookOpen} sub="Entradas + parcelas pagas no mês" />
-        <MetricCard label="% Mentorias" value={formatPercent(pctMentorias)} icon={BookOpen} />
+        <MetricCard label="% das Vendas" value={formatPercent(pctMentorias)} icon={BookOpen} sub={`${formatPercent(pctMentorias)} do valor total vendido`} />
       </div>
 
       {/* LINHA 3 — Gráficos */}
