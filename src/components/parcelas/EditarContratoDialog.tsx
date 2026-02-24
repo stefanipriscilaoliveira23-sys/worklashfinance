@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -9,11 +9,6 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { Tables } from "@/integrations/supabase/types";
 
-const TIPOS_MENTORIA = [
-  "Mentoria Outsider", "Mentoria Digital Beauty", "Consultoria Premium",
-  "Consultoria Express", "Renovação Mentoria"
-] as const;
-
 interface Props {
   contrato: Tables<"parcelas_mentoria"> | null;
   onClose: () => void;
@@ -21,7 +16,7 @@ interface Props {
 
 export default function EditarContratoDialog({ contrato, onClose }: Props) {
   const queryClient = useQueryClient();
-  const [tipoMentoria, setTipoMentoria] = useState("");
+  const [produtoId, setProdutoId] = useState("");
   const [valorTotal, setValorTotal] = useState("");
   const [entradaValor, setEntradaValor] = useState("");
   const [quantParcelas, setQuantParcelas] = useState("");
@@ -30,9 +25,24 @@ export default function EditarContratoDialog({ contrato, onClose }: Props) {
   const [clienteNome, setClienteNome] = useState("");
   const [clienteEmail, setClienteEmail] = useState("");
 
+  const { data: produtos } = useQuery({
+    queryKey: ["produtos-catalogo"],
+    queryFn: async () => {
+      const { data } = await supabase.from("produtos_catalogo").select("*").eq("ativo", true).order("nome");
+      return data ?? [];
+    },
+  });
+
   useEffect(() => {
     if (contrato) {
-      setTipoMentoria(contrato.tipo_mentoria);
+      // Set produto_id if available, otherwise try to find by category
+      const pid = (contrato as any).produto_id;
+      if (pid) {
+        setProdutoId(pid);
+      } else {
+        const match = (produtos ?? []).find(p => p.categoria === contrato.tipo_mentoria);
+        setProdutoId(match?.id ?? "");
+      }
       setValorTotal(String(contrato.valor_total ?? ""));
       setEntradaValor(String(contrato.entrada_valor ?? ""));
       setQuantParcelas(String(contrato.quant_parcelas ?? ""));
@@ -41,15 +51,19 @@ export default function EditarContratoDialog({ contrato, onClose }: Props) {
       setClienteNome(contrato.cliente_nome ?? "");
       setClienteEmail(contrato.cliente_email ?? "");
     }
-  }, [contrato]);
+  }, [contrato, produtos]);
+
+  const selectedProduto = (produtos ?? []).find(p => p.id === produtoId);
 
   const updateMutation = useMutation({
     mutationFn: async () => {
       if (!contrato) return;
+      const tipoMentoria = selectedProduto?.categoria ?? contrato.tipo_mentoria;
       const { error } = await supabase
         .from("parcelas_mentoria")
         .update({
           tipo_mentoria: tipoMentoria as any,
+          produto_id: produtoId || null,
           valor_total: Number(valorTotal) || 0,
           entrada_valor: Number(entradaValor) || 0,
           quant_parcelas: Number(quantParcelas) || 1,
@@ -57,7 +71,7 @@ export default function EditarContratoDialog({ contrato, onClose }: Props) {
           data_inicio: dataInicio,
           cliente_nome: clienteNome,
           cliente_email: clienteEmail || null,
-        })
+        } as any)
         .eq("id", contrato.id);
       if (error) throw error;
     },
@@ -65,6 +79,7 @@ export default function EditarContratoDialog({ contrato, onClose }: Props) {
       toast.success("Contrato atualizado");
       queryClient.invalidateQueries({ queryKey: ["parcelas-mentoria"] });
       queryClient.invalidateQueries({ queryKey: ["parcelas-detalhe-all"] });
+      queryClient.invalidateQueries({ queryKey: ["parcelas-mentoria-all"] });
       onClose();
     },
     onError: (e) => toast.error("Erro: " + e.message),
@@ -73,7 +88,6 @@ export default function EditarContratoDialog({ contrato, onClose }: Props) {
   const deleteMutation = useMutation({
     mutationFn: async () => {
       if (!contrato) return;
-      // Delete related payments
       const { data: detalhes } = await supabase
         .from("parcelas_mentoria_detalhe")
         .select("id")
@@ -86,12 +100,10 @@ export default function EditarContratoDialog({ contrato, onClose }: Props) {
           .eq("referencia_tipo", "parcela_mentoria_detalhe")
           .in("referencia_id", ids);
       }
-      // Delete installments
       await supabase
         .from("parcelas_mentoria_detalhe")
         .delete()
         .eq("parcela_mentoria_id", contrato.id);
-      // Delete contract
       const { error } = await supabase
         .from("parcelas_mentoria")
         .delete()
@@ -126,11 +138,15 @@ export default function EditarContratoDialog({ contrato, onClose }: Props) {
               </div>
             </div>
             <div>
-              <Label className="text-xs text-muted-foreground">Tipo de Mentoria</Label>
-              <Select value={tipoMentoria} onValueChange={setTipoMentoria}>
-                <SelectTrigger className="bg-secondary/50"><SelectValue /></SelectTrigger>
+              <Label className="text-xs text-muted-foreground">Produto</Label>
+              <Select value={produtoId} onValueChange={setProdutoId}>
+                <SelectTrigger className="bg-secondary/50">
+                  <SelectValue placeholder="Selecione o produto" />
+                </SelectTrigger>
                 <SelectContent>
-                  {TIPOS_MENTORIA.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                  {(produtos ?? []).map(p => (
+                    <SelectItem key={p.id} value={p.id}>{p.nome}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
