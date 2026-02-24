@@ -18,6 +18,7 @@ interface Props {
 
 export default function EditarParcelaDialog({ parcela, onClose }: Props) {
   const queryClient = useQueryClient();
+  const [numeroParcela, setNumeroParcela] = useState("");
   const [valorReal, setValorReal] = useState("");
   const [valorSugerido, setValorSugerido] = useState("");
   const [dataVencimento, setDataVencimento] = useState("");
@@ -26,6 +27,7 @@ export default function EditarParcelaDialog({ parcela, onClose }: Props) {
 
   // Sync state when parcela changes
   const initForm = (p: Tables<"parcelas_mentoria_detalhe">) => {
+    setNumeroParcela(String(p.numero_parcela ?? ""));
     setValorReal(String(p.valor_real ?? ""));
     setValorSugerido(String(p.valor_sugerido ?? ""));
     setDataVencimento(p.data_vencimento ?? "");
@@ -41,6 +43,7 @@ export default function EditarParcelaDialog({ parcela, onClose }: Props) {
         .update({
           valor_real: valorReal ? Number(valorReal) : null,
           valor_sugerido: valorSugerido ? Number(valorSugerido) : null,
+          numero_parcela: numeroParcela ? Number(numeroParcela) : parcela.numero_parcela,
           data_vencimento: dataVencimento,
           status: status as any,
           observacao: observacao || null,
@@ -97,6 +100,17 @@ export default function EditarParcelaDialog({ parcela, onClose }: Props) {
         </DialogHeader>
         {parcela && (
           <div className="space-y-4">
+            <div>
+              <Label className="text-xs text-muted-foreground">Nº da Parcela</Label>
+              <Input
+                type="number"
+                min="1"
+                value={numeroParcela}
+                onChange={(e) => setNumeroParcela(e.target.value)}
+                className="bg-secondary/50"
+                placeholder="Ex: 2"
+              />
+            </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label className="text-xs text-muted-foreground">Valor Sugerido</Label>
