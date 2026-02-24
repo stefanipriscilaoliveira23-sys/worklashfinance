@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { toast } from "sonner";
-import { Search, Loader2, AlertTriangle, ChevronRight, Users, DollarSign, Clock, CheckCircle2 } from "lucide-react";
+import { Search, Loader2, AlertTriangle, ChevronRight, Users, DollarSign, Clock, CheckCircle2, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -12,6 +12,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
 import ParcelaDetalheSheet from "@/components/parcelas/ParcelaDetalheSheet";
 import PagamentoDialog from "@/components/parcelas/PagamentoDialog";
+import NovoContratoDialog from "@/components/parcelas/NovoContratoDialog";
 import type { Tables } from "@/integrations/supabase/types";
 
 const TIPOS_MENTORIA = [
@@ -31,15 +32,18 @@ export function statusBadge(status: string | null) {
   return <Badge variant="outline" className={s.className}>{s.label}</Badge>;
 }
 
-// Generate dynamic month tabs: 6 months back + current + 6 months ahead
+// Generate month tabs starting from Feb/2026 + 6 months ahead from current
 function generateMonths() {
+  const minDate = new Date(2026, 1, 1); // Feb 2026
   const now = new Date();
+  const maxDate = new Date(now.getFullYear(), now.getMonth() + 6, 1);
   const months: { key: string; label: string }[] = [];
-  for (let i = -6; i <= 6; i++) {
-    const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
+  const d = new Date(minDate);
+  while (d <= maxDate) {
     const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
     const label = d.toLocaleString("pt-BR", { month: "short", year: "2-digit" }).replace(".", "");
     months.push({ key, label: label.charAt(0).toUpperCase() + label.slice(1) });
+    d.setMonth(d.getMonth() + 1);
   }
   return months;
 }
@@ -58,6 +62,7 @@ export default function ParcelasMentoria() {
   const [selectedMonth, setSelectedMonth] = useState(getCurrentMonthKey());
   const [selectedAluna, setSelectedAluna] = useState<Tables<"parcelas_mentoria"> | null>(null);
   const [showPagamento, setShowPagamento] = useState<Tables<"parcelas_mentoria_detalhe"> | null>(null);
+  const [showNovoContrato, setShowNovoContrato] = useState(false);
 
   // Fetch all parcelas with their details for the selected month
   const { data: allDetalhes, isLoading } = useQuery({
@@ -90,9 +95,9 @@ export default function ParcelasMentoria() {
 
   // Metrics for selected month
   const metrics = useMemo(() => {
-    if (!allDetalhes) return { total: 0, aReceber: 0, recebido: 0, qtdAReceber: 0, qtdRecebido: 0, clientes: 0 };
+    if (!allDetalhes) return { total: 0, aReceber: 0, recebido: 0, qtdAReceber: 0, qtdRecebido: 0, clientes: 0, valorAtrasado: 0 };
     const clientSet = new Set<string>();
-    let aReceber = 0, recebido = 0, qtdAReceber = 0, qtdRecebido = 0;
+    let aReceber = 0, recebido = 0, qtdAReceber = 0, qtdRecebido = 0, valorAtrasado = 0;
 
     allDetalhes.forEach((d: any) => {
       const parent = d.parcelas_mentoria;
@@ -101,6 +106,8 @@ export default function ParcelasMentoria() {
       if (d.status === "Quitado") {
         recebido += valor;
         qtdRecebido++;
+      } else if (d.status === "Atraso") {
+        valorAtrasado += valor;
       } else {
         aReceber += valor;
         qtdAReceber++;
@@ -108,12 +115,13 @@ export default function ParcelasMentoria() {
     });
 
     return {
-      total: aReceber + recebido,
+      total: aReceber + recebido + valorAtrasado,
       aReceber,
       recebido,
       qtdAReceber,
       qtdRecebido,
       clientes: clientSet.size,
+      valorAtrasado,
     };
   }, [allDetalhes]);
 
@@ -138,6 +146,14 @@ export default function ParcelasMentoria() {
     <div className="space-y-6 animate-fade-in">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <h1 className="text-xl font-bold text-foreground">Parcelas de Mentoria</h1>
+        <Button
+          size="sm"
+          className="gap-1"
+          onClick={() => setShowNovoContrato(true)}
+        >
+          <Plus className="h-4 w-4" />
+          Novo Contrato
+        </Button>
       </div>
 
       {/* Month tabs */}
@@ -191,9 +207,9 @@ export default function ParcelasMentoria() {
           <CardContent className="p-4">
             <div className="flex items-center gap-2 mb-1">
               <AlertTriangle className="h-4 w-4 text-destructive" />
-              <span className="text-[10px] uppercase text-muted-foreground tracking-wider">Atrasadas</span>
+              <span className="text-[10px] uppercase text-muted-foreground tracking-wider">Atrasadas ({inadimplentes.length})</span>
             </div>
-            <p className="text-lg font-bold text-destructive">{inadimplentes.length}</p>
+            <p className="text-lg font-bold text-destructive">{formatCurrency(metrics.valorAtrasado)}</p>
           </CardContent>
         </Card>
       </div>
@@ -309,6 +325,11 @@ export default function ParcelasMentoria() {
           queryClient.invalidateQueries({ queryKey: ["parcelas-mentoria"] });
           queryClient.invalidateQueries({ queryKey: ["parcelas-detalhe-all"] });
         }}
+      />
+
+      <NovoContratoDialog
+        open={showNovoContrato}
+        onClose={() => setShowNovoContrato(false)}
       />
     </div>
   );
