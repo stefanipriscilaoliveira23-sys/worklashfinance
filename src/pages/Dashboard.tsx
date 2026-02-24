@@ -207,12 +207,12 @@ export default function Dashboard() {
 
       {/* B) KPIs Renovação + C) KPIs Mentoria */}
       <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
-        <MetricCard label="Taxa Renovação" value={formatPercent(d.taxaRenovacao)} icon={RefreshCw} />
+        <MetricCard label="Renovações Vendidas" value={String(renovacoesMes.length)} icon={RefreshCw} />
         <MetricCard label="Receita Renovações" value={formatCurrency(receitaRenovacoes)} icon={RefreshCw} />
         <MetricCard label="% Renovações" value={formatPercent(pctRenovacoes)} icon={RefreshCw} />
+        <MetricCard label="Mentorias Vendidas" value={String(mentoriasMes.length)} icon={BookOpen} />
         <MetricCard label="Receita Mentorias" value={formatCurrency(receitaMentorias)} icon={BookOpen} />
         <MetricCard label="% Mentorias" value={formatPercent(pctMentorias)} icon={BookOpen} />
-        <MetricCard label="Mentorias Vendidas" value={String(mentoriasMes.length)} icon={BookOpen} />
       </div>
 
       {/* LINHA 3 — Gráficos */}
@@ -261,14 +261,9 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* LINHA 4 — Métricas mentoria originais */}
-      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
-        <MetricCard label="Previstas no mês" value={formatCurrency(d.previstaMes)} icon={CalendarClock} />
-        <MetricCard label="Recebidas no mês" value={formatCurrency(d.recebidaMes)} icon={DollarSign} />
-        <MetricCard label="Saldo a receber (mês)" value={formatCurrency(d.saldoReceberMes)} icon={Target} />
-        <MetricCard label="Saldo total futuro" value={formatCurrency(d.saldoTotalFuturo)} icon={TrendingUp} />
-        <MetricCard label="Taxa de renovação" value={formatPercent(d.taxaRenovacao)} icon={Users} />
-        <MetricCard label="Taxa inadimplência" value={formatPercent(d.taxaInadimplencia)} icon={AlertTriangle} variant={d.taxaInadimplencia > 20 ? "alert" : undefined} />
+      {/* LINHA 4 — Saldo futuro */}
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+        <MetricCard label="Saldo total futuro" value={formatCurrency(d.saldoTotalFuturo)} icon={TrendingUp} sub="Parcelas futuras pendentes" />
       </div>
 
       {/* F) Comparação Mensal */}

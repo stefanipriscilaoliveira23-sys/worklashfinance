@@ -31,20 +31,23 @@ export function statusBadge(status: string | null) {
   return <Badge variant="outline" className={s.className}>{s.label}</Badge>;
 }
 
-// Generate month tabs from Oct 2025 to Feb 2026
-const MONTHS = [
-  { key: "2025-10", label: "Out/25" },
-  { key: "2025-11", label: "Nov/25" },
-  { key: "2025-12", label: "Dez/25" },
-  { key: "2026-01", label: "Jan/26" },
-  { key: "2026-02", label: "Fev/26" },
-];
+// Generate dynamic month tabs: 6 months back + current + 6 months ahead
+function generateMonths() {
+  const now = new Date();
+  const months: { key: string; label: string }[] = [];
+  for (let i = -6; i <= 6; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+    const label = d.toLocaleString("pt-BR", { month: "short", year: "2-digit" }).replace(".", "");
+    months.push({ key, label: label.charAt(0).toUpperCase() + label.slice(1) });
+  }
+  return months;
+}
+const MONTHS = generateMonths();
 
 function getCurrentMonthKey() {
   const now = new Date();
-  const key = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-  const found = MONTHS.find(m => m.key === key);
-  return found ? key : MONTHS[MONTHS.length - 1].key;
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
 }
 
 export default function ParcelasMentoria() {
@@ -242,14 +245,14 @@ export default function ParcelasMentoria() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border bg-secondary/30">
-                  {["Nome", "Tipo", "Parcela", "Valor Parcela", "Vencimento", "Saldo Contrato", "Status", ""].map(h => (
+                  {["Nome", "Tipo", "Parcela", "Valor Parcela", "Vencimento", "Saldo Contrato", "Status", "Obs.", ""].map(h => (
                     <th key={h} className={`p-3 text-xs font-medium text-muted-foreground ${["Valor Parcela", "Saldo Contrato"].includes(h) ? "text-right" : "text-left"}`}>{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {tableRows.length === 0 && (
-                  <tr><td colSpan={8} className="p-12 text-center text-muted-foreground">Nenhuma parcela encontrada neste mês</td></tr>
+                  <tr><td colSpan={9} className="p-12 text-center text-muted-foreground">Nenhuma parcela encontrada neste mês</td></tr>
                 )}
                 {tableRows.map((d: any) => {
                   const parent = d.parcelas_mentoria;
@@ -271,8 +274,16 @@ export default function ParcelasMentoria() {
                       </td>
                       <td className="p-3 text-right">{formatCurrency(valorParcela)}</td>
                       <td className="p-3 text-muted-foreground text-xs">{formatDate(d.data_vencimento)}</td>
-                      <td className="p-3 text-right text-primary">{formatCurrency(d.saldo_parcela)}</td>
+                      <td className="p-3 text-right text-primary">{formatCurrency(
+                        // Saldo do contrato = valor_total - entrada - soma de todas parcelas pagas
+                        Math.max(0, (parent.valor_total ?? 0) - (parent.entrada_valor ?? 0) - 
+                          ((allDetalhes ?? [])
+                            .filter((p: any) => p.parcela_mentoria_id === parent.id && p.status === "Quitado")
+                            .reduce((s: number, p: any) => s + (p.valor_real ?? p.valor_sugerido ?? 0), 0))
+                        )
+                      )}</td>
                       <td className="p-3">{statusBadge(d.status)}</td>
+                      <td className="p-3 text-muted-foreground text-xs truncate max-w-[100px]">{d.observacao || "—"}</td>
                       <td className="p-3"><ChevronRight className="h-4 w-4 text-muted-foreground" /></td>
                     </tr>
                   );
