@@ -107,8 +107,6 @@ export default function Dashboard() {
       .reduce((acc: number, p: any) => acc + (p.valor_real ?? p.valor_sugerido ?? 0), 0);
     return s + entrada + parcRecebidas;
   }, 0);
-  const pctRenovacoes = d.totalBruto > 0 ? (valorTotalRenovacoes / d.totalBruto) * 100 : 0;
-
   // C) KPIs de mentoria (contratos não-renovação vendidos no mês)
   const mentoriasMes = contratosMes.filter(c => !c.is_renovacao);
   const valorTotalMentorias = mentoriasMes.reduce((s, c) => s + (c.valor_total ?? 0), 0);
@@ -119,7 +117,10 @@ export default function Dashboard() {
       .reduce((acc: number, p: any) => acc + (p.valor_real ?? p.valor_sugerido ?? 0), 0);
     return s + entrada + parcRecebidas;
   }, 0);
-  const pctMentorias = d.totalBruto > 0 ? (valorTotalMentorias / d.totalBruto) * 100 : 0;
+
+  const totalVendasContratos = valorTotalRenovacoes + valorTotalMentorias;
+  const pctRenovacoes = totalVendasContratos > 0 ? (valorTotalRenovacoes / totalVendasContratos) * 100 : 0;
+  const pctMentorias = totalVendasContratos > 0 ? (valorTotalMentorias / totalVendasContratos) * 100 : 0;
 
   // D) Controle parcelas
   const parcelasPagas = detalhesMes.filter(p => p.status === "Quitado");
