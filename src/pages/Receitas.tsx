@@ -87,9 +87,9 @@ export default function Receitas() {
     return {
       id: `parcela-${pq.id}`,
       data: pq.data_pagamento ?? pq.data_vencimento,
-      produto_nome: `Parcela ${pq.numero_parcela}/${parent.quant_parcelas} — ${parent.cliente_nome}`,
+      produto_nome: parent.tipo_mentoria,
       produto_categoria: parent.tipo_mentoria,
-      plataforma: "Direto Pix" as const,
+      plataforma: "" as any,
       cliente_nome: parent.cliente_nome,
       cliente_email: parent.cliente_email,
       valor_bruto: pq.valor_real ?? pq.valor_sugerido ?? 0,
@@ -101,6 +101,7 @@ export default function Receitas() {
       observacao: pq.observacao,
       forma_pagamento: null,
       is_parcela: true,
+      parcela_label: `${pq.numero_parcela}/${parent.quant_parcelas}`,
     };
   });
 
@@ -172,27 +173,25 @@ export default function Receitas() {
               <td className="p-3">{formatDate(r.data)}</td>
               <td className="p-3 truncate max-w-[180px]">
                 <div className="flex items-center gap-1.5">
-                  {isParcela && <span className="px-1.5 py-0.5 text-[9px] rounded bg-primary/10 text-primary font-medium shrink-0">Parcela</span>}
+                  {isParcela && <span className="px-1.5 py-0.5 text-[9px] rounded bg-primary/10 text-primary font-medium shrink-0">{r.parcela_label}</span>}
                   <span className="truncate">{r.produto_nome}</span>
                 </div>
               </td>
               <td className="p-3 text-muted-foreground text-xs">{r.produto_categoria || "—"}</td>
-              <td className="p-3 text-muted-foreground text-xs">{isParcela ? "Parcela" : r.plataforma}</td>
+              <td className="p-3 text-muted-foreground text-xs">{r.plataforma || "—"}</td>
               <td className="p-3 truncate max-w-[120px]">{r.cliente_nome || "—"}</td>
               <td className="p-3 text-right">{formatCurrency(r.valor_bruto)}</td>
               <td className="p-3 text-right text-muted-foreground">{formatCurrency(r.taxa_plataforma_valor ?? 0)}</td>
               <td className="p-3 text-right text-primary">{formatCurrency(r.valor_liquido ?? r.valor_bruto)}</td>
               <td className="p-3"><span className={`px-2 py-0.5 text-[10px] rounded-full ${r.status === "ativo" ? "bg-emerald-500/10 text-emerald-400" : "bg-muted text-muted-foreground"}`}>{isParcela ? "Recebido" : r.status}</span></td>
               <td className="p-3">
-                {!isParcela && (
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild><button className="p-1.5 rounded hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors"><MoreHorizontal className="h-4 w-4" /></button></DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="bg-card border-border">
-                      <DropdownMenuItem onClick={() => setEditReceita(r)} className="gap-2"><Pencil className="h-3.5 w-3.5" /> Editar</DropdownMenuItem>
-                      {role === "admin" && <DropdownMenuItem onClick={() => { if (confirm("Excluir esta receita?")) deleteMutation.mutate(r.id); }} className="gap-2 text-destructive"><Trash2 className="h-3.5 w-3.5" /> Excluir</DropdownMenuItem>}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                )}
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild><button className="p-1.5 rounded hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors"><MoreHorizontal className="h-4 w-4" /></button></DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="bg-card border-border">
+                    <DropdownMenuItem onClick={() => setEditReceita(r)} className="gap-2"><Pencil className="h-3.5 w-3.5" /> Editar</DropdownMenuItem>
+                    {!isParcela && role === "admin" && <DropdownMenuItem onClick={() => { if (confirm("Excluir esta receita?")) deleteMutation.mutate(r.id); }} className="gap-2 text-destructive"><Trash2 className="h-3.5 w-3.5" /> Excluir</DropdownMenuItem>}
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </td>
             </tr>
           );
