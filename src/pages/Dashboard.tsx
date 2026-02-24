@@ -55,8 +55,8 @@ export default function Dashboard() {
   const detalhesMes = detalhes.filter(p => p.data_vencimento >= mesInicio && p.data_vencimento <= mesFim);
   const today = now.toISOString().split("T")[0];
 
-  // A) KPIs principais
-  const qtdVendas = receitasMes.length;
+  // A) KPIs principais (receitas + parcelas quitadas)
+  const qtdVendas = (d.qtdReceitasMes ?? 0) + (d.qtdParcelasQuitadasMes ?? 0);
   const ticketMedio = qtdVendas > 0 ? d.totalBruto / qtdVendas : 0;
 
   // B) KPIs de renovação

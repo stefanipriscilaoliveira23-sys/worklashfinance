@@ -119,7 +119,7 @@ export function useDashboardData() {
   }));
   const totalInadimplente = parcelasAtraso.reduce((s, p) => s + ((p.valor_real ?? p.valor_sugerido ?? 0) - (p.valor_pago_parcial ?? 0)), 0);
 
-  // Gráfico faturamento diário
+  // Gráfico faturamento diário (receitas + parcelas quitadas)
   const faturamentoDiario: { data: string; valor: number }[] = [];
   const thirtyDaysAgo = new Date();
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
@@ -127,16 +127,23 @@ export function useDashboardData() {
     const d = new Date(thirtyDaysAgo);
     d.setDate(thirtyDaysAgo.getDate() + i);
     const ds = d.toISOString().split("T")[0];
-    const total = receitasMes.filter(r => r.data === ds).reduce((s, r) => s + (r.valor_bruto ?? 0), 0);
-    faturamentoDiario.push({ data: ds, valor: total });
+    const totalReceitas = receitasMes.filter(r => r.data === ds).reduce((s, r) => s + (r.valor_bruto ?? 0), 0);
+    const totalParcelasDia = parcelasMesQuitadas.filter(p => (p.data_pagamento ?? p.data_vencimento) === ds).reduce((s, p) => s + (p.valor_real ?? p.valor_sugerido ?? 0), 0);
+    faturamentoDiario.push({ data: ds, valor: totalReceitas + totalParcelasDia });
   }
 
-  // Composição por categoria
+  // Composição por categoria (receitas + parcelas quitadas)
   const composicaoPorCategoria: { name: string; value: number }[] = [];
   const catMap = new Map<string, number>();
   receitasMes.forEach(r => {
     const cat = r.produto_categoria || "Outros";
     catMap.set(cat, (catMap.get(cat) ?? 0) + (r.valor_bruto ?? 0));
+  });
+  // Adicionar parcelas quitadas por tipo de mentoria
+  parcelasMesQuitadas.forEach(p => {
+    const pm = p.parcelas_mentoria as any;
+    const cat = pm?.tipo_mentoria || "Parcelas Mentoria";
+    catMap.set(cat, (catMap.get(cat) ?? 0) + (p.valor_real ?? p.valor_sugerido ?? 0));
   });
   catMap.forEach((value, name) => composicaoPorCategoria.push({ name, value }));
 
@@ -181,5 +188,8 @@ export function useDashboardData() {
     previstaMes, recebidaMes, saldoReceberMes, saldoTotalFuturo,
     taxaRenovacao, taxaInadimplencia,
     ultimasReceitas: ultimasReceitas.data ?? [],
+    qtdParcelasQuitadasMes: parcelasMesQuitadas.length,
+    receitaParcelasMes,
+    qtdReceitasMes: receitasMes.length,
   };
 }
