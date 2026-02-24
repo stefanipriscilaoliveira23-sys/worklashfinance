@@ -368,6 +368,13 @@ export function NovaReceitaModal({ open, onClose }: { open: boolean; onClose: ()
               </div>
             )}
 
+            {categoria === "Renovação Mentoria" && (
+              <div className="space-y-1.5">
+                <Label className="text-foreground/80">Fim anterior (data fim da mentoria anterior)</Label>
+                <Input type="date" value={dataFimMentoria} onChange={(e) => setDataFimMentoria(e.target.value)} className="bg-secondary/50 border-border" />
+              </div>
+            )}
+
             <div className="space-y-1.5">
               <Label className="text-foreground/80">Observação</Label>
               <Textarea value={observacao} onChange={(e) => setObservacao(e.target.value)} className="bg-secondary/50 border-border" rows={2} />
