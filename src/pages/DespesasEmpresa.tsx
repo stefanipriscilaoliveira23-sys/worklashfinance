@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatCurrency, formatDate, getMonthRange, getWeekRange } from "@/lib/format";
 import { toast } from "sonner";
-import { Plus, Search, Loader2, Trash2, DollarSign } from "lucide-react";
+import { Plus, Search, Loader2, DollarSign, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import type { Tables } from "@/integrations/supabase/types";
 import { Constants } from "@/integrations/supabase/types";
 
@@ -48,10 +49,14 @@ export default function DespesasEmpresa() {
   const [pgData, setPgData] = useState(new Date().toISOString().split("T")[0]);
   const [pgObs, setPgObs] = useState("");
 
+  // Edit modal
+  const [editItem, setEditItem] = useState<Tables<"despesas_empresa"> | null>(null);
+  const [editForm, setEditForm] = useState({ descricao: "", categoria: "" as any, tipo_despesa: "Fixa" as any, valor_original: "", data_vencimento: "", forma_pagamento: "", observacao: "" });
+
   const { data: despesas, isLoading } = useQuery({
     queryKey: ["despesas-empresa"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("despesas_empresa").select("*").order("data_vencimento", { ascending: false });
+      const { data, error } = await supabase.from("despesas_empresa").select("*").order("data_vencimento", { ascending: true });
       if (error) throw error;
       return data;
     },
@@ -60,7 +65,7 @@ export default function DespesasEmpresa() {
   const { data: estoque } = useQuery({
     queryKey: ["estoque-cmv"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("estoque_cmv").select("*").order("data_compra", { ascending: false });
+      const { data, error } = await supabase.from("estoque_cmv").select("*").order("data_compra", { ascending: true });
       if (error) throw error;
       return data;
     },
@@ -153,6 +158,28 @@ export default function DespesasEmpresa() {
     onError: () => toast.error("Erro ao excluir — apenas administradores"),
   });
 
+  const editMutation = useMutation({
+    mutationFn: async () => {
+      if (!editItem) return;
+      const valor = parseFloat(editForm.valor_original);
+      if (!editForm.descricao || isNaN(valor)) throw new Error("Preencha campos obrigatórios");
+      const novoSaldo = valor - (editItem.valor_pago_total ?? 0);
+      const { error } = await supabase.from("despesas_empresa").update({
+        descricao: editForm.descricao, categoria: editForm.categoria, tipo_despesa: editForm.tipo_despesa,
+        valor_original: valor, saldo_pendente: Math.max(0, novoSaldo),
+        data_vencimento: editForm.data_vencimento || null, forma_pagamento: editForm.forma_pagamento || null, observacao: editForm.observacao || null,
+      }).eq("id", editItem.id);
+      if (error) throw error;
+    },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["despesas-empresa"] }); toast.success("Despesa atualizada"); setEditItem(null); },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  const openEdit = (d: Tables<"despesas_empresa">) => {
+    setEditForm({ descricao: d.descricao, categoria: d.categoria, tipo_despesa: d.tipo_despesa, valor_original: String(d.valor_original), data_vencimento: d.data_vencimento ?? "", forma_pagamento: d.forma_pagamento ?? "", observacao: d.observacao ?? "" });
+    setEditItem(d);
+  };
+
   const tipoFiltro = tab === "fixas" ? "Fixa" : "Variável";
   const filtered = (despesas ?? []).filter(d => {
     if (tab !== "cmv" && d.tipo_despesa !== tipoFiltro) return false;
@@ -202,25 +229,22 @@ export default function DespesasEmpresa() {
                   <Badge variant="outline" className={STATUS_STYLE[d.status ?? "A Vencer"] ?? STATUS_STYLE["A Vencer"]}>{d.status}</Badge>
                 </td>
                 <td className="p-3">
-                  <div className="flex gap-1">
-                    {d.status !== "Pago" && (
-                      <button
-                        onClick={() => { setShowPagamento(d); setPgValor(String(d.saldo_pendente ?? 0)); }}
-                        className="p-1.5 rounded hover:bg-primary/10 text-muted-foreground hover:text-primary transition-colors"
-                        title="Registrar pagamento"
-                      >
-                        <DollarSign className="h-3.5 w-3.5" />
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <button className="p-1.5 rounded hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors">
+                        <MoreHorizontal className="h-4 w-4" />
                       </button>
-                    )}
-                    {role === "admin" && (
-                      <button
-                        onClick={() => { if (confirm("Excluir?")) deleteMutation.mutate(d.id); }}
-                        className="p-1.5 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
-                    )}
-                  </div>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="bg-card border-border">
+                      <DropdownMenuItem onClick={() => openEdit(d)} className="gap-2"><Pencil className="h-3.5 w-3.5" /> Editar</DropdownMenuItem>
+                      {d.status !== "Pago" && (
+                        <DropdownMenuItem onClick={() => { setShowPagamento(d); setPgValor(String(d.saldo_pendente ?? 0)); }} className="gap-2"><DollarSign className="h-3.5 w-3.5" /> Registrar pagamento</DropdownMenuItem>
+                      )}
+                      {role === "admin" && (
+                        <DropdownMenuItem onClick={() => { if (confirm("Excluir esta despesa?")) deleteMutation.mutate(d.id); }} className="gap-2 text-destructive"><Trash2 className="h-3.5 w-3.5" /> Excluir</DropdownMenuItem>
+                      )}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </td>
               </tr>
             ))}
@@ -417,6 +441,42 @@ export default function DespesasEmpresa() {
             <Button variant="outline" onClick={() => setShowPagamento(null)} className="border-border">Cancelar</Button>
             <Button onClick={() => registrarPagamento.mutate()} disabled={registrarPagamento.isPending} className="gold-gradient text-primary-foreground">
               {registrarPagamento.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Confirmar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit modal */}
+      <Dialog open={!!editItem} onOpenChange={() => setEditItem(null)}>
+        <DialogContent className="bg-card border-border">
+          <DialogHeader><DialogTitle className="text-foreground">Editar Despesa</DialogTitle></DialogHeader>
+          <div className="space-y-4">
+            <div><Label className="text-muted-foreground">Descrição *</Label><Input value={editForm.descricao} onChange={e => setEditForm(f => ({ ...f, descricao: e.target.value }))} className="bg-secondary/50 border-border" /></div>
+            <div className="grid grid-cols-2 gap-3">
+              <div><Label className="text-muted-foreground">Categoria</Label>
+                <Select value={editForm.categoria} onValueChange={v => setEditForm(f => ({ ...f, categoria: v }))}>
+                  <SelectTrigger className="bg-secondary/50 border-border"><SelectValue /></SelectTrigger>
+                  <SelectContent>{CATEGORIAS.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+              <div><Label className="text-muted-foreground">Tipo</Label>
+                <Select value={editForm.tipo_despesa} onValueChange={v => setEditForm(f => ({ ...f, tipo_despesa: v }))}>
+                  <SelectTrigger className="bg-secondary/50 border-border"><SelectValue /></SelectTrigger>
+                  <SelectContent><SelectItem value="Fixa">Fixa</SelectItem><SelectItem value="Variável">Variável</SelectItem></SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div><Label className="text-muted-foreground">Valor *</Label><Input type="number" value={editForm.valor_original} onChange={e => setEditForm(f => ({ ...f, valor_original: e.target.value }))} className="bg-secondary/50 border-border" /></div>
+              <div><Label className="text-muted-foreground">Data Vencimento</Label><Input type="date" value={editForm.data_vencimento} onChange={e => setEditForm(f => ({ ...f, data_vencimento: e.target.value }))} className="bg-secondary/50 border-border" /></div>
+            </div>
+            <div><Label className="text-muted-foreground">Forma de Pagamento</Label><Input value={editForm.forma_pagamento} onChange={e => setEditForm(f => ({ ...f, forma_pagamento: e.target.value }))} className="bg-secondary/50 border-border" /></div>
+            <div><Label className="text-muted-foreground">Observação</Label><Textarea value={editForm.observacao} onChange={e => setEditForm(f => ({ ...f, observacao: e.target.value }))} className="bg-secondary/50 border-border" rows={2} /></div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditItem(null)} className="border-border">Cancelar</Button>
+            <Button onClick={() => editMutation.mutate()} disabled={editMutation.isPending} className="gold-gradient text-primary-foreground">
+              {editMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Salvar"}
             </Button>
           </DialogFooter>
         </DialogContent>

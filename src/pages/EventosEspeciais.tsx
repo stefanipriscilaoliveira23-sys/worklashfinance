@@ -54,7 +54,7 @@ export default function EventosEspeciais() {
   const { data: eventos, isLoading } = useQuery({
     queryKey: ["eventos-especiais"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("eventos_especiais").select("*").order("data_evento", { ascending: false });
+      const { data, error } = await supabase.from("eventos_especiais").select("*").order("data_evento", { ascending: true });
       if (error) throw error;
       return data;
     },
