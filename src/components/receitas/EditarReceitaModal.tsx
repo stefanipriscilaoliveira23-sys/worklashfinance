@@ -293,7 +293,7 @@ export function EditarReceitaModal({ receita, open, onClose }: EditarReceitaModa
               </Select>
             </div>
             <div className="space-y-1.5">
-              <Label className="text-foreground/80">Fim da mentoria</Label>
+              <Label className="text-foreground/80">{categoria === "Renovação Mentoria" ? "Fim anterior" : "Fim da mentoria"}</Label>
               <Input type="date" value={dataFimMentoria} onChange={(e) => setDataFimMentoria(e.target.value)} className="bg-secondary/50 border-border" />
             </div>
           </div>
