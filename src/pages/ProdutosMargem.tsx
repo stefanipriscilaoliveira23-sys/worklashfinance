@@ -125,42 +125,36 @@ export default function ProdutosMargem() {
   const receitasMes = allReceitas.filter(r => r.data >= start && r.data <= end);
   const proLabore = meta?.pro_labore ?? 30000;
 
-  // CATÁLOGO — match receitas + parcelas_mentoria contracts
+  // CATÁLOGO — match receitas + parcelas_mentoria contracts (strict matching only)
   const allParcelas = parcelasMentoria ?? [];
   const catalogData = (produtos ?? []).map(p => {
     // Match receitas by id, name, or category
     const vendasReceitas = allReceitas.filter(r => r.produto_id === p.id || r.produto_nome === p.nome || r.produto_categoria === p.categoria);
-    // Match parcelas_mentoria contracts by categoria or product name
+    // Match parcelas_mentoria: strict match by categoria only for non-renovation products
+    // Renovations all share "Renovação Mentoria" so we can't reliably distinguish them
     const vendasParcelas = allParcelas.filter(pm => {
-      // Direct categoria match (works for Mentoria Outsider, Digital Beauty, etc.)
-      if (pm.tipo_mentoria === p.categoria) return true;
-      // For renovation products: match by checking if the product name contains info about which mentoria
-      // e.g. "Renovação Lash Outsider" matches renovations of clients who had "Mentoria Outsider"
-      if (p.categoria === "Renovação Mentoria" && pm.tipo_mentoria === "Renovação Mentoria") {
-        // Try to find which specific renovation this is by checking client's other contracts
-        const clientOtherContracts = allParcelas.filter(
-          other => other.cliente_nome === pm.cliente_nome && other.tipo_mentoria !== "Renovação Mentoria"
-        );
-        if (clientOtherContracts.length > 0) {
-          const originalMentoria = clientOtherContracts[0].tipo_mentoria;
-          // Match renovation product name to original mentoria category
-          // e.g. "Renovação Lash Outsider" contains keywords from "Mentoria Outsider"
-          const prodNameLower = p.nome.toLowerCase();
-          if (originalMentoria === "Mentoria Outsider" && prodNameLower.includes("outsider")) return true;
-          if (originalMentoria === "Mentoria Digital Beauty" && (prodNameLower.includes("digital") || prodNameLower.includes("beauty"))) return true;
-          if (originalMentoria === "Consultoria Premium" && prodNameLower.includes("premium")) return true;
-          if (originalMentoria === "Consultoria Express" && prodNameLower.includes("express")) return true;
-          return false;
-        }
-        return false;
+      if (p.categoria !== "Renovação Mentoria") {
+        return pm.tipo_mentoria === p.categoria;
       }
       return false;
     });
+    // For the first renovation product found, assign ALL renovation contracts (avoid double-counting)
+    let vendasRenovacao = 0;
+    let brutoRenovacao = 0;
+    if (p.categoria === "Renovação Mentoria") {
+      const allRenovProds = (produtos ?? []).filter(pr => pr.categoria === "Renovação Mentoria").sort((a, b) => a.nome.localeCompare(b.nome));
+      // Only assign to the first renovation product to avoid duplicating
+      if (allRenovProds.length > 0 && allRenovProds[0].id === p.id) {
+        const renovContracts = allParcelas.filter(pm => pm.tipo_mentoria === "Renovação Mentoria");
+        vendasRenovacao = renovContracts.length;
+        brutoRenovacao = renovContracts.reduce((s, pm) => s + (pm.valor_total ?? 0), 0);
+      }
+    }
     
-    const totalVendas = vendasReceitas.length + vendasParcelas.length;
+    const totalVendas = vendasReceitas.length + vendasParcelas.length + vendasRenovacao;
     const totalBrutoReceitas = vendasReceitas.reduce((s, r) => s + (r.valor_bruto ?? 0), 0);
     const totalBrutoParcelas = vendasParcelas.reduce((s, pm) => s + (pm.valor_total ?? 0), 0);
-    const totalBruto = totalBrutoReceitas + totalBrutoParcelas;
+    const totalBruto = totalBrutoReceitas + totalBrutoParcelas + brutoRenovacao;
     const precoMedio = totalVendas > 0 ? totalBruto / totalVendas : 0;
     const custoPerc = p.custo_direto_percentual ?? 0;
     const margemPerc = precoMedio > 0 ? 100 - custoPerc : 0;
