@@ -51,6 +51,19 @@ export default function Receitas() {
     },
   });
 
+  // Parcelas quitadas para exibir como entradas de receita
+  const { data: parcelasQuitadas } = useQuery({
+    queryKey: ["receitas-parcelas-quitadas"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("parcelas_mentoria_detalhe")
+        .select("*, parcelas_mentoria!inner(*)")
+        .eq("status", "Quitado")
+        .order("data_pagamento", { ascending: true });
+      return data ?? [];
+    },
+  });
+
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
       const { error } = await supabase.from("receitas").delete().eq("id", id);
@@ -66,6 +79,29 @@ export default function Receitas() {
   const allReceitas = receitas ?? [];
   const allParcelas = parcelasData ?? [];
 
+  // Transform parcelas quitadas into receita-like objects
+  const parcelasComoReceitas = (parcelasQuitadas ?? []).map((pq: any) => {
+    const parent = pq.parcelas_mentoria;
+    return {
+      id: `parcela-${pq.id}`,
+      data: pq.data_pagamento ?? pq.data_vencimento,
+      produto_nome: `Parcela ${pq.numero_parcela}/${parent.quant_parcelas} — ${parent.cliente_nome}`,
+      produto_categoria: parent.tipo_mentoria,
+      plataforma: "Direto Pix" as const,
+      cliente_nome: parent.cliente_nome,
+      cliente_email: parent.cliente_email,
+      valor_bruto: pq.valor_real ?? pq.valor_sugerido ?? 0,
+      taxa_plataforma_valor: 0,
+      valor_liquido: pq.valor_real ?? pq.valor_sugerido ?? 0,
+      moeda_original: "BRL",
+      origens_venda: [] as string[],
+      status: "ativo",
+      observacao: pq.observacao,
+      forma_pagamento: null,
+      is_parcela: true,
+    };
+  });
+
   const filtered = allReceitas.filter((r) => {
     if (filtroPlataforma !== "all" && r.plataforma !== filtroPlataforma) return false;
     if (filtroCategoria !== "all" && r.produto_categoria !== filtroCategoria) return false;
@@ -76,22 +112,36 @@ export default function Receitas() {
     return true;
   });
 
+  // Filter parcelas the same way
+  const filteredParcelas = parcelasComoReceitas.filter((r: any) => {
+    if (filtroPlataforma !== "all" && r.plataforma !== filtroPlataforma) return false;
+    if (filtroCategoria !== "all" && r.produto_categoria !== filtroCategoria) return false;
+    if (search) {
+      const s = search.toLowerCase();
+      return r.produto_nome.toLowerCase().includes(s) || (r.cliente_nome ?? "").toLowerCase().includes(s) || (r.cliente_email ?? "").toLowerCase().includes(s);
+    }
+    return true;
+  });
+
+  // Merge and sort
+  const allEntries = [...filtered, ...filteredParcelas].sort((a, b) => (a.data ?? "").localeCompare(b.data ?? ""));
+
   // Tab filtering
   const getTabData = () => {
     switch (tab) {
-      case "mentorias": return filtered.filter(r => MENTORIA_CATS.includes(r.produto_categoria ?? ""));
-      case "renovacoes": return filtered.filter(r => RENOVACAO_CATS.includes(r.produto_categoria ?? ""));
-      case "digitais": return filtered.filter(r => DIGITAL_CATS.includes(r.produto_categoria ?? ""));
-      case "fisicos": return filtered.filter(r => FISICO_CATS.includes(r.produto_categoria ?? ""));
-      default: return filtered;
+      case "mentorias": return allEntries.filter(r => MENTORIA_CATS.includes(r.produto_categoria ?? ""));
+      case "renovacoes": return allEntries.filter(r => RENOVACAO_CATS.includes(r.produto_categoria ?? ""));
+      case "digitais": return allEntries.filter(r => DIGITAL_CATS.includes(r.produto_categoria ?? ""));
+      case "fisicos": return allEntries.filter(r => FISICO_CATS.includes(r.produto_categoria ?? ""));
+      default: return allEntries;
     }
   };
   const tabData = getTabData();
 
   const totalBruto = tabData.reduce((s, r) => s + (r.valor_bruto ?? 0), 0);
-  const totalTaxas = tabData.reduce((s, r) => s + (r.taxa_plataforma_valor ?? 0), 0);
-  const totalLiquido = tabData.reduce((s, r) => s + (r.valor_liquido ?? 0), 0);
-  const totalUSD = tabData.filter(r => r.moeda_original === "USD").reduce((s, r) => s + (r.valor_bruto ?? 0), 0);
+  const totalTaxas = tabData.reduce((s, r) => s + ((r as any).taxa_plataforma_valor ?? 0), 0);
+  const totalLiquido = tabData.reduce((s, r) => s + ((r as any).valor_liquido ?? 0), 0);
+  const totalUSD = tabData.filter(r => (r as any).moeda_original === "USD").reduce((s, r) => s + (r.valor_bruto ?? 0), 0);
 
   // Helper to find parcela info for a receita
   const getParcelaInfo = (receitaId: string) => {
@@ -106,36 +156,44 @@ export default function Receitas() {
     <table className="w-full text-sm">
       <thead>
         <tr className="border-b border-border bg-secondary/30">
-          {["Data", "Produto", "Categoria", "Plataforma", "Cliente", "Bruto", "Taxa", "Líquido", "Moeda", "Origens", "Status", "Ações"].map(h => (
+          {["Data", "Produto", "Categoria", "Origem", "Cliente", "Bruto", "Taxa", "Líquido", "Status", "Ações"].map(h => (
             <th key={h} className={`p-3 text-xs font-medium text-muted-foreground ${["Bruto", "Taxa", "Líquido"].includes(h) ? "text-right" : "text-left"}`}>{h}</th>
           ))}
         </tr>
       </thead>
       <tbody>
-        {tabData.length === 0 && <tr><td colSpan={12} className="p-12 text-center text-muted-foreground">Nenhuma receita encontrada</td></tr>}
-        {tabData.map(r => (
-          <tr key={r.id} className="border-b border-border/50 hover:bg-surface-hover transition-colors">
-            <td className="p-3">{formatDate(r.data)}</td>
-            <td className="p-3 truncate max-w-[140px]">{r.produto_nome}</td>
-            <td className="p-3 text-muted-foreground text-xs">{r.produto_categoria || "—"}</td>
-            <td className="p-3 text-muted-foreground">{r.plataforma}</td>
-            <td className="p-3 truncate max-w-[120px]">{r.cliente_nome || "—"}</td>
-            <td className="p-3 text-right">{formatCurrency(r.valor_bruto)}</td>
-            <td className="p-3 text-right text-muted-foreground">{formatCurrency(r.taxa_plataforma_valor)}</td>
-            <td className="p-3 text-right text-primary">{formatCurrency(r.valor_liquido)}</td>
-            <td className="p-3 text-muted-foreground">{r.moeda_original}</td>
-            <td className="p-3"><div className="flex flex-wrap gap-1">{(r.origens_venda ?? []).map((o, i) => <span key={i} className="px-1.5 py-0.5 text-[10px] rounded bg-primary/10 text-primary">{o}</span>)}</div></td>
-            <td className="p-3"><span className={`px-2 py-0.5 text-[10px] rounded-full ${r.status === "ativo" ? "bg-emerald-500/10 text-emerald-400" : "bg-muted text-muted-foreground"}`}>{r.status}</span></td>
-            <td className="p-3">
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild><button className="p-1.5 rounded hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors"><MoreHorizontal className="h-4 w-4" /></button></DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="bg-card border-border">
-                  {role === "admin" && <DropdownMenuItem onClick={() => { if (confirm("Excluir esta receita?")) deleteMutation.mutate(r.id); }} className="gap-2 text-destructive"><Trash2 className="h-3.5 w-3.5" /> Excluir</DropdownMenuItem>}
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </td>
-          </tr>
-        ))}
+        {tabData.length === 0 && <tr><td colSpan={10} className="p-12 text-center text-muted-foreground">Nenhuma receita encontrada</td></tr>}
+        {tabData.map((r: any) => {
+          const isParcela = !!r.is_parcela;
+          return (
+            <tr key={r.id} className={`border-b border-border/50 hover:bg-surface-hover transition-colors ${isParcela ? "bg-primary/[0.02]" : ""}`}>
+              <td className="p-3">{formatDate(r.data)}</td>
+              <td className="p-3 truncate max-w-[180px]">
+                <div className="flex items-center gap-1.5">
+                  {isParcela && <span className="px-1.5 py-0.5 text-[9px] rounded bg-primary/10 text-primary font-medium shrink-0">Parcela</span>}
+                  <span className="truncate">{r.produto_nome}</span>
+                </div>
+              </td>
+              <td className="p-3 text-muted-foreground text-xs">{r.produto_categoria || "—"}</td>
+              <td className="p-3 text-muted-foreground text-xs">{isParcela ? "Parcela" : r.plataforma}</td>
+              <td className="p-3 truncate max-w-[120px]">{r.cliente_nome || "—"}</td>
+              <td className="p-3 text-right">{formatCurrency(r.valor_bruto)}</td>
+              <td className="p-3 text-right text-muted-foreground">{formatCurrency(r.taxa_plataforma_valor ?? 0)}</td>
+              <td className="p-3 text-right text-primary">{formatCurrency(r.valor_liquido ?? r.valor_bruto)}</td>
+              <td className="p-3"><span className={`px-2 py-0.5 text-[10px] rounded-full ${r.status === "ativo" ? "bg-emerald-500/10 text-emerald-400" : "bg-muted text-muted-foreground"}`}>{isParcela ? "Recebido" : r.status}</span></td>
+              <td className="p-3">
+                {!isParcela && (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild><button className="p-1.5 rounded hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors"><MoreHorizontal className="h-4 w-4" /></button></DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="bg-card border-border">
+                      {role === "admin" && <DropdownMenuItem onClick={() => { if (confirm("Excluir esta receita?")) deleteMutation.mutate(r.id); }} className="gap-2 text-destructive"><Trash2 className="h-3.5 w-3.5" /> Excluir</DropdownMenuItem>}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                )}
+              </td>
+            </tr>
+          );
+        })}
       </tbody>
     </table>
   );
