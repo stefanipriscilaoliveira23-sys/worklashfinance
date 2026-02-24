@@ -32,18 +32,14 @@ export function statusBadge(status: string | null) {
   return <Badge variant="outline" className={s.className}>{s.label}</Badge>;
 }
 
-// Generate month tabs starting from Feb/2026 + 6 months ahead from current
+// Generate month tabs: Feb/2026 through Dec/2026
 function generateMonths() {
-  const minDate = new Date(2026, 1, 1); // Feb 2026
-  const now = new Date();
-  const maxDate = new Date(now.getFullYear(), now.getMonth() + 6, 1);
   const months: { key: string; label: string }[] = [];
-  const d = new Date(minDate);
-  while (d <= maxDate) {
+  for (let m = 1; m <= 11; m++) { // m=1 is Feb, m=11 is Dec
+    const d = new Date(2026, m, 1);
     const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
     const label = d.toLocaleString("pt-BR", { month: "short", year: "2-digit" }).replace(".", "");
     months.push({ key, label: label.charAt(0).toUpperCase() + label.slice(1) });
-    d.setMonth(d.getMonth() + 1);
   }
   return months;
 }
