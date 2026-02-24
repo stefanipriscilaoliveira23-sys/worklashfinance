@@ -56,6 +56,7 @@ export function NovaReceitaModal({ open, onClose }: { open: boolean; onClose: ()
   const [origensVenda, setOrigensVenda] = useState<string[]>([]);
   const [produtoEntradaId, setProdutoEntradaId] = useState<string | null>(null);
   const [observacao, setObservacao] = useState("");
+  const [dataFimMentoria, setDataFimMentoria] = useState("");
 
   // Step 2 fields
   const [temParcelas, setTemParcelas] = useState(false);
@@ -151,6 +152,7 @@ export function NovaReceitaModal({ open, onClose }: { open: boolean; onClose: ()
         is_ascensao: origensVenda.includes("Ascensão"),
         observacao,
         lancado_por: user?.id,
+        data_fim_mentoria: dataFimMentoria || null,
       }).select().single();
       if (error) throw error;
 
@@ -363,6 +365,13 @@ export function NovaReceitaModal({ open, onClose }: { open: boolean; onClose: ()
                     {(produtos ?? []).map((p) => <SelectItem key={p.id} value={p.id}>{p.nome}</SelectItem>)}
                   </SelectContent>
                 </Select>
+              </div>
+            )}
+
+            {categoria === "Renovação Mentoria" && (
+              <div className="space-y-1.5">
+                <Label className="text-foreground/80">Fim anterior (data fim da mentoria anterior)</Label>
+                <Input type="date" value={dataFimMentoria} onChange={(e) => setDataFimMentoria(e.target.value)} className="bg-secondary/50 border-border" />
               </div>
             )}
 

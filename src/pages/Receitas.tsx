@@ -119,6 +119,9 @@ export default function Receitas() {
       forma_pagamento: null,
       is_parcela: true,
       parcela_label: `${pq.numero_parcela}/${parent.quant_parcelas}`,
+      // Carry parent parcela info for renovações/mentorias tabs
+      _parent_parcela: parent,
+      _parent_detalhes: parent,
     };
   });
 
@@ -163,12 +166,25 @@ export default function Receitas() {
   const totalLiquido = tabData.reduce((s, r) => s + ((r as any).valor_liquido ?? 0), 0);
   const totalUSD = tabData.filter(r => (r as any).moeda_original === "USD").reduce((s, r) => s + (r.valor_bruto ?? 0), 0);
 
-  // Helper to find parcela info for a receita
-  const getParcelaInfo = (receitaId: string) => {
-    const pm = allParcelas.find(p => p.receita_id === receitaId);
+  // Helper to find parcela info for a receita or parcela-type entry
+  const getParcelaInfo = (entry: any) => {
+    // For parcela-type entries, use the embedded parent data
+    if (entry._parent_parcela) {
+      const pm = allParcelas.find(p => p.id === entry._parent_parcela.id);
+      if (pm) {
+        const detalhes = (pm as any).parcelas_mentoria_detalhe ?? [];
+        const primeiraParcela = [...detalhes].sort((a: any, b: any) => a.data_vencimento.localeCompare(b.data_vencimento))[0];
+        return { pm, detalhes, primeiraParcela, qtd: pm.quant_parcelas, valorParcela: pm.valor_total > 0 && pm.quant_parcelas > 0 ? (pm.valor_total - (pm.entrada_valor ?? 0)) / pm.quant_parcelas : 0, dataPrimeira: primeiraParcela?.data_vencimento };
+      }
+      // Fallback to _parent_parcela directly
+      const pp = entry._parent_parcela;
+      return { pm: pp, detalhes: [], primeiraParcela: null, qtd: pp.quant_parcelas, valorParcela: pp.valor_total > 0 && pp.quant_parcelas > 0 ? (pp.valor_total - (pp.entrada_valor ?? 0)) / pp.quant_parcelas : 0, dataPrimeira: null };
+    }
+    // For receita-type entries
+    const pm = allParcelas.find(p => p.receita_id === entry.id);
     if (!pm) return null;
     const detalhes = (pm as any).parcelas_mentoria_detalhe ?? [];
-    const primeiraParcela = detalhes.sort((a: any, b: any) => a.data_vencimento.localeCompare(b.data_vencimento))[0];
+    const primeiraParcela = [...detalhes].sort((a: any, b: any) => a.data_vencimento.localeCompare(b.data_vencimento))[0];
     return { pm, detalhes, primeiraParcela, qtd: pm.quant_parcelas, valorParcela: pm.valor_total > 0 && pm.quant_parcelas > 0 ? (pm.valor_total - (pm.entrada_valor ?? 0)) / pm.quant_parcelas : 0, dataPrimeira: primeiraParcela?.data_vencimento };
   };
 
@@ -227,7 +243,7 @@ export default function Receitas() {
       <tbody>
         {tabData.length === 0 && <tr><td colSpan={11} className="p-12 text-center text-muted-foreground">Nenhuma mentoria</td></tr>}
         {tabData.map(r => {
-          const pi = getParcelaInfo(r.id);
+          const pi = getParcelaInfo(r);
           return (
             <tr key={r.id} className="border-b border-border/50 hover:bg-surface-hover transition-colors">
               <td className="p-3">{formatDate(r.data)}</td>
@@ -258,8 +274,8 @@ export default function Receitas() {
       <tbody>
         {tabData.length === 0 && <tr><td colSpan={12} className="p-12 text-center text-muted-foreground">Nenhuma renovação</td></tr>}
         {tabData.map(r => {
-          const pi = getParcelaInfo(r.id);
-          const fimAnterior = pi?.pm?.data_termino_mentoria_anterior;
+          const pi = getParcelaInfo(r);
+          const fimAnterior = pi?.pm?.data_termino_mentoria_anterior || (r as any).data_fim_mentoria;
           const diasRenov = fimAnterior ? Math.floor((new Date(r.data).getTime() - new Date(fimAnterior).getTime()) / 86400000) : null;
           return (
             <tr key={r.id} className="border-b border-border/50 hover:bg-surface-hover transition-colors">
