@@ -82,7 +82,6 @@ export default function Receitas() {
       case "renovacoes": return filtered.filter(r => RENOVACAO_CATS.includes(r.produto_categoria ?? ""));
       case "digitais": return filtered.filter(r => DIGITAL_CATS.includes(r.produto_categoria ?? ""));
       case "fisicos": return filtered.filter(r => FISICO_CATS.includes(r.produto_categoria ?? ""));
-      case "gerais": return filtered;
       default: return filtered;
     }
   };
@@ -244,28 +243,7 @@ export default function Receitas() {
     </table>
   );
 
-  const renderGeraisTable = () => (
-    <table className="w-full text-sm">
-      <thead><tr className="border-b border-border bg-secondary/30">
-        {["Data", "Cliente", "Produto", "Valor", "Canal", "Obs."].map(h => (
-          <th key={h} className={`p-3 text-xs font-medium text-muted-foreground ${h === "Valor" ? "text-right" : "text-left"}`}>{h}</th>
-        ))}
-      </tr></thead>
-      <tbody>
-        {tabData.length === 0 && <tr><td colSpan={6} className="p-12 text-center text-muted-foreground">Nenhuma venda</td></tr>}
-        {tabData.map(r => (
-          <tr key={r.id} className="border-b border-border/50 hover:bg-surface-hover transition-colors">
-            <td className="p-3">{formatDate(r.data)}</td>
-            <td className="p-3">{r.cliente_nome || "—"}</td>
-            <td className="p-3">{r.produto_nome}</td>
-            <td className="p-3 text-right">{formatCurrency(r.valor_bruto)}</td>
-            <td className="p-3"><div className="flex flex-wrap gap-1">{(r.origens_venda ?? []).map((o, i) => <span key={i} className="px-1.5 py-0.5 text-[10px] rounded bg-primary/10 text-primary">{o}</span>)}</div></td>
-            <td className="p-3 text-muted-foreground text-xs truncate max-w-[120px]">{r.observacao || "—"}</td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
-  );
+  // removed gerais table (same as "todas")
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -327,7 +305,6 @@ export default function Receitas() {
           <TabsTrigger value="renovacoes">Renovações</TabsTrigger>
           <TabsTrigger value="digitais">Digitais</TabsTrigger>
           <TabsTrigger value="fisicos">Físicos</TabsTrigger>
-          <TabsTrigger value="gerais">Gerais</TabsTrigger>
         </TabsList>
 
         <div className="rounded-xl border border-border bg-card overflow-hidden mt-4">
@@ -341,7 +318,6 @@ export default function Receitas() {
                 <TabsContent value="renovacoes" className="m-0">{renderRenovacoesTable()}</TabsContent>
                 <TabsContent value="digitais" className="m-0">{renderDigitaisTable()}</TabsContent>
                 <TabsContent value="fisicos" className="m-0">{renderFisicosTable()}</TabsContent>
-                <TabsContent value="gerais" className="m-0">{renderGeraisTable()}</TabsContent>
               </>
             )}
           </div>

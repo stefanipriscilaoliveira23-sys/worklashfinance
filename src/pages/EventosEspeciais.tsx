@@ -297,10 +297,20 @@ export default function EventosEspeciais() {
             const status = getEventStatus(ev.data_evento);
             return (
               <div key={ev.id} className="rounded-xl border border-border bg-card p-5 hover:border-primary/30 transition-colors cursor-pointer space-y-4" onClick={() => setSelectedEvento(ev)}>
-                <div className="flex items-start justify-between">
+                  <div className="flex items-start justify-between">
                   <div>
                     <h3 className="font-semibold text-foreground">{ev.nome}</h3>
                     {ev.data_evento && <div className="flex items-center gap-1.5 mt-1"><CalendarDays className="h-3 w-3 text-muted-foreground" /><span className="text-xs text-muted-foreground">{formatDate(ev.data_evento)}</span></div>}
+                    {ev.data_evento && (() => {
+                      const eventDate = new Date(ev.data_evento + "T00:00:00");
+                      const today = new Date(); today.setHours(0,0,0,0);
+                      const diffDays = Math.ceil((eventDate.getTime() - today.getTime()) / 86400000);
+                      return diffDays > 0 
+                        ? <p className="text-xs text-primary mt-0.5">Faltam {diffDays} dia{diffDays !== 1 ? "s" : ""}</p>
+                        : diffDays === 0 
+                        ? <p className="text-xs text-primary font-medium mt-0.5">Hoje!</p>
+                        : <p className="text-xs text-muted-foreground mt-0.5">Há {Math.abs(diffDays)} dia{Math.abs(diffDays) !== 1 ? "s" : ""}</p>;
+                    })()}
                   </div>
                   <div className="flex items-center gap-2">
                     <Badge variant="outline" className={status.className}>{status.label}</Badge>

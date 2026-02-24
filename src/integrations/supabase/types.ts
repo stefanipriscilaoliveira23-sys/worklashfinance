@@ -19,25 +19,31 @@ export type Database = {
           criado_em: string
           email: string | null
           id: string
+          instagram: string | null
           nome: string
           observacao: string | null
           telefone: string | null
+          whatsapp: string | null
         }
         Insert: {
           criado_em?: string
           email?: string | null
           id?: string
+          instagram?: string | null
           nome: string
           observacao?: string | null
           telefone?: string | null
+          whatsapp?: string | null
         }
         Update: {
           criado_em?: string
           email?: string | null
           id?: string
+          instagram?: string | null
           nome?: string
           observacao?: string | null
           telefone?: string | null
+          whatsapp?: string | null
         }
         Relationships: []
       }
