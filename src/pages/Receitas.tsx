@@ -166,12 +166,25 @@ export default function Receitas() {
   const totalLiquido = tabData.reduce((s, r) => s + ((r as any).valor_liquido ?? 0), 0);
   const totalUSD = tabData.filter(r => (r as any).moeda_original === "USD").reduce((s, r) => s + (r.valor_bruto ?? 0), 0);
 
-  // Helper to find parcela info for a receita
-  const getParcelaInfo = (receitaId: string) => {
-    const pm = allParcelas.find(p => p.receita_id === receitaId);
+  // Helper to find parcela info for a receita or parcela-type entry
+  const getParcelaInfo = (entry: any) => {
+    // For parcela-type entries, use the embedded parent data
+    if (entry._parent_parcela) {
+      const pm = allParcelas.find(p => p.id === entry._parent_parcela.id);
+      if (pm) {
+        const detalhes = (pm as any).parcelas_mentoria_detalhe ?? [];
+        const primeiraParcela = [...detalhes].sort((a: any, b: any) => a.data_vencimento.localeCompare(b.data_vencimento))[0];
+        return { pm, detalhes, primeiraParcela, qtd: pm.quant_parcelas, valorParcela: pm.valor_total > 0 && pm.quant_parcelas > 0 ? (pm.valor_total - (pm.entrada_valor ?? 0)) / pm.quant_parcelas : 0, dataPrimeira: primeiraParcela?.data_vencimento };
+      }
+      // Fallback to _parent_parcela directly
+      const pp = entry._parent_parcela;
+      return { pm: pp, detalhes: [], primeiraParcela: null, qtd: pp.quant_parcelas, valorParcela: pp.valor_total > 0 && pp.quant_parcelas > 0 ? (pp.valor_total - (pp.entrada_valor ?? 0)) / pp.quant_parcelas : 0, dataPrimeira: null };
+    }
+    // For receita-type entries
+    const pm = allParcelas.find(p => p.receita_id === entry.id);
     if (!pm) return null;
     const detalhes = (pm as any).parcelas_mentoria_detalhe ?? [];
-    const primeiraParcela = detalhes.sort((a: any, b: any) => a.data_vencimento.localeCompare(b.data_vencimento))[0];
+    const primeiraParcela = [...detalhes].sort((a: any, b: any) => a.data_vencimento.localeCompare(b.data_vencimento))[0];
     return { pm, detalhes, primeiraParcela, qtd: pm.quant_parcelas, valorParcela: pm.valor_total > 0 && pm.quant_parcelas > 0 ? (pm.valor_total - (pm.entrada_valor ?? 0)) / pm.quant_parcelas : 0, dataPrimeira: primeiraParcela?.data_vencimento };
   };
 
