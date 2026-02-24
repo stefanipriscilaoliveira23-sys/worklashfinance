@@ -187,14 +187,15 @@ export default function Dashboard() {
           {editingMeta ? (
             <div className="flex items-center gap-2">
               <Input
-                type="number"
+                type="text"
+                placeholder="Ex: 60000 ou 60.000,00"
                 value={metaInput}
                 onChange={e => setMetaInput(e.target.value)}
                 className="h-8 text-sm bg-secondary/50 border-border"
                 autoFocus
                 onKeyDown={e => {
                   if (e.key === "Enter") {
-                    const v = parseFloat(metaInput);
+                    const v = parseFloat(metaInput.replace(/\./g, "").replace(",", "."));
                     if (!isNaN(v) && v > 0) saveMeta.mutate(v);
                   }
                   if (e.key === "Escape") setEditingMeta(false);
@@ -202,7 +203,7 @@ export default function Dashboard() {
               />
               <button
                 onClick={() => {
-                  const v = parseFloat(metaInput);
+                  const v = parseFloat(metaInput.replace(/\./g, "").replace(",", "."));
                   if (!isNaN(v) && v > 0) saveMeta.mutate(v);
                 }}
                 className="text-xs text-primary hover:underline whitespace-nowrap"
