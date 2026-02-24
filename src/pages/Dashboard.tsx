@@ -36,12 +36,13 @@ export default function Dashboard() {
       const now = new Date();
       const mes = now.getMonth() + 1;
       const ano = now.getFullYear();
-      // Upsert: try update first, then insert
       const { data: existing } = await supabase.from("metas").select("id").eq("mes", mes).eq("ano", ano).maybeSingle();
       if (existing) {
-        await supabase.from("metas").update({ valor_meta: valor }).eq("id", existing.id);
+        const { error } = await supabase.from("metas").update({ valor_meta: valor }).eq("id", existing.id);
+        if (error) throw error;
       } else {
-        await supabase.from("metas").insert({ mes, ano, valor_meta: valor });
+        const { error } = await supabase.from("metas").insert({ mes, ano, valor_meta: valor });
+        if (error) throw error;
       }
     },
     onSuccess: () => {
