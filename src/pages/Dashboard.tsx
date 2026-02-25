@@ -98,10 +98,26 @@ export default function Dashboard() {
   const qtdVendas = (d.qtdReceitasMes ?? 0) + (d.qtdParcelasQuitadasMes ?? 0);
   const ticketMedio = qtdVendas > 0 ? d.totalBruto / qtdVendas : 0;
 
-  // Helper: somar parcelas quitadas vinculadas a um conjunto de receitas
+  // Mapa receita_id → contrato vinculado (parcelas_mentoria)
+  const contratosPorReceita = new Map<string, any>();
+  detalhes.forEach(p => {
+    const pm = p.parcelas_mentoria as any;
+    if (pm?.receita_id && !contratosPorReceita.has(pm.receita_id)) {
+      contratosPorReceita.set(pm.receita_id, pm);
+    }
+  });
+
+  // Valor total real: usa valor_total do contrato vinculado, senão valor_contrato > 0, senão valor_bruto
+  const getValorContrato = (r: any) => {
+    const contrato = contratosPorReceita.get(r.id);
+    if (contrato?.valor_total > 0) return contrato.valor_total;
+    if (r.valor_contrato > 0) return r.valor_contrato;
+    return r.valor_bruto ?? 0;
+  };
+
+  // Somar parcelas quitadas vinculadas a um conjunto de receitas
   const somarParcelasQuitadasPorReceitas = (receitasArr: typeof receitasMes) => {
     const receitaIds = new Set(receitasArr.map(r => r.id));
-    // Find contratos linked to these receitas, then sum their paid installments in the period
     return detalhes
       .filter(p => {
         const pm = p.parcelas_mentoria as any;
@@ -110,19 +126,19 @@ export default function Dashboard() {
       .reduce((s, p) => s + (p.valor_real ?? p.valor_sugerido ?? 0), 0);
   };
 
-  // B) KPIs de renovação (baseado apenas em receitas)
+  // B) KPIs de renovação
   const renovacoesMesReceitas = receitasMes.filter(r => r.produto_categoria === "Renovações");
   const renovacoesMesCount = renovacoesMesReceitas.length;
-  const valorTotalRenovacoes = renovacoesMesReceitas.reduce((s, r) => s + (r.valor_contrato ?? r.valor_bruto ?? 0), 0);
+  const valorTotalRenovacoes = renovacoesMesReceitas.reduce((s, r) => s + getValorContrato(r), 0);
   const entradasRenovacoesMes = renovacoesMesReceitas.reduce((s, r) => s + (r.valor_bruto ?? 0), 0);
   const parcelasQuitadasRenovacoes = somarParcelasQuitadasPorReceitas(renovacoesMesReceitas);
   const recebidoRenovacoesMes = entradasRenovacoesMes + parcelasQuitadasRenovacoes;
 
-  // C) KPIs de mentoria (baseado apenas em receitas)
+  // C) KPIs de mentoria
   const mentoriasMesReceitas = receitasMes.filter(r => r.produto_categoria === "Mentorias");
   const mentoriasMesCount = mentoriasMesReceitas.length;
   const mentoriasMes = { length: mentoriasMesCount };
-  const valorTotalMentorias = mentoriasMesReceitas.reduce((s, r) => s + (r.valor_contrato ?? r.valor_bruto ?? 0), 0);
+  const valorTotalMentorias = mentoriasMesReceitas.reduce((s, r) => s + getValorContrato(r), 0);
   const entradasMentoriasMes = mentoriasMesReceitas.reduce((s, r) => s + (r.valor_bruto ?? 0), 0);
   const parcelasQuitadasMentorias = somarParcelasQuitadasPorReceitas(mentoriasMesReceitas);
   const recebidoMentoriasMes = entradasMentoriasMes + parcelasQuitadasMentorias;
