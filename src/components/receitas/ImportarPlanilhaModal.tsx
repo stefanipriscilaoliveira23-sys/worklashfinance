@@ -55,7 +55,12 @@ const normalizeKey = (value: string) =>
     .replace(/[\u0300-\u036f]/g, "")
     .replace(/[^a-z0-9]/g, "");
 
-function findColumnValue(row: Record<string, any>, patterns: string[]): any {
+function findColumnValue(
+  row: Record<string, any>,
+  patterns: string[],
+  options?: { allowPartial?: boolean }
+): any {
+  const allowPartial = options?.allowPartial ?? true;
   const keys = Object.keys(row);
   const keyMeta = keys.map((k) => ({ raw: k, norm: normalizeKey(k) }));
 
@@ -70,15 +75,16 @@ function findColumnValue(row: Record<string, any>, patterns: string[]): any {
     }
   }
 
+  if (!allowPartial) return undefined;
+
   for (const pattern of patterns) {
     const pNorm = normalizeKey(pattern);
     if (!pNorm || pNorm.length < 4) continue;
 
     const partial = keyMeta.find((k) => {
-      // Only allow partial match if the shorter string is at least 60% of the longer
       const shorter = Math.min(k.norm.length, pNorm.length);
       const longer = Math.max(k.norm.length, pNorm.length);
-      if (shorter / longer < 0.5) return false;
+      if (shorter / longer < 0.7) return false;
       return k.norm.includes(pNorm) || pNorm.includes(k.norm);
     });
     if (partial) {
@@ -318,14 +324,30 @@ export function ImportarPlanilhaModal({ open, onClose }: { open: boolean; onClos
               return Number(cleaned) || 0;
             };
 
-            const valorLiquidoOriginal = parseNum(getField("valor_liquido"));
-            const taxaValor = parseNum(getField("taxa_plataforma_valor"));
+            let valorLiquidoOriginal = parseNum(getField("valor_liquido"));
+            let taxaValor = parseNum(getField("taxa_plataforma_valor"));
             const moeda = String(getField("moeda_original") ?? "BRL").trim().toUpperCase();
-            const precoTotalOriginal = parseNum(getField("valor_bruto_original"));
+            let precoTotalOriginal = parseNum(getField("valor_bruto_original"));
             const valorLiquidoConvertido = parseNum(getField("valor_liquido_convertido"));
 
+            // Eduzz: priorizar coluna "Valor da Venda" e tratar taxa negativa
+            if (plataforma === "Eduzz") {
+              const vendaEduzz = parseNum(findColumnValue(row, ["Valor da Venda"], { allowPartial: false }));
+              const itemEduzz = parseNum(findColumnValue(row, ["Valor do Item"], { allowPartial: false }));
+              const liqEduzz = parseNum(findColumnValue(row, ["Ganho Liquido", "Ganho Líquido"], { allowPartial: false }));
+              const taxaEduzz = parseNum(findColumnValue(row, ["Taxa Eduzz"], { allowPartial: false }));
+
+              if (liqEduzz > 0) valorLiquidoOriginal = liqEduzz;
+              if (vendaEduzz > 0) {
+                precoTotalOriginal = vendaEduzz;
+              } else if (itemEduzz > 0) {
+                precoTotalOriginal = itemEduzz;
+              }
+              if (taxaEduzz !== 0) taxaValor = Math.abs(taxaEduzz);
+            }
+
             const liqOriginal = valorLiquidoOriginal;
-            const brutoOriginal = precoTotalOriginal > 0 ? precoTotalOriginal : valorLiquidoOriginal + taxaValor;
+            const brutoOriginal = precoTotalOriginal > 0 ? precoTotalOriginal : valorLiquidoOriginal + Math.abs(taxaValor);
 
             const genericCambio = parseNum(findColumnValue(row, ["taxa de cambio", "taxa de câmbio", "cotacao", "cotação", "exchange rate", "cambio"]));
             const taxaCambioBase = parseNum(getField("taxa_cambio")) || genericCambio;
