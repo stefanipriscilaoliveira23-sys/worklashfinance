@@ -302,6 +302,13 @@ export function EditarReceitaModal({ receita, open, onClose }: EditarReceitaModa
             <Label className="text-foreground/80">Observação</Label>
             <Textarea value={observacao} onChange={(e) => setObservacao(e.target.value)} className="bg-secondary/50 border-border" rows={2} />
           </div>
+
+          {/* Origin info */}
+          <p className="text-[11px] text-muted-foreground italic pt-2 border-t border-border">
+            {receita?.importado
+              ? `📥 Receita importada via planilha${receita?.plataforma ? ` (${receita.plataforma})` : ""}`
+              : "✏️ Receita inserida manualmente"}
+          </p>
         </div>
 
         <DialogFooter>

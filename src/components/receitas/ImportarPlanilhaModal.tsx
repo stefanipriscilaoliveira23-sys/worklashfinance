@@ -339,6 +339,7 @@ export function ImportarPlanilhaModal({ open, onClose }: { open: boolean; onClos
             src_checkout: r.src_checkout || null,
             sck: r.sck || null,
             lancado_por: user?.id,
+            importado: true,
           };
         });
         const { error } = await supabase.from("receitas").insert(inserts);
