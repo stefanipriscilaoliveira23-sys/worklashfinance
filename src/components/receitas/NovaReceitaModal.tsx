@@ -52,6 +52,7 @@ export function NovaReceitaModal({ open, onClose }: { open: boolean; onClose: ()
   const [origensVenda, setOrigensVenda] = useState<string[]>([]);
   const [produtoEntradaId, setProdutoEntradaId] = useState<string | null>(null);
   const [observacao, setObservacao] = useState("");
+  const [dataInicioMentoria, setDataInicioMentoria] = useState("");
   const [dataFimMentoria, setDataFimMentoria] = useState("");
 
   // Step 2 fields
@@ -154,6 +155,8 @@ export function NovaReceitaModal({ open, onClose }: { open: boolean; onClose: ()
         is_ascensao: origensVenda.includes("Ascensão"),
         observacao,
         lancado_por: user?.id,
+        valor_contrato: isMentoria ? valorBruto : null,
+        data_inicio_mentoria: dataInicioMentoria || null,
         data_fim_mentoria: dataFimMentoria || null,
       }).select().single();
       if (error) throw error;
@@ -371,10 +374,16 @@ export function NovaReceitaModal({ open, onClose }: { open: boolean; onClose: ()
               </div>
             )}
 
-            {categoria === "Renovações" && (
-              <div className="space-y-1.5">
-                <Label className="text-foreground/80">Fim anterior (data fim da mentoria anterior)</Label>
-                <Input type="date" value={dataFimMentoria} onChange={(e) => setDataFimMentoria(e.target.value)} className="bg-secondary/50 border-border" />
+            {isMentoria && (
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <Label className="text-foreground/80">Início da mentoria</Label>
+                  <Input type="date" value={dataInicioMentoria} onChange={(e) => setDataInicioMentoria(e.target.value)} className="bg-secondary/50 border-border" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-foreground/80">Fim da mentoria</Label>
+                  <Input type="date" value={dataFimMentoria} onChange={(e) => setDataFimMentoria(e.target.value)} className="bg-secondary/50 border-border" />
+                </div>
               </div>
             )}
 

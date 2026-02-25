@@ -584,6 +584,7 @@ export type Database = {
           criado_em: string
           data: string
           data_fim_mentoria: string | null
+          data_inicio_mentoria: string | null
           forma_pagamento: string | null
           id: string
           importado: boolean
@@ -606,6 +607,7 @@ export type Database = {
           taxa_plataforma_percentual: number | null
           taxa_plataforma_valor: number | null
           valor_bruto: number
+          valor_contrato: number | null
           valor_em_brl: number | null
           valor_liquido: number | null
         }
@@ -615,6 +617,7 @@ export type Database = {
           criado_em?: string
           data: string
           data_fim_mentoria?: string | null
+          data_inicio_mentoria?: string | null
           forma_pagamento?: string | null
           id?: string
           importado?: boolean
@@ -637,6 +640,7 @@ export type Database = {
           taxa_plataforma_percentual?: number | null
           taxa_plataforma_valor?: number | null
           valor_bruto?: number
+          valor_contrato?: number | null
           valor_em_brl?: number | null
           valor_liquido?: number | null
         }
@@ -646,6 +650,7 @@ export type Database = {
           criado_em?: string
           data?: string
           data_fim_mentoria?: string | null
+          data_inicio_mentoria?: string | null
           forma_pagamento?: string | null
           id?: string
           importado?: boolean
@@ -668,6 +673,7 @@ export type Database = {
           taxa_plataforma_percentual?: number | null
           taxa_plataforma_valor?: number | null
           valor_bruto?: number
+          valor_contrato?: number | null
           valor_em_brl?: number | null
           valor_liquido?: number | null
         }
