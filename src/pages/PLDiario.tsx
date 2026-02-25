@@ -59,9 +59,9 @@ export default function PLDiario() {
   });
 
   const { data: despesasEmpFixas } = useQuery({
-    queryKey: ["pl-desp-emp-fixas"],
+    queryKey: ["pl-desp-emp-fixas", start, end],
     queryFn: async () => {
-      const { data } = await supabase.from("despesas_empresa").select("*").eq("tipo_despesa", "Fixa");
+      const { data } = await supabase.from("despesas_empresa").select("*").eq("tipo_despesa", "Fixa").gte("data_vencimento", start).lte("data_vencimento", end);
       return data ?? [];
     },
   });
@@ -69,7 +69,7 @@ export default function PLDiario() {
   const { data: despesasEmpVar } = useQuery({
     queryKey: ["pl-desp-emp-var", start, end],
     queryFn: async () => {
-      const { data } = await supabase.from("despesas_empresa").select("*").eq("tipo_despesa", "Variável");
+      const { data } = await supabase.from("despesas_empresa").select("*").eq("tipo_despesa", "Variável").gte("data_vencimento", start).lte("data_vencimento", end);
       return data ?? [];
     },
   });
@@ -91,7 +91,7 @@ export default function PLDiario() {
     });
     // Pro-labore já incluso nas despesas da empresa
     return result;
-  }, [allFixas, proLabore]);
+  }, [allFixas]);
 
   const fixosDiarios = useMemo(() => {
     const r: Record<string, number> = {};
