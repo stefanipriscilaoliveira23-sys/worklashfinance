@@ -187,6 +187,8 @@ export function ImportarPlanilhaModal({ open, onClose }: { open: boolean; onClos
   const [showDuplicataId, setShowDuplicataId] = useState<string | null>(null);
   const [addProdDialog, setAddProdDialog] = useState<{ nome: string; idx: number } | null>(null);
   const [addProdCategoria, setAddProdCategoria] = useState<ProdutoCategoria>("Digitais");
+  const [addProdMode, setAddProdMode] = useState<"new" | "link">("link");
+  const [addProdLinkId, setAddProdLinkId] = useState<string>("");
 
   const { data: receitas } = useQuery({
     queryKey: ["receitas-all-import"],
@@ -381,12 +383,26 @@ export function ImportarPlanilhaModal({ open, onClose }: { open: boolean; onClos
 
   const openAddProductDialog = (nome: string, idx: number) => {
     setAddProdCategoria("Digitais");
+    setAddProdMode("link");
+    setAddProdLinkId("");
     setAddProdDialog({ nome, idx });
   };
 
   const handleAddProductToCatalog = async () => {
     if (!addProdDialog) return;
     const { nome } = addProdDialog;
+
+    if (addProdMode === "link" && addProdLinkId) {
+      // Link to existing catalog product
+      const prod = (produtos ?? []).find(p => p.id === addProdLinkId);
+      if (!prod) return;
+      toast.success(`"${nome}" vinculado a "${prod.nome}"!`);
+      setRows((prev) => prev.map((r) => r.produto_nome === nome ? { ...r, produto_id: prod.id, produto_no_catalogo: true, produto_nome: prod.nome } : r));
+      setAddProdDialog(null);
+      return;
+    }
+
+    // Create new product
     const { data, error } = await supabase.from("produtos_catalogo").insert({
       nome,
       categoria: addProdCategoria,
@@ -585,7 +601,7 @@ export function ImportarPlanilhaModal({ open, onClose }: { open: boolean; onClos
             {uniqueUnknownProducts.length > 0 && (
               <div className="p-3 rounded-lg border border-yellow-500/30 bg-yellow-500/5 space-y-2">
                 <p className="text-xs text-yellow-400 font-medium flex items-center gap-1.5">
-                  <PackagePlus className="h-4 w-4" /> Produtos não encontrados no catálogo — clique para adicionar:
+                  <PackagePlus className="h-4 w-4" /> Produtos não encontrados no catálogo — clique para vincular ou adicionar:
                 </p>
                 <div className="flex flex-wrap gap-2">
                   {uniqueUnknownProducts.map((name) => {
@@ -780,29 +796,80 @@ export function ImportarPlanilhaModal({ open, onClose }: { open: boolean; onClos
           <Dialog open onOpenChange={() => setAddProdDialog(null)}>
             <DialogContent className="max-w-sm bg-card border-border">
               <DialogHeader>
-                <DialogTitle className="text-foreground text-sm">Adicionar produto ao catálogo</DialogTitle>
+                <DialogTitle className="text-foreground text-sm">Vincular produto</DialogTitle>
               </DialogHeader>
               <div className="space-y-3">
                 <div>
-                  <Label className="text-xs text-muted-foreground">Nome</Label>
+                  <Label className="text-xs text-muted-foreground">Produto na planilha</Label>
                   <p className="text-sm font-medium text-foreground">{addProdDialog.nome}</p>
                 </div>
-                <div>
-                  <Label className="text-xs text-muted-foreground">Categoria</Label>
-                  <Select value={addProdCategoria} onValueChange={(v) => setAddProdCategoria(v as ProdutoCategoria)}>
-                    <SelectTrigger className="bg-secondary/50 border-border"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      {CATEGORIAS.map((c) => (
-                        <SelectItem key={c} value={c}>{c}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+
+                {/* Mode selector */}
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setAddProdMode("link")}
+                    className={`flex-1 px-3 py-2 rounded-lg text-xs font-medium border transition-colors ${
+                      addProdMode === "link"
+                        ? "border-primary bg-primary/10 text-primary"
+                        : "border-border bg-secondary/30 text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    <Link2 className="h-3.5 w-3.5 inline mr-1" />
+                    Vincular a existente
+                  </button>
+                  <button
+                    onClick={() => setAddProdMode("new")}
+                    className={`flex-1 px-3 py-2 rounded-lg text-xs font-medium border transition-colors ${
+                      addProdMode === "new"
+                        ? "border-primary bg-primary/10 text-primary"
+                        : "border-border bg-secondary/30 text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    <Plus className="h-3.5 w-3.5 inline mr-1" />
+                    Criar novo
+                  </button>
                 </div>
+
+                {addProdMode === "link" ? (
+                  <div>
+                    <Label className="text-xs text-muted-foreground">Selecione o produto do catálogo</Label>
+                    <Select value={addProdLinkId} onValueChange={setAddProdLinkId}>
+                      <SelectTrigger className="bg-secondary/50 border-border"><SelectValue placeholder="Escolha um produto..." /></SelectTrigger>
+                      <SelectContent>
+                        {(produtos ?? []).map((p) => (
+                          <SelectItem key={p.id} value={p.id}>
+                            {p.nome} <span className="text-muted-foreground ml-1">({p.categoria})</span>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                ) : (
+                  <div>
+                    <Label className="text-xs text-muted-foreground">Categoria</Label>
+                    <Select value={addProdCategoria} onValueChange={(v) => setAddProdCategoria(v as ProdutoCategoria)}>
+                      <SelectTrigger className="bg-secondary/50 border-border"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {CATEGORIAS.map((c) => (
+                          <SelectItem key={c} value={c}>{c}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
               </div>
               <DialogFooter>
                 <Button variant="outline" onClick={() => setAddProdDialog(null)} className="border-border text-muted-foreground">Cancelar</Button>
-                <Button onClick={handleAddProductToCatalog} className="gold-gradient text-primary-foreground">
-                  <Plus className="h-4 w-4 mr-1" /> Adicionar
+                <Button
+                  onClick={handleAddProductToCatalog}
+                  disabled={addProdMode === "link" && !addProdLinkId}
+                  className="gold-gradient text-primary-foreground"
+                >
+                  {addProdMode === "link" ? (
+                    <><Link2 className="h-4 w-4 mr-1" /> Vincular</>
+                  ) : (
+                    <><Plus className="h-4 w-4 mr-1" /> Adicionar</>
+                  )}
                 </Button>
               </DialogFooter>
             </DialogContent>
