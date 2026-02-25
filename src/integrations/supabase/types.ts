@@ -568,6 +568,8 @@ export type Database = {
           produto_entrada_id: string | null
           produto_id: string | null
           produto_nome: string
+          sck: string | null
+          src_checkout: string | null
           status: string | null
           taxa_cambio: number | null
           taxa_plataforma_percentual: number | null
@@ -596,6 +598,8 @@ export type Database = {
           produto_entrada_id?: string | null
           produto_id?: string | null
           produto_nome: string
+          sck?: string | null
+          src_checkout?: string | null
           status?: string | null
           taxa_cambio?: number | null
           taxa_plataforma_percentual?: number | null
@@ -624,6 +628,8 @@ export type Database = {
           produto_entrada_id?: string | null
           produto_id?: string | null
           produto_nome?: string
+          sck?: string | null
+          src_checkout?: string | null
           status?: string | null
           taxa_cambio?: number | null
           taxa_plataforma_percentual?: number | null
