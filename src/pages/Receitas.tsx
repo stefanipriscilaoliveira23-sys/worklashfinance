@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { toast } from "sonner";
-import { Plus, Upload, Search, Loader2, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
+import { Plus, Upload, Search, Loader2, MoreHorizontal, Pencil, Trash2, FileSpreadsheet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -35,6 +35,7 @@ export default function Receitas() {
   const [search, setSearch] = useState("");
   const [filtroPlataforma, setFiltroPlataforma] = useState("all");
   const [filtroProduto, setFiltroProduto] = useState("all");
+  const [filtroImportado, setFiltroImportado] = useState<"all" | "importado" | "manual">("all");
   const [dateFilter, setDateFilter] = useState<DateFilter>({ type: "month", key: getCurrentMonthKey() });
   const [tab, setTab] = useState("todas");
 
@@ -130,6 +131,8 @@ export default function Receitas() {
   const filtered = allReceitas.filter((r) => {
     if (filtroPlataforma !== "all" && r.plataforma !== filtroPlataforma) return false;
     if (filtroProduto !== "all" && r.produto_nome !== filtroProduto) return false;
+    if (filtroImportado === "importado" && !(r as any).importado) return false;
+    if (filtroImportado === "manual" && (r as any).importado) return false;
     if (search) {
       const s = search.toLowerCase();
       return r.produto_nome.toLowerCase().includes(s) || (r.cliente_nome ?? "").toLowerCase().includes(s) || (r.cliente_email ?? "").toLowerCase().includes(s);
@@ -349,6 +352,13 @@ export default function Receitas() {
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <h1 className="text-xl font-bold text-foreground">Receitas</h1>
         <div className="flex gap-2">
+          <Button
+            onClick={() => setFiltroImportado(f => f === "importado" ? "all" : "importado")}
+            variant={filtroImportado === "importado" ? "default" : "outline"}
+            className={filtroImportado === "importado" ? "gold-gradient text-primary-foreground" : "border-border text-muted-foreground hover:text-foreground"}
+          >
+            <FileSpreadsheet className="h-4 w-4 mr-2" /> Importações
+          </Button>
           <Button onClick={() => setShowImport(true)} variant="outline" className="border-border text-muted-foreground hover:text-foreground">
             <Upload className="h-4 w-4 mr-2" /> Importar planilha
           </Button>

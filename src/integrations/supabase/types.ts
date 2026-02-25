@@ -556,6 +556,7 @@ export type Database = {
           data_fim_mentoria: string | null
           forma_pagamento: string | null
           id: string
+          importado: boolean
           is_ascensao: boolean | null
           lancado_por: string | null
           moeda_original: string | null
@@ -586,6 +587,7 @@ export type Database = {
           data_fim_mentoria?: string | null
           forma_pagamento?: string | null
           id?: string
+          importado?: boolean
           is_ascensao?: boolean | null
           lancado_por?: string | null
           moeda_original?: string | null
@@ -616,6 +618,7 @@ export type Database = {
           data_fim_mentoria?: string | null
           forma_pagamento?: string | null
           id?: string
+          importado?: boolean
           is_ascensao?: boolean | null
           lancado_por?: string | null
           moeda_original?: string | null
