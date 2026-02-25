@@ -105,8 +105,11 @@ export default function Dashboard() {
   const qtdVendas = (d.qtdReceitasMes ?? 0) + (d.qtdParcelasQuitadasMes ?? 0);
   const ticketMedio = qtdVendas > 0 ? d.totalBruto / qtdVendas : 0;
 
-  // B) KPIs de renovação (contratos vendidos no mês, pela data_inicio)
-  const contratosMes = (allContratos ?? []).filter(c => c.data_inicio >= mesInicio && c.data_inicio <= mesFim);
+  // B) KPIs de renovação (contratos vendidos no mês, pela data da venda/entrada)
+  const contratosMes = (allContratos ?? []).filter(c => {
+    const dataVenda = c.entrada_data ?? c.data_inicio;
+    return dataVenda >= mesInicio && dataVenda <= mesFim;
+  });
   const renovacoesMes = contratosMes.filter(c => c.is_renovacao);
   const valorTotalRenovacoes = renovacoesMes.reduce((s, c) => s + (c.valor_total ?? 0), 0);
   const entradasRenovacoesMes = renovacoesMes.reduce((s, c) => s + (c.entrada_valor ?? 0), 0);
