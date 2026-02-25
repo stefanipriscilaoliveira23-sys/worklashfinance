@@ -28,8 +28,6 @@ const CATEGORIAS: ProdutoCategoria[] = [
 ];
 const PLATAFORMAS = ["Hotmart", "Kiwify", "Eduzz", "Direto Pix", "Outro"];
 
-const PRO_LABORE_DEFAULT = 30000;
-
 export default function ProdutosMargem() {
   const { role } = useAuth();
   const queryClient = useQueryClient();
@@ -42,15 +40,6 @@ export default function ProdutosMargem() {
   const [editProd, setEditProd] = useState<any>(null);
   const [prodForm, setProdForm] = useState({ nome: "", categoria: "Outros" as ProdutoCategoria, plataformas: [] as string[], custo_direto_percentual: 0, observacao: "" });
   const [showCompradores, setShowCompradores] = useState<{ nome: string; compradores: { nome: string; data: string; valor: number }[] } | null>(null);
-
-  const { data: configProLabore } = useQuery({
-    queryKey: ["config-prolabore"],
-    queryFn: async () => {
-      const { data } = await supabase.from("configuracoes").select("valor").eq("chave", "pro_labore").single();
-      return data?.valor ? parseFloat(data.valor) : PRO_LABORE_DEFAULT;
-    },
-  });
-  const proLabore = configProLabore ?? PRO_LABORE_DEFAULT;
 
   const { data: produtos, isLoading: loadProd } = useQuery({
     queryKey: ["produtos-catalogo"],
@@ -245,7 +234,7 @@ export default function ProdutosMargem() {
   const fixasEmpresaMes = allDespEmp.filter(d => d.tipo_despesa === "Fixa" && d.data_vencimento && d.data_vencimento >= start && d.data_vencimento <= end).reduce((s, d) => s + (d.valor_original ?? 0), 0);
   // Fallback: if no fixed expenses in this month range, use all fixed expenses (they're monthly recurring)
   const fixasEmpresa = fixasEmpresaMes > 0 ? fixasEmpresaMes : allDespEmp.filter(d => d.tipo_despesa === "Fixa").reduce((s, d) => s + (d.valor_original ?? 0), 0);
-  const totalFixos = fixasEmpresa + proLabore;
+  const totalFixos = fixasEmpresa;
   
   const receitaTotalMesReceitas = receitasMes.reduce((s, r) => s + (r.valor_bruto ?? 0), 0);
   const receitaTotalMesParcelas = parcelasQuitadasMes.reduce((s: number, p: any) => s + (p.valor_real ?? p.valor_sugerido ?? 0), 0);
@@ -476,18 +465,14 @@ export default function ProdutosMargem() {
           <div className="space-y-4">
             <MonthNavigator filter={dateFilter} onChange={setDateFilter} />
 
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-2 gap-3">
               <div className="rounded-xl border border-border bg-card p-4">
-                <p className="text-xs text-muted-foreground uppercase">Total Fixos (Empresa + Pro Labore)</p>
+                <p className="text-xs text-muted-foreground uppercase">Total Fixos da Empresa</p>
                 <p className="text-xl font-bold text-foreground mt-1">{formatCurrency(totalFixos)}</p>
               </div>
               <div className="rounded-xl border border-border bg-card p-4">
                 <p className="text-xs text-muted-foreground uppercase">Receita Total do Mês</p>
                 <p className="text-xl font-bold text-foreground mt-1">{formatCurrency(receitaTotalMes)}</p>
-              </div>
-              <div className="rounded-xl border border-border bg-card p-4">
-                <p className="text-xs text-muted-foreground uppercase">Pro Labore</p>
-                <p className="text-xl font-bold text-foreground mt-1">{formatCurrency(proLabore)}</p>
               </div>
             </div>
 
