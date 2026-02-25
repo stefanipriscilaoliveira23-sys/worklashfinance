@@ -204,6 +204,19 @@ export default function Receitas() {
     return { pm, detalhes, primeiraParcela, qtd: pm.quant_parcelas, valorParcela: pm.valor_total > 0 && pm.quant_parcelas > 0 ? (pm.valor_total - (pm.entrada_valor ?? 0)) / pm.quant_parcelas : 0, dataPrimeira: primeiraParcela?.data_vencimento };
   };
 
+  const renderActions = (r: any) => {
+    const isParcela = !!r.is_parcela;
+    return (
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild><button className="p-1.5 rounded hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors"><MoreHorizontal className="h-4 w-4" /></button></DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="bg-card border-border">
+          {!isParcela && <DropdownMenuItem onClick={() => setEditReceita(r)} className="gap-2"><Pencil className="h-3.5 w-3.5" /> Editar</DropdownMenuItem>}
+          {!isParcela && <DropdownMenuItem onClick={() => { if (confirm("Excluir esta receita?")) deleteMutation.mutate(r.id); }} className="gap-2 text-destructive"><Trash2 className="h-3.5 w-3.5" /> Excluir</DropdownMenuItem>}
+        </DropdownMenuContent>
+      </DropdownMenu>
+    );
+  };
+
   const renderAllTable = () => (
     <table className="w-full text-sm">
       <thead>
@@ -227,13 +240,7 @@ export default function Receitas() {
               <td className="p-3 text-right text-muted-foreground">{formatCurrency(r.taxa_plataforma_valor ?? 0)}</td>
               <td className="p-3 text-right text-primary">{formatCurrency(r.valor_liquido ?? r.valor_bruto)}</td>
               <td className="p-3">
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild><button className="p-1.5 rounded hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors"><MoreHorizontal className="h-4 w-4" /></button></DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="bg-card border-border">
-                    <DropdownMenuItem onClick={() => setEditReceita(r)} className="gap-2"><Pencil className="h-3.5 w-3.5" /> Editar</DropdownMenuItem>
-                    {!isParcela && role === "admin" && <DropdownMenuItem onClick={() => { if (confirm("Excluir esta receita?")) deleteMutation.mutate(r.id); }} className="gap-2 text-destructive"><Trash2 className="h-3.5 w-3.5" /> Excluir</DropdownMenuItem>}
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                {renderActions(r)}
               </td>
             </tr>
           );
@@ -245,12 +252,12 @@ export default function Receitas() {
   const renderMentoriasTable = () => (
     <table className="w-full text-sm">
       <thead><tr className="border-b border-border bg-secondary/30">
-        {["Data Venda", "Cliente", "Mentoria", "Valor Pago", "Valor Total", "Forma Pgto", "Nº Parcelas", "Vlr Parcela", "1ª Parcela", "Canal de Venda", "Obs."].map(h => (
+        {["Data Venda", "Cliente", "Mentoria", "Valor Pago", "Valor Total", "Forma Pgto", "Nº Parcelas", "Vlr Parcela", "1ª Parcela", "Canal de Venda", "Obs.", ""].map(h => (
           <th key={h} className={`p-3 text-xs font-medium text-muted-foreground ${["Valor Pago", "Valor Total", "Vlr Parcela"].includes(h) ? "text-right" : "text-left"}`}>{h}</th>
         ))}
       </tr></thead>
       <tbody>
-        {tabData.length === 0 && <tr><td colSpan={11} className="p-12 text-center text-muted-foreground">Nenhuma mentoria</td></tr>}
+        {tabData.length === 0 && <tr><td colSpan={12} className="p-12 text-center text-muted-foreground">Nenhuma mentoria</td></tr>}
         {tabData.map(r => {
           const pi = getParcelaInfo(r);
           return (
@@ -266,6 +273,7 @@ export default function Receitas() {
               <td className="p-3 text-muted-foreground">{pi ? formatDate(pi.dataPrimeira) : "—"}</td>
               <td className="p-3"><div className="flex flex-wrap gap-1">{(r.origens_venda ?? []).map((o, i) => <span key={i} className="px-1.5 py-0.5 text-[10px] rounded bg-primary/10 text-primary">{o}</span>)}</div></td>
               <td className="p-3 text-muted-foreground text-xs truncate max-w-[100px]">{r.observacao || "—"}</td>
+              <td className="p-3">{renderActions(r)}</td>
             </tr>
           );
         })}
@@ -276,12 +284,12 @@ export default function Receitas() {
   const renderRenovacoesTable = () => (
     <table className="w-full text-sm">
       <thead><tr className="border-b border-border bg-secondary/30">
-        {["Data Venda", "Cliente", "Mentoria", "Valor Pago", "Valor Renovação", "Forma Pgto", "Nº Parcelas", "Vlr Parcela", "1ª Parcela", "Obs.", "Fim Anterior", "Status"].map(h => (
+        {["Data Venda", "Cliente", "Mentoria", "Valor Pago", "Valor Renovação", "Forma Pgto", "Nº Parcelas", "Vlr Parcela", "1ª Parcela", "Obs.", "Fim Anterior", "Status", ""].map(h => (
           <th key={h} className={`p-3 text-xs font-medium text-muted-foreground ${["Valor Pago", "Valor Renovação", "Vlr Parcela"].includes(h) ? "text-right" : "text-left"}`}>{h}</th>
         ))}
       </tr></thead>
       <tbody>
-        {tabData.length === 0 && <tr><td colSpan={12} className="p-12 text-center text-muted-foreground">Nenhuma renovação</td></tr>}
+        {tabData.length === 0 && <tr><td colSpan={13} className="p-12 text-center text-muted-foreground">Nenhuma renovação</td></tr>}
         {tabData.map(r => {
           const pi = getParcelaInfo(r);
           const fimAnterior = pi?.pm?.data_termino_mentoria_anterior || (r as any).data_fim_mentoria;
@@ -300,6 +308,7 @@ export default function Receitas() {
               <td className="p-3 text-muted-foreground text-xs truncate max-w-[80px]">{r.observacao || "—"}</td>
               <td className="p-3 text-muted-foreground">{fimAnterior ? formatDate(fimAnterior) : "—"}</td>
               <td className="p-3">{diasRenov !== null ? <span className="text-xs text-primary">{diasRenov}d</span> : "—"}</td>
+              <td className="p-3">{renderActions(r)}</td>
             </tr>
           );
         })}
@@ -310,12 +319,12 @@ export default function Receitas() {
   const renderDigitaisTable = () => (
     <table className="w-full text-sm">
       <thead><tr className="border-b border-border bg-secondary/30">
-        {["Data Venda", "Cliente", "Produto", "Valor Total", "Forma Pgto", "Canal de Venda"].map(h => (
+        {["Data Venda", "Cliente", "Produto", "Valor Total", "Forma Pgto", "Canal de Venda", ""].map(h => (
           <th key={h} className={`p-3 text-xs font-medium text-muted-foreground ${h === "Valor Total" ? "text-right" : "text-left"}`}>{h}</th>
         ))}
       </tr></thead>
       <tbody>
-        {tabData.length === 0 && <tr><td colSpan={6} className="p-12 text-center text-muted-foreground">Nenhum produto digital</td></tr>}
+        {tabData.length === 0 && <tr><td colSpan={7} className="p-12 text-center text-muted-foreground">Nenhum produto digital</td></tr>}
         {tabData.map(r => (
           <tr key={r.id} className="border-b border-border/50 hover:bg-surface-hover transition-colors">
             <td className="p-3">{formatDate(r.data)}</td>
@@ -324,6 +333,7 @@ export default function Receitas() {
             <td className="p-3 text-right">{formatCurrency(r.valor_bruto)}</td>
             <td className="p-3 text-muted-foreground">{r.forma_pagamento || "—"}</td>
             <td className="p-3"><div className="flex flex-wrap gap-1">{(r.origens_venda ?? []).map((o, i) => <span key={i} className="px-1.5 py-0.5 text-[10px] rounded bg-primary/10 text-primary">{o}</span>)}</div></td>
+            <td className="p-3">{renderActions(r)}</td>
           </tr>
         ))}
       </tbody>
@@ -333,12 +343,12 @@ export default function Receitas() {
   const renderFisicosTable = () => (
     <table className="w-full text-sm">
       <thead><tr className="border-b border-border bg-secondary/30">
-        {["Data Venda", "Cliente", "Produto", "Valor Total", "Forma Pgto", "Canal de Venda"].map(h => (
+        {["Data Venda", "Cliente", "Produto", "Valor Total", "Forma Pgto", "Canal de Venda", ""].map(h => (
           <th key={h} className={`p-3 text-xs font-medium text-muted-foreground ${h === "Valor Total" ? "text-right" : "text-left"}`}>{h}</th>
         ))}
       </tr></thead>
       <tbody>
-        {tabData.length === 0 && <tr><td colSpan={6} className="p-12 text-center text-muted-foreground">Nenhum produto físico</td></tr>}
+        {tabData.length === 0 && <tr><td colSpan={7} className="p-12 text-center text-muted-foreground">Nenhum produto físico</td></tr>}
         {tabData.map(r => (
           <tr key={r.id} className="border-b border-border/50 hover:bg-surface-hover transition-colors">
             <td className="p-3">{formatDate(r.data)}</td>
@@ -347,6 +357,7 @@ export default function Receitas() {
             <td className="p-3 text-right">{formatCurrency(r.valor_bruto)}</td>
             <td className="p-3 text-muted-foreground">{r.forma_pagamento || "—"}</td>
             <td className="p-3"><div className="flex flex-wrap gap-1">{(r.origens_venda ?? []).map((o, i) => <span key={i} className="px-1.5 py-0.5 text-[10px] rounded bg-primary/10 text-primary">{o}</span>)}</div></td>
+            <td className="p-3">{renderActions(r)}</td>
           </tr>
         ))}
       </tbody>
