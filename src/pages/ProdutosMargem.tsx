@@ -177,14 +177,20 @@ export default function ProdutosMargem() {
       map.set(key, existing);
     });
 
-    // Add parcelas quitadas
+    // Add parcelas quitadas — count unique contracts (sales), not individual installments
+    const countedContracts = new Set<string>();
     parcelasQuitadasMes.forEach((pq: any) => {
       const parent = pq.parcelas_mentoria;
       const prod = (produtos ?? []).find(p => p.id === parent.produto_id);
       const key = prod ? prod.id : parent.tipo_mentoria;
       const existing = map.get(key) ?? { nome: prod?.nome ?? parent.tipo_mentoria, produtoId: key, unidades: 0, bruto: 0, taxaTotal: 0, liquido: 0, custoPerc: prod?.custo_direto_percentual ?? 0 };
       const val = pq.valor_real ?? pq.valor_sugerido ?? 0;
-      existing.unidades += 1;
+      // Only count as a new sale if this contract hasn't been counted yet for this product
+      const contractKey = `${key}::${pq.parcela_mentoria_id}`;
+      if (!countedContracts.has(contractKey)) {
+        existing.unidades += 1;
+        countedContracts.add(contractKey);
+      }
       existing.bruto += val;
       existing.liquido += val;
       map.set(key, existing);
