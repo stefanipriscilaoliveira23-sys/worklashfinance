@@ -30,7 +30,10 @@ interface ImportRow {
   cliente_email: string;
   forma_pagamento: string;
   moeda_original: string;
+  taxa_cambio: number;
   utm_source?: string;
+  src_checkout?: string;
+  sck?: string;
   // enrichment
   flag: "normal" | "produto_fisico" | "duplicata";
   selected: boolean;
@@ -44,11 +47,15 @@ const COLUMN_MAPS: Record<string, Record<string, string>> = {
     "Data transação": "data",
     "Produto": "produto_nome",
     "Faturamento líquido do(a) Produtor(a)": "valor_liquido",
+    "Preço total": "valor_bruto_original",
     "Taxa de processamento": "taxa_plataforma_valor",
     "Comprador(a)": "cliente_nome",
     "Email do(a) Comprador(a)": "cliente_email",
     "Método de pagamento": "forma_pagamento",
     "Moeda de compra": "moeda_original",
+    "Cotação": "taxa_cambio",
+    "Src": "src_checkout",
+    "Sck": "sck",
   },
   Kiwify: {
     "Data de Criação": "data",
@@ -76,7 +83,6 @@ export function ImportarPlanilhaModal({ open, onClose }: { open: boolean; onClos
   const queryClient = useQueryClient();
   const [step, setStep] = useState(1);
   const [plataforma, setPlataforma] = useState<PlataformaOrigem>("Hotmart");
-  const [taxaCambioUsd, setTaxaCambioUsd] = useState(5.5);
   const [rows, setRows] = useState<ImportRow[]>([]);
   const [importing, setImporting] = useState(false);
   const [editIdx, setEditIdx] = useState<number | null>(null);
@@ -170,13 +176,33 @@ export function ImportarPlanilhaModal({ open, onClose }: { open: boolean; onClos
             const valorLiquido = parseFloat(String(r.valor_liquido ?? "0").replace(/[^\d.,-]/g, "").replace(",", ".")) || 0;
             const taxaValor = parseFloat(String(r.taxa_plataforma_valor ?? "0").replace(/[^\d.,-]/g, "").replace(",", ".")) || 0;
             const moeda = r.moeda_original || "BRL";
-            const valorBruto = moeda === "USD" ? (valorLiquido + taxaValor) * taxaCambioUsd : valorLiquido + taxaValor;
-            const valorLiqFinal = moeda === "USD" ? valorLiquido * taxaCambioUsd : valorLiquido;
+            
+            // Per-row exchange rate from spreadsheet
+            const taxaCambioRow = parseFloat(String(r.taxa_cambio ?? "0").replace(/[^\d.,-]/g, "").replace(",", ".")) || 1;
+            
+            // Use "Preço total" from spreadsheet if available, otherwise calculate
+            const precoTotalOriginal = parseFloat(String(r.valor_bruto_original ?? "0").replace(/[^\d.,-]/g, "").replace(",", ".")) || 0;
+            
+            let valorBruto: number;
+            let valorLiqFinal: number;
+            if (moeda !== "BRL" && taxaCambioRow > 1) {
+              // Use exchange rate from spreadsheet
+              valorBruto = precoTotalOriginal > 0 ? precoTotalOriginal * taxaCambioRow : (valorLiquido + taxaValor) * taxaCambioRow;
+              valorLiqFinal = valorLiquido * taxaCambioRow;
+            } else {
+              valorBruto = precoTotalOriginal > 0 ? precoTotalOriginal : valorLiquido + taxaValor;
+              valorLiqFinal = valorLiquido;
+            }
 
             const nome = String(r.produto_nome ?? "").toLowerCase();
             const isProdutoFisico = nome.includes("worklash") || nome.includes("kit ");
 
             const prodMatch = matchProduct(String(r.produto_nome ?? ""));
+            
+            // UTM / checkout origin
+            const srcCheckout = r.src_checkout ? String(r.src_checkout).trim() : undefined;
+            const sckValue = r.sck ? String(r.sck).trim() : undefined;
+            const utmSource = r.utm_source ? String(r.utm_source).trim() : srcCheckout;
 
             const dup = findDuplicate({
               cliente_email: String(r.cliente_email ?? ""),
@@ -195,7 +221,10 @@ export function ImportarPlanilhaModal({ open, onClose }: { open: boolean; onClos
               cliente_email: String(r.cliente_email ?? ""),
               forma_pagamento: String(r.forma_pagamento ?? ""),
               moeda_original: moeda,
-              utm_source: r.utm_source ? String(r.utm_source) : undefined,
+              taxa_cambio: taxaCambioRow,
+              utm_source: utmSource,
+              src_checkout: srcCheckout,
+              sck: sckValue,
               flag: isProdutoFisico ? "produto_fisico" : dup ? "duplicata" : "normal",
               selected: !isProdutoFisico && !dup,
               produto_id: prodMatch.id,
@@ -212,7 +241,7 @@ export function ImportarPlanilhaModal({ open, onClose }: { open: boolean; onClos
       };
       reader.readAsArrayBuffer(file);
     },
-    [plataforma, taxaCambioUsd, receitas, produtos]
+    [plataforma, receitas, produtos]
   );
 
   const handleAddProductToCatalog = async (idx: number) => {
@@ -290,21 +319,28 @@ export function ImportarPlanilhaModal({ open, onClose }: { open: boolean; onClos
       // 3. Insert new (non-merge) receitas
       const toInsert = selected.filter((r) => !r.duplicata_receita_id);
       if (toInsert.length > 0) {
-        const inserts = toInsert.map((r) => ({
-          data: r.data,
-          produto_nome: r.produto_nome,
-          produto_id: r.produto_id,
-          plataforma,
-          valor_bruto: r.valor_bruto,
-          taxa_plataforma_valor: r.taxa_plataforma_valor,
-          valor_liquido: r.valor_liquido,
-          cliente_nome: r.cliente_nome,
-          cliente_email: r.cliente_email,
-          forma_pagamento: r.forma_pagamento,
-          moeda_original: r.moeda_original,
-          valor_em_brl: r.valor_bruto,
-          lancado_por: user?.id,
-        }));
+        const inserts = toInsert.map((r) => {
+          const hasUtm = !!(r.src_checkout || r.utm_source);
+          return {
+            data: r.data,
+            produto_nome: r.produto_nome,
+            produto_id: r.produto_id,
+            plataforma,
+            valor_bruto: r.valor_bruto,
+            taxa_plataforma_valor: r.taxa_plataforma_valor,
+            valor_liquido: r.valor_liquido,
+            cliente_nome: r.cliente_nome,
+            cliente_email: r.cliente_email,
+            forma_pagamento: r.forma_pagamento,
+            moeda_original: r.moeda_original,
+            taxa_cambio: r.taxa_cambio > 1 ? r.taxa_cambio : 1,
+            valor_em_brl: r.valor_bruto,
+            origens_venda: hasUtm ? ["Tráfego"] : [],
+            src_checkout: r.src_checkout || null,
+            sck: r.sck || null,
+            lancado_por: user?.id,
+          };
+        });
         const { error } = await supabase.from("receitas").insert(inserts);
         if (error) throw error;
       }
@@ -353,12 +389,6 @@ export function ImportarPlanilhaModal({ open, onClose }: { open: boolean; onClos
                 </SelectContent>
               </Select>
             </div>
-            {plataforma === "Hotmart" && (
-              <div className="space-y-1.5">
-                <Label className="text-foreground/80">Taxa de câmbio para vendas em USD</Label>
-                <Input type="number" step="0.01" value={taxaCambioUsd} onChange={(e) => setTaxaCambioUsd(Number(e.target.value))} className="bg-secondary/50 border-border" />
-              </div>
-            )}
             <div className="flex justify-end gap-2">
               <Button variant="outline" onClick={onClose} className="border-border text-muted-foreground">Cancelar</Button>
               <Button onClick={() => setStep(2)} className="gold-gradient text-primary-foreground">
@@ -443,6 +473,7 @@ export function ImportarPlanilhaModal({ open, onClose }: { open: boolean; onClos
                       <th className="p-2 text-left text-muted-foreground">Cliente</th>
                       <th className="p-2 text-right text-muted-foreground">Bruto</th>
                       <th className="p-2 text-right text-muted-foreground">Líquido</th>
+                      <th className="p-2 text-left text-muted-foreground">Origem</th>
                       <th className="p-2 text-left text-muted-foreground">Status</th>
                       <th className="p-2 text-center text-muted-foreground">Ações</th>
                     </tr>
@@ -482,6 +513,17 @@ export function ImportarPlanilhaModal({ open, onClose }: { open: boolean; onClos
                         </td>
                         <td className="p-2 text-right">{formatCurrency(r.valor_bruto)}</td>
                         <td className="p-2 text-right text-primary">{formatCurrency(r.valor_liquido)}</td>
+                        <td className="p-2 max-w-[100px]">
+                          {r.src_checkout ? (
+                            <div>
+                              <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-primary/10 text-primary text-[9px]">Tráfego</span>
+                              <div className="text-[9px] text-muted-foreground truncate mt-0.5" title={r.src_checkout}>{r.src_checkout}</div>
+                              {r.sck && <div className="text-[9px] text-muted-foreground truncate" title={r.sck}>{r.sck}</div>}
+                            </div>
+                          ) : (
+                            <span className="text-[9px] text-muted-foreground">—</span>
+                          )}
+                        </td>
                         <td className="p-2">
                           {r.flag === "produto_fisico" && (
                             <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-yellow-500/10 text-yellow-400 text-[10px]">
