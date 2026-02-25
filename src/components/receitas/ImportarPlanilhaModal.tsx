@@ -287,16 +287,30 @@ export function ImportarPlanilhaModal({ open, onClose }: { open: boolean; onClos
               const raw = String(v).trim();
               if (!raw) return 0;
               const cleaned = raw.replace(/[^\d,.-]/g, "");
+              if (!cleaned) return 0;
 
+              // Both comma and dot present
               if (cleaned.includes(",") && cleaned.includes(".")) {
                 const lastComma = cleaned.lastIndexOf(",");
                 const lastDot = cleaned.lastIndexOf(".");
                 if (lastComma > lastDot) {
+                  // Brazilian: "5.500,00" → 5500
                   return Number(cleaned.replace(/\./g, "").replace(",", ".")) || 0;
                 }
+                // US: "5,500.00" → 5500
                 return Number(cleaned.replace(/,/g, "")) || 0;
               }
 
+              // Only dot, no comma — check for Brazilian thousand separator
+              // Pattern: "5.500", "11.200", "1.234.567" (dot followed by exactly 3 digits)
+              if (cleaned.includes(".") && !cleaned.includes(",")) {
+                if (/^-?\d{1,3}(\.\d{3})+$/.test(cleaned)) {
+                  // Brazilian thousands: "5.500" → 5500, "11.200" → 11200
+                  return Number(cleaned.replace(/\./g, "")) || 0;
+                }
+              }
+
+              // Only comma (Brazilian decimal): "5,50" → 5.5
               if (cleaned.includes(",")) {
                 return Number(cleaned.replace(/\./g, "").replace(",", ".")) || 0;
               }
