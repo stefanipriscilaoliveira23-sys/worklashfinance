@@ -182,27 +182,33 @@ export function EditarReceitaModal({ receita, open, onClose }: EditarReceitaModa
 
   const updateMutation = useMutation({
     mutationFn: async () => {
+      // When remaining balance was already paid (e.g. Pix), include it in revenue
+      const restantePago = isMentoria && restanteForma === "pago" && valorRestante > 0;
+      const valorBrutoFinal = restantePago ? valorContrato : valorBruto;
+      const valorLiquidoFinal = restantePago ? valorLiquido + valorRestante : valorLiquido;
+      const valorBrlFinal = restantePago ? (moeda !== "BRL" ? valorBrutoFinal * taxaCambio : valorBrutoFinal) : valorBrl;
+
       const { error } = await supabase.from("receitas").update({
         data,
         produto_nome: produtoNome,
         produto_id: produtoId,
         produto_categoria: categoria,
         plataforma,
-        valor_bruto: valorBruto,
+        valor_bruto: valorBrutoFinal,
         valor_contrato: isMentoria ? valorContrato : null,
         taxa_plataforma_percentual: taxaPercent,
         taxa_plataforma_valor: taxaValor,
-        valor_liquido: valorLiquido,
+        valor_liquido: valorLiquidoFinal,
         moeda_original: moeda,
         taxa_cambio: taxaCambio,
-        valor_em_brl: valorBrl,
+        valor_em_brl: valorBrlFinal,
         cliente_nome: clienteNome,
         cliente_email: clienteEmail,
-        forma_pagamento: formaPagamento,
+        forma_pagamento: restantePago ? `${formaPagamento}${formaPagamento ? " + " : ""}${restantePagoForma || "Pix"}` : formaPagamento,
         origens_venda: origensVenda,
         is_ascensao: origensVenda.includes("Ascensão"),
-        observacao,
-        status,
+        observacao: restantePago ? `${observacao ? observacao + " | " : ""}Restante ${formatCurrency(valorRestante)} pago via ${restantePagoForma || "Pix"}` : observacao,
+        status: restantePago ? "Recebido" : status,
         data_inicio_mentoria: dataInicioMentoria || null,
         data_fim_mentoria: dataFimMentoria || null,
       }).eq("id", receita.id);
