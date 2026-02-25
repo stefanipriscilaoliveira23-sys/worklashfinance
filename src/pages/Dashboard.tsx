@@ -110,27 +110,45 @@ export default function Dashboard() {
     const dataVenda = c.entrada_data ?? c.data_inicio;
     return dataVenda >= mesInicio && dataVenda <= mesFim;
   });
+
+  // IDs de receitas que já têm contrato vinculado
+  const receitasComContrato = new Set((allContratos ?? []).map(c => c.receita_id).filter(Boolean));
+
+  // Receitas de renovação/mentoria sem contrato vinculado
+  const renovacoesSemContrato = receitasMes.filter(r => r.produto_categoria === "Renovações" && !receitasComContrato.has(r.id));
+
   const renovacoesMes = contratosMes.filter(c => c.is_renovacao);
-  const valorTotalRenovacoes = renovacoesMes.reduce((s, c) => s + (c.valor_total ?? 0), 0);
-  const entradasRenovacoesMes = renovacoesMes.reduce((s, c) => s + (c.entrada_valor ?? 0), 0);
+  const renovacoesMesCount = renovacoesMes.length + renovacoesSemContrato.length;
+  const valorTotalRenovacoes = renovacoesMes.reduce((s, c) => s + (c.valor_total ?? 0), 0)
+    + renovacoesSemContrato.reduce((s, r) => s + (r.valor_bruto ?? 0), 0);
+  const entradasRenovacoesMes = renovacoesMes.reduce((s, c) => s + (c.entrada_valor ?? 0), 0)
+    + renovacoesSemContrato.reduce((s, r) => s + (r.valor_bruto ?? 0), 0);
   const recebidoRenovacoesMes = renovacoesMes.reduce((s, c) => {
     const entrada = c.entrada_valor ?? 0;
     const parcRecebidas = ((c as any).parcelas_mentoria_detalhe ?? [])
       .filter((p: any) => p.status === "Quitado" && p.data_pagamento >= mesInicio && p.data_pagamento <= mesFim)
       .reduce((acc: number, p: any) => acc + (p.valor_real ?? p.valor_sugerido ?? 0), 0);
     return s + entrada + parcRecebidas;
-  }, 0);
-  // C) KPIs de mentoria (contratos não-renovação vendidos no mês)
-  const mentoriasMes = contratosMes.filter(c => !c.is_renovacao);
-  const valorTotalMentorias = mentoriasMes.reduce((s, c) => s + (c.valor_total ?? 0), 0);
-  const entradasMentoriasMes = mentoriasMes.reduce((s, c) => s + (c.entrada_valor ?? 0), 0);
-  const recebidoMentoriasMes = mentoriasMes.reduce((s, c) => {
+  }, 0) + renovacoesSemContrato.reduce((s, r) => s + (r.valor_liquido ?? r.valor_bruto ?? 0), 0);
+
+  // C) KPIs de mentoria (contratos não-renovação + receitas avulsas de mentoria sem contrato)
+  const mentoriasContrato = contratosMes.filter(c => !c.is_renovacao);
+  const mentoriasAvulsas = receitasMes.filter(r => r.produto_categoria === "Mentorias" && !receitasComContrato.has(r.id));
+  const mentoriasMesCount = mentoriasContrato.length + mentoriasAvulsas.length;
+  const valorTotalMentorias = mentoriasContrato.reduce((s, c) => s + (c.valor_total ?? 0), 0)
+    + mentoriasAvulsas.reduce((s, r) => s + (r.valor_bruto ?? 0), 0);
+  const entradasMentoriasMes = mentoriasContrato.reduce((s, c) => s + (c.entrada_valor ?? 0), 0)
+    + mentoriasAvulsas.reduce((s, r) => s + (r.valor_bruto ?? 0), 0);
+  const recebidoMentoriasMes = mentoriasContrato.reduce((s, c) => {
     const entrada = c.entrada_valor ?? 0;
     const parcRecebidas = ((c as any).parcelas_mentoria_detalhe ?? [])
       .filter((p: any) => p.status === "Quitado" && p.data_pagamento >= mesInicio && p.data_pagamento <= mesFim)
       .reduce((acc: number, p: any) => acc + (p.valor_real ?? p.valor_sugerido ?? 0), 0);
     return s + entrada + parcRecebidas;
-  }, 0);
+  }, 0) + mentoriasAvulsas.reduce((s, r) => s + (r.valor_liquido ?? r.valor_bruto ?? 0), 0);
+
+  // Alias para manter compatibilidade
+  const mentoriasMes = { length: mentoriasMesCount };
 
   // D) KPIs Digitais
   const digitaisMes = receitasMes.filter(r => r.produto_categoria === "Digitais");
@@ -338,7 +356,7 @@ export default function Dashboard() {
 
       {/* B) KPIs Renovação + C) KPIs Mentoria */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-        <MetricCard label="Renovações Vendidas" value={String(renovacoesMes.length)} icon={RefreshCw} sub="Contratos no mês" />
+        <MetricCard label="Renovações Vendidas" value={String(renovacoesMesCount)} icon={RefreshCw} sub="Contratos no mês" />
         <MetricCard label="Valor Total Renovações" value={formatCurrency(valorTotalRenovacoes)} icon={RefreshCw} sub="Valor dos contratos" />
         <MetricCard label="Entradas Renovações" value={formatCurrency(entradasRenovacoesMes)} icon={RefreshCw} sub="Recebido no ato da venda" />
         <MetricCard label="Recebido Renovações" value={formatCurrency(recebidoRenovacoesMes)} icon={RefreshCw} sub="Entradas + parcelas pagas" />
