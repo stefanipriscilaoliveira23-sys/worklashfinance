@@ -83,13 +83,6 @@ export default function Dashboard() {
     },
   });
 
-  const { data: allContratos } = useQuery({
-    queryKey: ["dash-contratos-mentoria"],
-    queryFn: async () => {
-      const { data } = await supabase.from("parcelas_mentoria").select("*, parcelas_mentoria_detalhe(*)");
-      return data ?? [];
-    },
-  });
 
   if (d.isLoading) {
     return <div className="flex items-center justify-center h-64"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
@@ -105,50 +98,20 @@ export default function Dashboard() {
   const qtdVendas = (d.qtdReceitasMes ?? 0) + (d.qtdParcelasQuitadasMes ?? 0);
   const ticketMedio = qtdVendas > 0 ? d.totalBruto / qtdVendas : 0;
 
-  // B) KPIs de renovação (contratos vendidos no mês, pela data da venda/entrada)
-  const contratosMes = (allContratos ?? []).filter(c => {
-    const dataVenda = c.entrada_data ?? c.data_inicio;
-    return dataVenda >= mesInicio && dataVenda <= mesFim;
-  });
+  // B) KPIs de renovação (baseado apenas em receitas)
+  const renovacoesMesReceitas = receitasMes.filter(r => r.produto_categoria === "Renovações");
+  const renovacoesMesCount = renovacoesMesReceitas.length;
+  const valorTotalRenovacoes = renovacoesMesReceitas.reduce((s, r) => s + (r.valor_bruto ?? 0), 0);
+  const entradasRenovacoesMes = renovacoesMesReceitas.reduce((s, r) => s + (r.valor_bruto ?? 0), 0);
+  const recebidoRenovacoesMes = renovacoesMesReceitas.reduce((s, r) => s + (r.valor_liquido ?? r.valor_bruto ?? 0), 0);
 
-  // IDs de receitas que já têm contrato vinculado
-  const receitasComContrato = new Set((allContratos ?? []).map(c => c.receita_id).filter(Boolean));
-
-  // Receitas de renovação/mentoria sem contrato vinculado
-  const renovacoesSemContrato = receitasMes.filter(r => r.produto_categoria === "Renovações" && !receitasComContrato.has(r.id));
-
-  const renovacoesMes = contratosMes.filter(c => c.is_renovacao);
-  const renovacoesMesCount = renovacoesMes.length + renovacoesSemContrato.length;
-  const valorTotalRenovacoes = renovacoesMes.reduce((s, c) => s + (c.valor_total ?? 0), 0)
-    + renovacoesSemContrato.reduce((s, r) => s + (r.valor_bruto ?? 0), 0);
-  const entradasRenovacoesMes = renovacoesMes.reduce((s, c) => s + (c.entrada_valor ?? 0), 0)
-    + renovacoesSemContrato.reduce((s, r) => s + (r.valor_bruto ?? 0), 0);
-  const recebidoRenovacoesMes = renovacoesMes.reduce((s, c) => {
-    const entrada = c.entrada_valor ?? 0;
-    const parcRecebidas = ((c as any).parcelas_mentoria_detalhe ?? [])
-      .filter((p: any) => p.status === "Quitado" && p.data_pagamento >= mesInicio && p.data_pagamento <= mesFim)
-      .reduce((acc: number, p: any) => acc + (p.valor_real ?? p.valor_sugerido ?? 0), 0);
-    return s + entrada + parcRecebidas;
-  }, 0) + renovacoesSemContrato.reduce((s, r) => s + (r.valor_liquido ?? r.valor_bruto ?? 0), 0);
-
-  // C) KPIs de mentoria (contratos não-renovação + receitas avulsas de mentoria sem contrato)
-  const mentoriasContrato = contratosMes.filter(c => !c.is_renovacao);
-  const mentoriasAvulsas = receitasMes.filter(r => r.produto_categoria === "Mentorias" && !receitasComContrato.has(r.id));
-  const mentoriasMesCount = mentoriasContrato.length + mentoriasAvulsas.length;
-  const valorTotalMentorias = mentoriasContrato.reduce((s, c) => s + (c.valor_total ?? 0), 0)
-    + mentoriasAvulsas.reduce((s, r) => s + (r.valor_bruto ?? 0), 0);
-  const entradasMentoriasMes = mentoriasContrato.reduce((s, c) => s + (c.entrada_valor ?? 0), 0)
-    + mentoriasAvulsas.reduce((s, r) => s + (r.valor_bruto ?? 0), 0);
-  const recebidoMentoriasMes = mentoriasContrato.reduce((s, c) => {
-    const entrada = c.entrada_valor ?? 0;
-    const parcRecebidas = ((c as any).parcelas_mentoria_detalhe ?? [])
-      .filter((p: any) => p.status === "Quitado" && p.data_pagamento >= mesInicio && p.data_pagamento <= mesFim)
-      .reduce((acc: number, p: any) => acc + (p.valor_real ?? p.valor_sugerido ?? 0), 0);
-    return s + entrada + parcRecebidas;
-  }, 0) + mentoriasAvulsas.reduce((s, r) => s + (r.valor_liquido ?? r.valor_bruto ?? 0), 0);
-
-  // Alias para manter compatibilidade
+  // C) KPIs de mentoria (baseado apenas em receitas)
+  const mentoriasMesReceitas = receitasMes.filter(r => r.produto_categoria === "Mentorias");
+  const mentoriasMesCount = mentoriasMesReceitas.length;
   const mentoriasMes = { length: mentoriasMesCount };
+  const valorTotalMentorias = mentoriasMesReceitas.reduce((s, r) => s + (r.valor_bruto ?? 0), 0);
+  const entradasMentoriasMes = mentoriasMesReceitas.reduce((s, r) => s + (r.valor_bruto ?? 0), 0);
+  const recebidoMentoriasMes = mentoriasMesReceitas.reduce((s, r) => s + (r.valor_liquido ?? r.valor_bruto ?? 0), 0);
 
   // D) KPIs Digitais
   const digitaisMes = receitasMes.filter(r => r.produto_categoria === "Digitais");
