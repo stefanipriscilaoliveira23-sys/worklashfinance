@@ -51,6 +51,7 @@ export default function EventosEspeciais() {
   const [pgValor, setPgValor] = useState("");
   const [pgData, setPgData] = useState(new Date().toISOString().split("T")[0]);
   const [pgObs, setPgObs] = useState("");
+  const [pgDestino, setPgDestino] = useState<"empresa" | "pessoal">("empresa");
 
   const { data: eventos, isLoading } = useQuery({
     queryKey: ["eventos-especiais"],
@@ -118,8 +119,25 @@ export default function EventosEspeciais() {
       const novoSaldo = Math.max(0, (showPagamento.valor_original ?? 0) - novoPago);
       const novoStatus = novoSaldo <= 0 ? "Pago" : "Parcialmente Pago";
       await supabase.from("eventos_despesas").update({ valor_pago_total: novoPago, saldo_pendente: novoSaldo, status: novoStatus as any, data_pagamento: novoSaldo <= 0 ? pgData : showPagamento.data_pagamento }).eq("id", showPagamento.id);
+
+      // Lançar como despesa variável na tabela correspondente
+      const eventoNome = selectedEvento?.nome ?? "Evento";
+      const descDespesa = `${eventoNome} — ${showPagamento.descricao}`;
+      if (pgDestino === "empresa") {
+        await supabase.from("despesas_empresa").insert({
+          descricao: descDespesa, valor_original: valor, valor_pago_total: valor, saldo_pendente: 0,
+          tipo_despesa: "Variável", categoria: "Variável" as any, status: "Pago" as any,
+          data_vencimento: pgData, data_pagamento: pgData, observacao: pgObs || null,
+        });
+      } else {
+        await supabase.from("despesas_pessoal").insert({
+          descricao: descDespesa, valor_original: valor, valor_pago_total: valor, saldo_pendente: 0,
+          tipo_despesa: "Variável", categoria: "Outros" as any, status: "Pago" as any,
+          data_vencimento: pgData, data_pagamento: pgData, observacao: pgObs || null,
+        });
+      }
     },
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["eventos-despesas"] }); queryClient.invalidateQueries({ queryKey: ["eventos-despesas-all"] }); toast.success("Pagamento registrado"); setShowPagamento(null); setPgValor(""); setPgObs(""); },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["eventos-despesas"] }); queryClient.invalidateQueries({ queryKey: ["eventos-despesas-all"] }); toast.success("Pagamento registrado e despesa lançada"); setShowPagamento(null); setPgValor(""); setPgObs(""); setPgDestino("empresa"); },
     onError: (e: any) => toast.error(e.message),
   });
 
@@ -267,6 +285,16 @@ export default function EventosEspeciais() {
             <div className="space-y-4">
               <div><Label className="text-muted-foreground">Valor</Label><Input type="number" value={pgValor} onChange={e => setPgValor(e.target.value)} className="bg-secondary/50 border-border" /></div>
               <div><Label className="text-muted-foreground">Data</Label><Input type="date" value={pgData} onChange={e => setPgData(e.target.value)} className="bg-secondary/50 border-border" /></div>
+              <div>
+                <Label className="text-muted-foreground">Lançar despesa em</Label>
+                <Select value={pgDestino} onValueChange={v => setPgDestino(v as "empresa" | "pessoal")}>
+                  <SelectTrigger className="bg-secondary/50 border-border mt-1"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="empresa">Despesas da Empresa (Variável)</SelectItem>
+                    <SelectItem value="pessoal">Despesas Pessoais (Variável)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
               <div><Label className="text-muted-foreground">Observação</Label><Textarea value={pgObs} onChange={e => setPgObs(e.target.value)} className="bg-secondary/50 border-border" rows={2} /></div>
             </div>
             <DialogFooter>
