@@ -44,6 +44,7 @@ interface ImportRow {
   selected: boolean;
   produto_id: string | null;
   produto_no_catalogo: boolean;
+  produto_categoria: ProdutoCategoria | null;
   duplicata_receita_id: string | null;
 }
 
@@ -232,13 +233,13 @@ export function ImportarPlanilhaModal({ open, onClose }: { open: boolean; onClos
   });
 
   const matchProduct = (nome: string) => {
-    if (!produtos) return { id: null, found: false, catalogName: null };
+    if (!produtos) return { id: null, found: false, catalogName: null, categoria: null as ProdutoCategoria | null };
     const lower = nome.toLowerCase().trim();
     const exact = produtos.find((p) => p.nome.toLowerCase().trim() === lower);
-    if (exact) return { id: exact.id, found: true, catalogName: exact.nome };
+    if (exact) return { id: exact.id, found: true, catalogName: exact.nome, categoria: exact.categoria as ProdutoCategoria };
     const partial = produtos.find((p) => lower.includes(p.nome.toLowerCase().trim()) || p.nome.toLowerCase().trim().includes(lower));
-    if (partial) return { id: partial.id, found: true, catalogName: partial.nome };
-    return { id: null, found: false, catalogName: null };
+    if (partial) return { id: partial.id, found: true, catalogName: partial.nome, categoria: partial.categoria as ProdutoCategoria };
+    return { id: null, found: false, catalogName: null, categoria: null as ProdutoCategoria | null };
   };
 
   const findDuplicate = (r: { cliente_email: string; produto_nome: string; data: string; valor_bruto: number }) => {
@@ -423,6 +424,7 @@ export function ImportarPlanilhaModal({ open, onClose }: { open: boolean; onClos
               selected: !isProdutoFisico && !dup,
               produto_id: prodMatch.id,
               produto_no_catalogo: prodMatch.found,
+              produto_categoria: prodMatch.categoria,
               duplicata_receita_id: dup?.id ?? null,
             };
           });
@@ -455,7 +457,7 @@ export function ImportarPlanilhaModal({ open, onClose }: { open: boolean; onClos
       const prod = (produtos ?? []).find(p => p.id === addProdLinkId);
       if (!prod) return;
       toast.success(`"${nome}" vinculado a "${prod.nome}"!`);
-      setRows((prev) => prev.map((r) => r.produto_nome === nome ? { ...r, produto_id: prod.id, produto_no_catalogo: true, produto_nome: prod.nome } : r));
+      setRows((prev) => prev.map((r) => r.produto_nome === nome ? { ...r, produto_id: prod.id, produto_no_catalogo: true, produto_nome: prod.nome, produto_categoria: prod.categoria as ProdutoCategoria } : r));
       setAddProdDialog(null);
       return;
     }
@@ -471,7 +473,7 @@ export function ImportarPlanilhaModal({ open, onClose }: { open: boolean; onClos
       return;
     }
     toast.success(`Produto "${nome}" adicionado ao catálogo como ${addProdCategoria}!`);
-    setRows((prev) => prev.map((r) => r.produto_nome === nome ? { ...r, produto_id: data.id, produto_no_catalogo: true } : r));
+    setRows((prev) => prev.map((r) => r.produto_nome === nome ? { ...r, produto_id: data.id, produto_no_catalogo: true, produto_categoria: addProdCategoria } : r));
     queryClient.invalidateQueries({ queryKey: ["produtos-catalogo"] });
     setAddProdDialog(null);
   };
@@ -539,6 +541,7 @@ export function ImportarPlanilhaModal({ open, onClose }: { open: boolean; onClos
             data: r.data,
             produto_nome: r.produto_nome,
             produto_id: r.produto_id,
+            produto_categoria: r.produto_categoria,
             plataforma,
             valor_bruto: r.valor_bruto,
             taxa_plataforma_valor: r.taxa_plataforma_valor,
