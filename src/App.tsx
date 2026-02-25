@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import AppLayout from "@/components/layout/AppLayout";
+import AdminRoute from "@/components/layout/AdminRoute";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import Receitas from "./pages/Receitas";
@@ -36,16 +37,16 @@ const App = () => (
               <Route path="/" element={<Dashboard />} />
               <Route path="/receitas" element={<Receitas />} />
               <Route path="/parcelas" element={<ParcelasMentoria />} />
-              <Route path="/despesas-empresa" element={<DespesasEmpresa />} />
-              <Route path="/despesas-pessoal" element={<DespesasPessoal />} />
-              <Route path="/eventos" element={<EventosEspeciais />} />
-              <Route path="/produtos" element={<ProdutosMargem />} />
-              <Route path="/projecao" element={<Projecao />} />
-              <Route path="/pl-diario" element={<PLDiario />} />
               <Route path="/clientes" element={<Clientes />} />
-              <Route path="/cofrinho" element={<Cofrinho />} />
-              <Route path="/bi" element={<BusinessIntelligence />} />
-              <Route path="/config" element={<Configuracoes />} />
+              <Route path="/despesas-empresa" element={<AdminRoute><DespesasEmpresa /></AdminRoute>} />
+              <Route path="/despesas-pessoal" element={<AdminRoute><DespesasPessoal /></AdminRoute>} />
+              <Route path="/eventos" element={<AdminRoute><EventosEspeciais /></AdminRoute>} />
+              <Route path="/produtos" element={<AdminRoute><ProdutosMargem /></AdminRoute>} />
+              <Route path="/projecao" element={<AdminRoute><Projecao /></AdminRoute>} />
+              <Route path="/pl-diario" element={<AdminRoute><PLDiario /></AdminRoute>} />
+              <Route path="/cofrinho" element={<AdminRoute><Cofrinho /></AdminRoute>} />
+              <Route path="/bi" element={<AdminRoute><BusinessIntelligence /></AdminRoute>} />
+              <Route path="/config" element={<AdminRoute><Configuracoes /></AdminRoute>} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>

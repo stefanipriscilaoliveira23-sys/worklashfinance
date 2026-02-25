@@ -9,6 +9,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import MonthNavigator, { getCurrentMonthKey, getDateRange, type DateFilter } from "@/components/MonthNavigator";
+import { useAuth, isAdmin } from "@/contexts/AuthContext";
+import DashboardOperacional from "./DashboardOperacional";
 
 const GOLD_COLORS = ["#C9A84C", "#E5C76B", "#A68A3E", "#D4B85A", "#8B7432", "#F0D87E"];
 
@@ -26,6 +28,12 @@ function MetricCard({ label, value, sub, icon: Icon, variant }: { label: string;
 }
 
 export default function Dashboard() {
+  const { role } = useAuth();
+  if (!isAdmin(role)) return <DashboardOperacional />;
+  return <DashboardAdmin />;
+}
+
+function DashboardAdmin() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [editingMeta, setEditingMeta] = useState(false);
