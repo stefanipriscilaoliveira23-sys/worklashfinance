@@ -262,13 +262,26 @@ export function ImportarPlanilhaModal({ open, onClose }: { open: boolean; onClos
       const file = e.target.files?.[0];
       if (!file) return;
 
+      const isCsv = file.name.toLowerCase().endsWith(".csv");
       const reader = new FileReader();
       reader.onload = (ev) => {
         try {
-          const data = new Uint8Array(ev.target?.result as ArrayBuffer);
-          const workbook = XLSX.read(data, { type: "array" });
+          const result = ev.target?.result;
+          let workbook: XLSX.WorkBook;
+
+          if (typeof result === "string") {
+            const firstLine = result.split(/\r?\n/)[0] ?? "";
+            const semiCount = (firstLine.match(/;/g) ?? []).length;
+            const commaCount = (firstLine.match(/,/g) ?? []).length;
+            const delimiter = semiCount > commaCount ? ";" : ",";
+            workbook = XLSX.read(result, { type: "string", FS: delimiter, raw: true });
+          } else {
+            const data = new Uint8Array(result as ArrayBuffer);
+            workbook = XLSX.read(data, { type: "array", raw: true });
+          }
+
           const sheet = workbook.Sheets[workbook.SheetNames[0]];
-          const json = XLSX.utils.sheet_to_json<Record<string, any>>(sheet);
+          const json = XLSX.utils.sheet_to_json<Record<string, any>>(sheet, { raw: false, defval: "" });
 
           const fields = PLATFORM_FIELDS[plataforma] ?? {};
           const mapped: ImportRow[] = json.map((row) => {
@@ -420,7 +433,8 @@ export function ImportarPlanilhaModal({ open, onClose }: { open: boolean; onClos
           toast.error("Erro ao ler o arquivo");
         }
       };
-      reader.readAsArrayBuffer(file);
+      if (isCsv) reader.readAsText(file, "utf-8");
+      else reader.readAsArrayBuffer(file);
     },
     [plataforma, receitas, produtos]
   );
