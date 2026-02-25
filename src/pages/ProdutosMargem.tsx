@@ -20,11 +20,10 @@ import type { Database } from "@/integrations/supabase/types";
 type ProdutoCategoria = Database["public"]["Enums"]["produto_categoria"];
 
 const GOLD_COLORS = ["#C9A84C", "#E5C76B", "#A68A3E", "#D4B85A", "#8B7432", "#F0D87E"];
-const ENTRY_CATEGORIES = ["Apostila", "Ferramenta", "Produto Físico"];
+const ENTRY_CATEGORIES = ["Digitais", "Físicos"];
 
 const CATEGORIAS: ProdutoCategoria[] = [
-  "Mentoria Outsider", "Mentoria Digital Beauty", "Consultoria Premium", "Consultoria Express",
-  "Curso/Formação", "Ferramenta", "Apostila", "Produto Físico", "Renovação Mentoria", "Outros"
+  "Mentorias", "Renovações", "Digitais", "Físicos"
 ];
 const PLATAFORMAS = ["Hotmart", "Kiwify", "Eduzz", "Direto Pix", "Outro"];
 
@@ -38,7 +37,7 @@ export default function ProdutosMargem() {
   // Product form state
   const [showProdForm, setShowProdForm] = useState(false);
   const [editProd, setEditProd] = useState<any>(null);
-  const [prodForm, setProdForm] = useState({ nome: "", categoria: "Outros" as ProdutoCategoria, plataformas: [] as string[], custo_direto_percentual: 0, observacao: "" });
+  const [prodForm, setProdForm] = useState({ nome: "", categoria: "Digitais" as ProdutoCategoria, plataformas: [] as string[], custo_direto_percentual: 0, observacao: "" });
   const [showCompradores, setShowCompradores] = useState<{ nome: string; compradores: { nome: string; data: string; valor: number }[] } | null>(null);
 
   const { data: produtos, isLoading: loadProd } = useQuery({
@@ -91,7 +90,7 @@ export default function ProdutosMargem() {
 
   const isLoading = loadProd || loadRec;
 
-  const openAddProd = () => { setEditProd(null); setProdForm({ nome: "", categoria: "Outros", plataformas: [], custo_direto_percentual: 0, observacao: "" }); setShowProdForm(true); };
+  const openAddProd = () => { setEditProd(null); setProdForm({ nome: "", categoria: "Digitais", plataformas: [], custo_direto_percentual: 0, observacao: "" }); setShowProdForm(true); };
   const openEditProd = (p: any) => { setEditProd(p); setProdForm({ nome: p.nome, categoria: p.categoria, plataformas: p.plataformas ?? [], custo_direto_percentual: p.custo_direto_percentual ?? 0, observacao: p.observacao ?? "" }); setShowProdForm(true); };
   const closeProdForm = () => { setShowProdForm(false); setEditProd(null); };
 
@@ -133,7 +132,7 @@ export default function ProdutosMargem() {
     const vendasReceitas = allReceitas.filter(r => r.produto_id === p.id || r.produto_nome === p.nome);
     const vendasParcelas = allParcelas.filter(pm => {
       if ((pm as any).produto_id) return (pm as any).produto_id === p.id;
-      if (pm.tipo_mentoria === "Renovação Mentoria") return false;
+      if (pm.tipo_mentoria === "Renovações") return false;
       return pm.tipo_mentoria === p.categoria;
     });
     
@@ -251,7 +250,7 @@ export default function ProdutosMargem() {
     
     // Receitas
     receitasMes.forEach(r => {
-      const cat = r.produto_categoria || "Outros";
+      const cat = r.produto_categoria || "Digitais";
       const e = catMap.get(cat) ?? { receita: 0, custoDireto: 0 };
       e.receita += r.valor_bruto ?? 0;
       const prod = (produtos ?? []).find(p => p.id === r.produto_id || p.nome === r.produto_nome);
@@ -262,7 +261,7 @@ export default function ProdutosMargem() {
     // Parcelas quitadas
     parcelasQuitadasMes.forEach((pq: any) => {
       const parent = pq.parcelas_mentoria;
-      const cat = parent.tipo_mentoria || "Outros";
+      const cat = parent.tipo_mentoria || "Digitais";
       const e = catMap.get(cat) ?? { receita: 0, custoDireto: 0 };
       const val = pq.valor_real ?? pq.valor_sugerido ?? 0;
       e.receita += val;

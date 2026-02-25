@@ -746,17 +746,7 @@ export type Database = {
       periodicidade: "Semanal" | "Quinzenal" | "Mensal"
       plataforma_origem: "Hotmart" | "Kiwify" | "Eduzz" | "Direto Pix" | "Outro"
       prioridade_despesa: "Alta" | "Média" | "Baixa"
-      produto_categoria:
-        | "Mentoria Outsider"
-        | "Mentoria Digital Beauty"
-        | "Consultoria Premium"
-        | "Consultoria Express"
-        | "Curso/Formação"
-        | "Ferramenta"
-        | "Apostila"
-        | "Produto Físico"
-        | "Renovação Mentoria"
-        | "Outros"
+      produto_categoria: "Mentorias" | "Renovações" | "Digitais" | "Físicos"
       status_despesa: "A Vencer" | "Pago" | "Em Atraso" | "Parcialmente Pago"
       status_parcela: "Pendente" | "Quitado" | "Atraso" | "Parcialmente Pago"
       tipo_despesa: "Fixa" | "Variável"
@@ -921,18 +911,7 @@ export const Constants = {
       periodicidade: ["Semanal", "Quinzenal", "Mensal"],
       plataforma_origem: ["Hotmart", "Kiwify", "Eduzz", "Direto Pix", "Outro"],
       prioridade_despesa: ["Alta", "Média", "Baixa"],
-      produto_categoria: [
-        "Mentoria Outsider",
-        "Mentoria Digital Beauty",
-        "Consultoria Premium",
-        "Consultoria Express",
-        "Curso/Formação",
-        "Ferramenta",
-        "Apostila",
-        "Produto Físico",
-        "Renovação Mentoria",
-        "Outros",
-      ],
+      produto_categoria: ["Mentorias", "Renovações", "Digitais", "Físicos"],
       status_despesa: ["A Vencer", "Pago", "Em Atraso", "Parcialmente Pago"],
       status_parcela: ["Pendente", "Quitado", "Atraso", "Parcialmente Pago"],
       tipo_despesa: ["Fixa", "Variável"],

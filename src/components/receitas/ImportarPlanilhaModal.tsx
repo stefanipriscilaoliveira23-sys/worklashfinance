@@ -21,10 +21,7 @@ import type { Database } from "@/integrations/supabase/types";
 type PlataformaOrigem = Database["public"]["Enums"]["plataforma_origem"];
 type ProdutoCategoria = Database["public"]["Enums"]["produto_categoria"];
 
-const CATEGORIAS: ProdutoCategoria[] = [
-  "Mentoria Outsider", "Mentoria Digital Beauty", "Consultoria Premium", "Consultoria Express",
-  "Curso/Formação", "Ferramenta", "Apostila", "Produto Físico", "Renovação Mentoria", "Outros"
-];
+const CATEGORIAS: ProdutoCategoria[] = ["Mentorias", "Renovações", "Digitais", "Físicos"];
 
 interface ImportRow {
   data: string;
@@ -189,7 +186,7 @@ export function ImportarPlanilhaModal({ open, onClose }: { open: boolean; onClos
   const [editIdx, setEditIdx] = useState<number | null>(null);
   const [showDuplicataId, setShowDuplicataId] = useState<string | null>(null);
   const [addProdDialog, setAddProdDialog] = useState<{ nome: string; idx: number } | null>(null);
-  const [addProdCategoria, setAddProdCategoria] = useState<ProdutoCategoria>("Outros");
+  const [addProdCategoria, setAddProdCategoria] = useState<ProdutoCategoria>("Digitais");
 
   const { data: receitas } = useQuery({
     queryKey: ["receitas-all-import"],
@@ -383,7 +380,7 @@ export function ImportarPlanilhaModal({ open, onClose }: { open: boolean; onClos
   );
 
   const openAddProductDialog = (nome: string, idx: number) => {
-    setAddProdCategoria("Outros");
+    setAddProdCategoria("Digitais");
     setAddProdDialog({ nome, idx });
   };
 

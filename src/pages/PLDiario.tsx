@@ -10,11 +10,10 @@ const PRO_LABORE_DEFAULT = 30000;
 
 const CATEGORY_COLS: { key: string; label: string; cats: string[] }[] = [
   { key: "parcelas", label: "Parcelas", cats: [] },
-  { key: "mentorias", label: "Mentorias", cats: ["Mentoria Outsider", "Mentoria Digital Beauty"] },
-  { key: "cursos", label: "Cursos Digitais", cats: ["Curso/Formação", "Ferramenta", "Apostila"] },
-  { key: "renovacoes", label: "Renovações", cats: ["Renovação Mentoria"] },
-  { key: "fisicos", label: "Produtos Físicos", cats: ["Produto Físico"] },
-  { key: "outras", label: "Outras Entradas", cats: ["Consultoria Premium", "Consultoria Express", "Outros"] },
+  { key: "mentorias", label: "Mentorias", cats: ["Mentorias"] },
+  { key: "cursos", label: "Digitais", cats: ["Digitais"] },
+  { key: "renovacoes", label: "Renovações", cats: ["Renovações"] },
+  { key: "fisicos", label: "Físicos", cats: ["Físicos"] },
 ];
 
 const FIXED_CATEGORIES: { key: string; label: string; cats: string[] }[] = [
@@ -132,7 +131,7 @@ export default function PLDiario() {
       CATEGORY_COLS.forEach(c => { rev[c.key] = 0; });
       rev.parcelas = parcelasDia.reduce((s, p) => s + (p.valor_real ?? p.valor_sugerido ?? 0), 0);
       receitasDia.forEach(r => {
-        const cat = r.produto_categoria ?? "Outros";
+        const cat = r.produto_categoria ?? "Digitais";
         const col = CATEGORY_COLS.find(c => c.cats.includes(cat));
         if (col) rev[col.key] += (r.valor_bruto ?? 0);
         else rev.outras += (r.valor_bruto ?? 0);
