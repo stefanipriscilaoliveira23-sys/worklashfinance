@@ -198,13 +198,13 @@ export default function Receitas() {
     <table className="w-full text-sm">
       <thead>
         <tr className="border-b border-border bg-secondary/30">
-          {["Data", "Produto", "Origem", "Cliente", "Bruto", "Taxa", "Líquido", "Status", "Ações"].map(h => (
+          {["Data", "Produto", "Origem", "Cliente", "Bruto", "Taxa", "Líquido", "Ações"].map(h => (
             <th key={h} className={`p-3 text-xs font-medium text-muted-foreground ${["Bruto", "Taxa", "Líquido"].includes(h) ? "text-right" : "text-left"}`}>{h}</th>
           ))}
         </tr>
       </thead>
       <tbody>
-        {tabData.length === 0 && <tr><td colSpan={9} className="p-12 text-center text-muted-foreground">Nenhuma receita encontrada</td></tr>}
+        {tabData.length === 0 && <tr><td colSpan={8} className="p-12 text-center text-muted-foreground">Nenhuma receita encontrada</td></tr>}
         {tabData.map((r: any) => {
           const isParcela = !!r.is_parcela;
           return (
@@ -216,7 +216,6 @@ export default function Receitas() {
               <td className="p-3 text-right">{formatCurrency(r.valor_bruto)}</td>
               <td className="p-3 text-right text-muted-foreground">{formatCurrency(r.taxa_plataforma_valor ?? 0)}</td>
               <td className="p-3 text-right text-primary">{formatCurrency(r.valor_liquido ?? r.valor_bruto)}</td>
-              <td className="p-3"><span className={`px-2 py-0.5 text-[10px] rounded-full ${r.status === "ativo" ? "bg-emerald-500/10 text-emerald-400" : "bg-muted text-muted-foreground"}`}>{isParcela ? "Recebido" : r.status}</span></td>
               <td className="p-3">
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild><button className="p-1.5 rounded hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors"><MoreHorizontal className="h-4 w-4" /></button></DropdownMenuTrigger>

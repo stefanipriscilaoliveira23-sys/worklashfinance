@@ -208,7 +208,7 @@ export function EditarReceitaModal({ receita, open, onClose }: EditarReceitaModa
         origens_venda: origensVenda,
         is_ascensao: origensVenda.includes("Ascensão"),
         observacao: restantePago ? `${observacao ? observacao + " | " : ""}Restante ${formatCurrency(valorRestante)} pago via ${restantePagoForma || "Pix"}` : observacao,
-        status: restantePago ? "Recebido" : status,
+        
         data_inicio_mentoria: dataInicioMentoria || null,
         data_fim_mentoria: dataFimMentoria || null,
       }).eq("id", receita.id);
@@ -469,19 +469,6 @@ export function EditarReceitaModal({ receita, open, onClose }: EditarReceitaModa
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <Label className="text-foreground/80">Status</Label>
-                <Select value={status} onValueChange={setStatus}>
-                  <SelectTrigger className="bg-secondary/50 border-border"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="ativo">Ativo</SelectItem>
-                    <SelectItem value="cancelado">Cancelado</SelectItem>
-                    <SelectItem value="reembolsado">Reembolsado</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
 
             <div className="space-y-1.5">
               <Label className="text-foreground/80">Observação</Label>
