@@ -47,6 +47,30 @@ export type Database = {
         }
         Relationships: []
       }
+      cofrinho: {
+        Row: {
+          criado_em: string
+          data: string
+          id: string
+          observacao: string | null
+          valor: number
+        }
+        Insert: {
+          criado_em?: string
+          data: string
+          id?: string
+          observacao?: string | null
+          valor?: number
+        }
+        Update: {
+          criado_em?: string
+          data?: string
+          id?: string
+          observacao?: string | null
+          valor?: number
+        }
+        Relationships: []
+      }
       configuracoes: {
         Row: {
           chave: string
@@ -78,6 +102,7 @@ export type Database = {
           forma_pagamento: string | null
           id: string
           observacao: string | null
+          prioridade: Database["public"]["Enums"]["prioridade_despesa"]
           saldo_pendente: number | null
           status: Database["public"]["Enums"]["status_despesa"] | null
           tipo_despesa: Database["public"]["Enums"]["tipo_despesa"]
@@ -93,6 +118,7 @@ export type Database = {
           forma_pagamento?: string | null
           id?: string
           observacao?: string | null
+          prioridade?: Database["public"]["Enums"]["prioridade_despesa"]
           saldo_pendente?: number | null
           status?: Database["public"]["Enums"]["status_despesa"] | null
           tipo_despesa?: Database["public"]["Enums"]["tipo_despesa"]
@@ -108,6 +134,7 @@ export type Database = {
           forma_pagamento?: string | null
           id?: string
           observacao?: string | null
+          prioridade?: Database["public"]["Enums"]["prioridade_despesa"]
           saldo_pendente?: number | null
           status?: Database["public"]["Enums"]["status_despesa"] | null
           tipo_despesa?: Database["public"]["Enums"]["tipo_despesa"]
@@ -126,6 +153,7 @@ export type Database = {
           forma_pagamento: string | null
           id: string
           observacao: string | null
+          prioridade: Database["public"]["Enums"]["prioridade_despesa"]
           saldo_pendente: number | null
           status: Database["public"]["Enums"]["status_despesa"] | null
           tipo_despesa: Database["public"]["Enums"]["tipo_despesa"]
@@ -141,6 +169,7 @@ export type Database = {
           forma_pagamento?: string | null
           id?: string
           observacao?: string | null
+          prioridade?: Database["public"]["Enums"]["prioridade_despesa"]
           saldo_pendente?: number | null
           status?: Database["public"]["Enums"]["status_despesa"] | null
           tipo_despesa?: Database["public"]["Enums"]["tipo_despesa"]
@@ -156,6 +185,7 @@ export type Database = {
           forma_pagamento?: string | null
           id?: string
           observacao?: string | null
+          prioridade?: Database["public"]["Enums"]["prioridade_despesa"]
           saldo_pendente?: number | null
           status?: Database["public"]["Enums"]["status_despesa"] | null
           tipo_despesa?: Database["public"]["Enums"]["tipo_despesa"]
@@ -715,6 +745,7 @@ export type Database = {
       evento_despesa_categoria: "Fechado" | "Precisa Fechar" | "Pago/Presente"
       periodicidade: "Semanal" | "Quinzenal" | "Mensal"
       plataforma_origem: "Hotmart" | "Kiwify" | "Eduzz" | "Direto Pix" | "Outro"
+      prioridade_despesa: "Alta" | "Média" | "Baixa"
       produto_categoria:
         | "Mentoria Outsider"
         | "Mentoria Digital Beauty"
@@ -889,6 +920,7 @@ export const Constants = {
       evento_despesa_categoria: ["Fechado", "Precisa Fechar", "Pago/Presente"],
       periodicidade: ["Semanal", "Quinzenal", "Mensal"],
       plataforma_origem: ["Hotmart", "Kiwify", "Eduzz", "Direto Pix", "Outro"],
+      prioridade_despesa: ["Alta", "Média", "Baixa"],
       produto_categoria: [
         "Mentoria Outsider",
         "Mentoria Digital Beauty",
