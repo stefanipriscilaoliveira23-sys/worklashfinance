@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,20 +12,28 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   AlertTriangle, Upload, Loader2, ArrowRight, ArrowLeft, CheckCircle,
-  Pencil, Trash2, Eye, PackagePlus, AlertCircle, Link2
+  Pencil, Trash2, Eye, PackagePlus, AlertCircle, Link2, Plus
 } from "lucide-react";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { ImportRowEditDialog } from "./ImportRowEditDialog";
 import type { Database } from "@/integrations/supabase/types";
 
 type PlataformaOrigem = Database["public"]["Enums"]["plataforma_origem"];
+type ProdutoCategoria = Database["public"]["Enums"]["produto_categoria"];
+
+const CATEGORIAS: ProdutoCategoria[] = [
+  "Mentoria Outsider", "Mentoria Digital Beauty", "Consultoria Premium", "Consultoria Express",
+  "Curso/Formação", "Ferramenta", "Apostila", "Produto Físico", "Renovação Mentoria", "Outros"
+];
 
 interface ImportRow {
   data: string;
   produto_nome: string;
   valor_bruto: number;
+  valor_bruto_original: number;
   taxa_plataforma_valor: number;
   valor_liquido: number;
+  valor_liquido_original: number;
   cliente_nome: string;
   cliente_email: string;
   forma_pagamento: string;
@@ -42,40 +50,59 @@ interface ImportRow {
   duplicata_receita_id: string | null;
 }
 
-const COLUMN_MAPS: Record<string, Record<string, string>> = {
-  Hotmart: {
-    "Data transação": "data",
-    "Produto": "produto_nome",
-    "Faturamento líquido do(a) Produtor(a)": "valor_liquido",
-    "Preço total": "valor_bruto_original",
-    "Taxa de processamento": "taxa_plataforma_valor",
-    "Comprador(a)": "cliente_nome",
-    "Email do(a) Comprador(a)": "cliente_email",
-    "Método de pagamento": "forma_pagamento",
-    "Moeda de compra": "moeda_original",
-    "Cotação": "taxa_cambio",
-    "Src": "src_checkout",
-    "Sck": "sck",
-  },
-  Kiwify: {
-    "Data de Criação": "data",
-    "Produto": "produto_nome",
-    "Valor líquido": "valor_liquido",
-    "Taxas": "taxa_plataforma_valor",
-    "Cliente": "cliente_nome",
-    "Email": "cliente_email",
-    "Pagamento": "forma_pagamento",
-  },
-  Eduzz: {
-    "Data de Pagamento": "data",
-    "Produto": "produto_nome",
-    "Ganho Liquido": "valor_liquido",
-    "Taxa Eduzz": "taxa_plataforma_valor",
-    "Cliente / Nome": "cliente_nome",
-    "Cliente / E-mail": "cliente_email",
-    "Forma de Pagamento": "forma_pagamento",
-    "UTM Source": "utm_source",
-  },
+// Flexible column matching: try multiple variations for each field
+function findColumnValue(row: Record<string, any>, patterns: string[]): any {
+  for (const pattern of patterns) {
+    const key = Object.keys(row).find(k => {
+      const kNorm = k.trim().toLowerCase();
+      const pNorm = pattern.toLowerCase();
+      return kNorm === pNorm || kNorm.includes(pNorm) || pNorm.includes(kNorm);
+    });
+    if (key && row[key] !== undefined && row[key] !== null && row[key] !== "") return row[key];
+  }
+  return undefined;
+}
+
+const HOTMART_FIELDS: Record<string, string[]> = {
+  data: ["Data transação", "Data Transação", "Data da transação", "Transaction Date", "data"],
+  produto_nome: ["Produto", "Product", "Nome do Produto"],
+  valor_liquido: ["Faturamento líquido do(a) Produtor(a)", "Faturamento líquido", "Net Revenue", "Valor Líquido"],
+  valor_bruto_original: ["Preço total", "Total Price", "Valor Bruto", "Preço Total"],
+  taxa_plataforma_valor: ["Taxa de processamento", "Processing Fee", "Taxa"],
+  cliente_nome: ["Comprador(a)", "Comprador", "Buyer", "Nome do Comprador", "Nome Comprador"],
+  cliente_email: ["Email do(a) Comprador(a)", "Email do Comprador", "Buyer Email", "E-mail"],
+  forma_pagamento: ["Método de pagamento", "Payment Method", "Forma de Pagamento"],
+  moeda_original: ["Moeda de compra", "Purchase Currency", "Moeda"],
+  taxa_cambio: ["Cotação", "Exchange Rate", "Taxa de Câmbio"],
+  src_checkout: ["Src", "src", "SRC", "src_checkout"],
+  sck: ["Sck", "sck", "SCK"],
+};
+
+const KIWIFY_FIELDS: Record<string, string[]> = {
+  data: ["Data de Criação", "Data", "Created At"],
+  produto_nome: ["Produto", "Product"],
+  valor_liquido: ["Valor líquido", "Valor Líquido", "Net Value"],
+  taxa_plataforma_valor: ["Taxas", "Fees", "Taxa"],
+  cliente_nome: ["Cliente", "Customer", "Nome"],
+  cliente_email: ["Email", "E-mail"],
+  forma_pagamento: ["Pagamento", "Payment", "Forma de Pagamento"],
+};
+
+const EDUZZ_FIELDS: Record<string, string[]> = {
+  data: ["Data de Pagamento", "Data", "Payment Date"],
+  produto_nome: ["Produto", "Product"],
+  valor_liquido: ["Ganho Liquido", "Ganho Líquido", "Net Gain"],
+  taxa_plataforma_valor: ["Taxa Eduzz", "Taxa", "Fee"],
+  cliente_nome: ["Cliente / Nome", "Cliente", "Customer"],
+  cliente_email: ["Cliente / E-mail", "Email", "E-mail"],
+  forma_pagamento: ["Forma de Pagamento", "Payment"],
+  utm_source: ["UTM Source", "utm_source"],
+};
+
+const PLATFORM_FIELDS: Record<string, Record<string, string[]>> = {
+  Hotmart: HOTMART_FIELDS,
+  Kiwify: KIWIFY_FIELDS,
+  Eduzz: EDUZZ_FIELDS,
 };
 
 export function ImportarPlanilhaModal({ open, onClose }: { open: boolean; onClose: () => void }) {
@@ -87,8 +114,9 @@ export function ImportarPlanilhaModal({ open, onClose }: { open: boolean; onClos
   const [importing, setImporting] = useState(false);
   const [editIdx, setEditIdx] = useState<number | null>(null);
   const [showDuplicataId, setShowDuplicataId] = useState<string | null>(null);
+  const [addProdDialog, setAddProdDialog] = useState<{ nome: string; idx: number } | null>(null);
+  const [addProdCategoria, setAddProdCategoria] = useState<ProdutoCategoria>("Outros");
 
-  // Existing receitas for duplicate check
   const { data: receitas } = useQuery({
     queryKey: ["receitas-all-import"],
     queryFn: async () => {
@@ -98,7 +126,6 @@ export function ImportarPlanilhaModal({ open, onClose }: { open: boolean; onClos
     enabled: open,
   });
 
-  // Existing clients
   const { data: clientes } = useQuery({
     queryKey: ["clientes-all-import"],
     queryFn: async () => {
@@ -108,7 +135,6 @@ export function ImportarPlanilhaModal({ open, onClose }: { open: boolean; onClos
     enabled: open,
   });
 
-  // Product catalog
   const { data: produtos } = useQuery({
     queryKey: ["produtos-catalogo"],
     queryFn: async () => {
@@ -138,7 +164,6 @@ export function ImportarPlanilhaModal({ open, onClose }: { open: boolean; onClos
       const exDate = new Date(ex.data);
       const rowDate = new Date(r.data);
       if (Math.abs(exDate.getTime() - rowDate.getTime()) > 86400000 * 3) return false;
-      // Also check value similarity (within 10%)
       const valDiff = Math.abs((ex.valor_bruto ?? 0) - r.valor_bruto);
       if (r.valor_bruto > 0 && valDiff / r.valor_bruto > 0.1) return false;
       return true;
@@ -158,68 +183,92 @@ export function ImportarPlanilhaModal({ open, onClose }: { open: boolean; onClos
           const sheet = workbook.Sheets[workbook.SheetNames[0]];
           const json = XLSX.utils.sheet_to_json<Record<string, any>>(sheet);
 
-          const colMap = COLUMN_MAPS[plataforma] ?? {};
+          const fields = PLATFORM_FIELDS[plataforma] ?? {};
           const mapped: ImportRow[] = json.map((row) => {
-            const r: any = {};
-            Object.entries(colMap).forEach(([srcCol, destCol]) => {
-              const key = Object.keys(row).find((k) => k.trim() === srcCol || k.trim().toLowerCase().includes(srcCol.toLowerCase()));
-              if (key) r[destCol] = row[key];
-            });
+            const getField = (field: string) => findColumnValue(row, fields[field] ?? []);
 
             let dateStr = "";
-            if (r.data) {
-              const parsed = new Date(r.data);
-              if (!isNaN(parsed.getTime())) dateStr = parsed.toISOString().split("T")[0];
-              else dateStr = String(r.data);
+            const rawDate = getField("data");
+            if (rawDate) {
+              // Handle Excel serial dates
+              if (typeof rawDate === "number") {
+                const excelEpoch = new Date(1899, 11, 30);
+                const d = new Date(excelEpoch.getTime() + rawDate * 86400000);
+                dateStr = d.toISOString().split("T")[0];
+              } else {
+                const parsed = new Date(rawDate);
+                if (!isNaN(parsed.getTime())) dateStr = parsed.toISOString().split("T")[0];
+                else {
+                  // Try DD/MM/YYYY format
+                  const parts = String(rawDate).split(/[\/\-\.]/);
+                  if (parts.length === 3) {
+                    const [d, m, y] = parts;
+                    const tryDate = new Date(`${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`);
+                    if (!isNaN(tryDate.getTime())) dateStr = tryDate.toISOString().split("T")[0];
+                    else dateStr = String(rawDate);
+                  } else dateStr = String(rawDate);
+                }
+              }
             }
 
-            const valorLiquido = parseFloat(String(r.valor_liquido ?? "0").replace(/[^\d.,-]/g, "").replace(",", ".")) || 0;
-            const taxaValor = parseFloat(String(r.taxa_plataforma_valor ?? "0").replace(/[^\d.,-]/g, "").replace(",", ".")) || 0;
-            const moeda = r.moeda_original || "BRL";
-            
-            // Per-row exchange rate from spreadsheet
-            const taxaCambioRow = parseFloat(String(r.taxa_cambio ?? "0").replace(/[^\d.,-]/g, "").replace(",", ".")) || 1;
-            
-            // Use "Preço total" from spreadsheet if available, otherwise calculate
-            const precoTotalOriginal = parseFloat(String(r.valor_bruto_original ?? "0").replace(/[^\d.,-]/g, "").replace(",", ".")) || 0;
-            
+            const parseNum = (v: any) => {
+              if (v === undefined || v === null) return 0;
+              if (typeof v === "number") return v;
+              return parseFloat(String(v).replace(/[^\d.,-]/g, "").replace(",", ".")) || 0;
+            };
+
+            const valorLiquidoOriginal = parseNum(getField("valor_liquido"));
+            const taxaValor = parseNum(getField("taxa_plataforma_valor"));
+            const moeda = String(getField("moeda_original") ?? "BRL").trim();
+            const taxaCambioRow = parseNum(getField("taxa_cambio")) || 1;
+            const precoTotalOriginal = parseNum(getField("valor_bruto_original"));
+
+            // Original values (in original currency)
+            const brutoOriginal = precoTotalOriginal > 0 ? precoTotalOriginal : valorLiquidoOriginal + taxaValor;
+            const liqOriginal = valorLiquidoOriginal;
+
+            // Converted to BRL
             let valorBruto: number;
             let valorLiqFinal: number;
             if (moeda !== "BRL" && taxaCambioRow > 1) {
-              // Use exchange rate from spreadsheet
-              valorBruto = precoTotalOriginal > 0 ? precoTotalOriginal * taxaCambioRow : (valorLiquido + taxaValor) * taxaCambioRow;
-              valorLiqFinal = valorLiquido * taxaCambioRow;
+              valorBruto = brutoOriginal * taxaCambioRow;
+              valorLiqFinal = liqOriginal * taxaCambioRow;
             } else {
-              valorBruto = precoTotalOriginal > 0 ? precoTotalOriginal : valorLiquido + taxaValor;
-              valorLiqFinal = valorLiquido;
+              valorBruto = brutoOriginal;
+              valorLiqFinal = liqOriginal;
             }
 
-            const nome = String(r.produto_nome ?? "").toLowerCase();
+            const produtoNome = String(getField("produto_nome") ?? "").trim();
+            const nome = produtoNome.toLowerCase();
             const isProdutoFisico = nome.includes("worklash") || nome.includes("kit ");
 
-            const prodMatch = matchProduct(String(r.produto_nome ?? ""));
-            
-            // UTM / checkout origin
-            const srcCheckout = r.src_checkout ? String(r.src_checkout).trim() : undefined;
-            const sckValue = r.sck ? String(r.sck).trim() : undefined;
-            const utmSource = r.utm_source ? String(r.utm_source).trim() : srcCheckout;
+            const prodMatch = matchProduct(produtoNome);
+
+            const srcCheckout = getField("src_checkout") ? String(getField("src_checkout")).trim() : undefined;
+            const sckValue = getField("sck") ? String(getField("sck")).trim() : undefined;
+            const utmSource = getField("utm_source") ? String(getField("utm_source")).trim() : srcCheckout;
+
+            const clienteNome = String(getField("cliente_nome") ?? "").trim();
+            const clienteEmail = String(getField("cliente_email") ?? "").trim();
 
             const dup = findDuplicate({
-              cliente_email: String(r.cliente_email ?? ""),
-              produto_nome: String(r.produto_nome ?? ""),
+              cliente_email: clienteEmail,
+              produto_nome: produtoNome,
               data: dateStr,
               valor_bruto: valorBruto,
             });
 
             return {
               data: dateStr,
-              produto_nome: String(r.produto_nome ?? ""),
+              produto_nome: produtoNome,
               valor_bruto: valorBruto,
+              valor_bruto_original: brutoOriginal,
               taxa_plataforma_valor: taxaValor,
               valor_liquido: valorLiqFinal,
-              cliente_nome: String(r.cliente_nome ?? ""),
-              cliente_email: String(r.cliente_email ?? ""),
-              forma_pagamento: String(r.forma_pagamento ?? ""),
+              valor_liquido_original: liqOriginal,
+              cliente_nome: clienteNome,
+              cliente_email: clienteEmail,
+              forma_pagamento: String(getField("forma_pagamento") ?? "").trim(),
               moeda_original: moeda,
               taxa_cambio: taxaCambioRow,
               utm_source: utmSource,
@@ -244,21 +293,27 @@ export function ImportarPlanilhaModal({ open, onClose }: { open: boolean; onClos
     [plataforma, receitas, produtos]
   );
 
-  const handleAddProductToCatalog = async (idx: number) => {
-    const row = rows[idx];
+  const openAddProductDialog = (nome: string, idx: number) => {
+    setAddProdCategoria("Outros");
+    setAddProdDialog({ nome, idx });
+  };
+
+  const handleAddProductToCatalog = async () => {
+    if (!addProdDialog) return;
+    const { nome } = addProdDialog;
     const { data, error } = await supabase.from("produtos_catalogo").insert({
-      nome: row.produto_nome,
-      categoria: "Outros",
+      nome,
+      categoria: addProdCategoria,
       ativo: true,
     }).select().single();
     if (error) {
       toast.error("Erro ao adicionar produto: " + error.message);
       return;
     }
-    toast.success(`Produto "${row.produto_nome}" adicionado ao catálogo!`);
-    // Update all rows with same product name
-    setRows((prev) => prev.map((r) => r.produto_nome === row.produto_nome ? { ...r, produto_id: data.id, produto_no_catalogo: true } : r));
+    toast.success(`Produto "${nome}" adicionado ao catálogo como ${addProdCategoria}!`);
+    setRows((prev) => prev.map((r) => r.produto_nome === nome ? { ...r, produto_id: data.id, produto_no_catalogo: true } : r));
     queryClient.invalidateQueries({ queryKey: ["produtos-catalogo"] });
+    setAddProdDialog(null);
   };
 
   const handleDeleteRow = (idx: number) => {
@@ -275,7 +330,6 @@ export function ImportarPlanilhaModal({ open, onClose }: { open: boolean; onClos
   };
 
   const handleMergeDuplicate = (idx: number) => {
-    // Mark as "merge" — we'll update the existing receita with platform info instead of inserting
     const updated = [...rows];
     updated[idx].flag = "normal";
     updated[idx].selected = true;
@@ -293,7 +347,7 @@ export function ImportarPlanilhaModal({ open, onClose }: { open: boolean; onClos
     try {
       // 1. Auto-create missing clients
       const existingEmails = new Set((clientes ?? []).map((c) => c.email?.toLowerCase()));
-      const newClients = new Map<string, string>(); // email -> nome
+      const newClients = new Map<string, string>();
       for (const r of selected) {
         if (r.cliente_email && !existingEmails.has(r.cliente_email.toLowerCase()) && !newClients.has(r.cliente_email.toLowerCase())) {
           newClients.set(r.cliente_email.toLowerCase(), r.cliente_nome);
@@ -368,10 +422,17 @@ export function ImportarPlanilhaModal({ open, onClose }: { open: boolean; onClos
   const uniqueUnknownProducts = [...new Set(unknownProducts.map((r) => r.produto_nome))];
   const duplicateCount = rows.filter((r) => r.flag === "duplicata").length;
   const selectedCount = rows.filter((r) => r.selected).length;
+  const hasUsd = rows.some(r => r.moeda_original !== "BRL" && r.taxa_cambio > 1);
+
+  const formatOriginal = (value: number, moeda: string) => {
+    if (moeda === "USD") return `$ ${value.toFixed(2)}`;
+    if (moeda === "EUR") return `€ ${value.toFixed(2)}`;
+    return formatCurrency(value);
+  };
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto bg-card border-border">
+      <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto bg-card border-border">
         <DialogHeader>
           <DialogTitle className="text-foreground">Importar Planilha — Passo {step}/3</DialogTitle>
         </DialogHeader>
@@ -438,7 +499,7 @@ export function ImportarPlanilhaModal({ open, onClose }: { open: boolean; onClos
             {uniqueUnknownProducts.length > 0 && (
               <div className="p-3 rounded-lg border border-yellow-500/30 bg-yellow-500/5 space-y-2">
                 <p className="text-xs text-yellow-400 font-medium flex items-center gap-1.5">
-                  <PackagePlus className="h-4 w-4" /> Produtos não encontrados no catálogo:
+                  <PackagePlus className="h-4 w-4" /> Produtos não encontrados no catálogo — clique para adicionar:
                 </p>
                 <div className="flex flex-wrap gap-2">
                   {uniqueUnknownProducts.map((name) => {
@@ -446,10 +507,10 @@ export function ImportarPlanilhaModal({ open, onClose }: { open: boolean; onClos
                     return (
                       <button
                         key={name}
-                        onClick={() => handleAddProductToCatalog(idx)}
+                        onClick={() => openAddProductDialog(name, idx)}
                         className="px-2.5 py-1 text-[11px] rounded-lg border border-yellow-500/30 text-yellow-300 hover:bg-yellow-500/10 transition-colors flex items-center gap-1"
                       >
-                        <PackagePlus className="h-3 w-3" /> {name}
+                        <Plus className="h-3 w-3" /> {name}
                       </button>
                     );
                   })}
@@ -472,8 +533,18 @@ export function ImportarPlanilhaModal({ open, onClose }: { open: boolean; onClos
                       <th className="p-2 text-left text-muted-foreground">Data</th>
                       <th className="p-2 text-left text-muted-foreground">Produto</th>
                       <th className="p-2 text-left text-muted-foreground">Cliente</th>
-                      <th className="p-2 text-right text-muted-foreground">Bruto</th>
-                      <th className="p-2 text-right text-muted-foreground">Líquido</th>
+                      <th className="p-2 text-right text-muted-foreground">
+                        {hasUsd ? "Bruto (orig.)" : "Bruto"}
+                      </th>
+                      <th className="p-2 text-right text-muted-foreground">
+                        {hasUsd ? "Líquido (orig.)" : "Líquido"}
+                      </th>
+                      {hasUsd && (
+                        <>
+                          <th className="p-2 text-right text-muted-foreground">Câmbio</th>
+                          <th className="p-2 text-right text-muted-foreground">Bruto R$</th>
+                        </>
+                      )}
                       <th className="p-2 text-left text-muted-foreground">Origem</th>
                       <th className="p-2 text-left text-muted-foreground">Status</th>
                       <th className="p-2 text-center text-muted-foreground">Ações</th>
@@ -501,24 +572,55 @@ export function ImportarPlanilhaModal({ open, onClose }: { open: boolean; onClos
                             }}
                           />
                         </td>
-                        <td className="p-2 whitespace-nowrap">{formatDate(r.data)}</td>
+                        <td className="p-2 whitespace-nowrap">{r.data ? formatDate(r.data) : "—"}</td>
                         <td className="p-2 max-w-[160px]">
                           <div className="truncate">{r.produto_nome}</div>
                           {!r.produto_no_catalogo && (
-                            <span className="text-[9px] text-yellow-400">Não catalogado</span>
+                            <button
+                              onClick={() => openAddProductDialog(r.produto_nome, i)}
+                              className="text-[9px] text-yellow-400 hover:text-yellow-300 flex items-center gap-0.5 mt-0.5"
+                            >
+                              <Plus className="h-2.5 w-2.5" /> Adicionar ao catálogo
+                            </button>
                           )}
                         </td>
                         <td className="p-2 max-w-[120px]">
-                          <div className="truncate">{r.cliente_nome}</div>
-                          <div className="text-[9px] text-muted-foreground truncate">{r.cliente_email}</div>
+                          <div className="truncate">{r.cliente_nome || "—"}</div>
+                          {r.cliente_email && <div className="text-[9px] text-muted-foreground truncate">{r.cliente_email}</div>}
                         </td>
-                        <td className="p-2 text-right">{formatCurrency(r.valor_bruto)}</td>
-                        <td className="p-2 text-right text-primary">{formatCurrency(r.valor_liquido)}</td>
+                        <td className="p-2 text-right whitespace-nowrap">
+                          {hasUsd && r.moeda_original !== "BRL" && r.taxa_cambio > 1
+                            ? formatOriginal(r.valor_bruto_original, r.moeda_original)
+                            : formatCurrency(r.valor_bruto)
+                          }
+                        </td>
+                        <td className="p-2 text-right text-primary whitespace-nowrap">
+                          {hasUsd && r.moeda_original !== "BRL" && r.taxa_cambio > 1
+                            ? formatOriginal(r.valor_liquido_original, r.moeda_original)
+                            : formatCurrency(r.valor_liquido)
+                          }
+                        </td>
+                        {hasUsd && (
+                          <>
+                            <td className="p-2 text-right text-muted-foreground whitespace-nowrap">
+                              {r.moeda_original !== "BRL" && r.taxa_cambio > 1
+                                ? `${r.taxa_cambio.toFixed(2)}`
+                                : "—"
+                              }
+                            </td>
+                            <td className="p-2 text-right whitespace-nowrap">
+                              {r.moeda_original !== "BRL" && r.taxa_cambio > 1
+                                ? formatCurrency(r.valor_bruto)
+                                : "—"
+                              }
+                            </td>
+                          </>
+                        )}
                         <td className="p-2 max-w-[100px]">
-                          {r.src_checkout ? (
+                          {(r.src_checkout || r.utm_source) ? (
                             <div>
                               <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-primary/10 text-primary text-[9px]">Tráfego</span>
-                              <div className="text-[9px] text-muted-foreground truncate mt-0.5" title={r.src_checkout}>{r.src_checkout}</div>
+                              {r.src_checkout && <div className="text-[9px] text-muted-foreground truncate mt-0.5" title={r.src_checkout}>{r.src_checkout}</div>}
                               {r.sck && <div className="text-[9px] text-muted-foreground truncate" title={r.sck}>{r.sck}</div>}
                             </div>
                           ) : (
@@ -542,7 +644,7 @@ export function ImportarPlanilhaModal({ open, onClose }: { open: boolean; onClos
                                     onClick={() => setShowDuplicataId(r.duplicata_receita_id)}
                                     className="text-[9px] text-primary hover:underline flex items-center gap-0.5"
                                   >
-                                    <Eye className="h-3 w-3" /> Ver existente
+                                    <Eye className="h-3 w-3" /> Ver
                                   </button>
                                 )}
                                 <button
@@ -604,6 +706,40 @@ export function ImportarPlanilhaModal({ open, onClose }: { open: boolean; onClos
           row={editIdx !== null ? rows[editIdx] : null}
           onSave={handleEditSave}
         />
+
+        {/* Add Product Dialog */}
+        {addProdDialog && (
+          <Dialog open onOpenChange={() => setAddProdDialog(null)}>
+            <DialogContent className="max-w-sm bg-card border-border">
+              <DialogHeader>
+                <DialogTitle className="text-foreground text-sm">Adicionar produto ao catálogo</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-3">
+                <div>
+                  <Label className="text-xs text-muted-foreground">Nome</Label>
+                  <p className="text-sm font-medium text-foreground">{addProdDialog.nome}</p>
+                </div>
+                <div>
+                  <Label className="text-xs text-muted-foreground">Categoria</Label>
+                  <Select value={addProdCategoria} onValueChange={(v) => setAddProdCategoria(v as ProdutoCategoria)}>
+                    <SelectTrigger className="bg-secondary/50 border-border"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {CATEGORIAS.map((c) => (
+                        <SelectItem key={c} value={c}>{c}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setAddProdDialog(null)} className="border-border text-muted-foreground">Cancelar</Button>
+                <Button onClick={handleAddProductToCatalog} className="gold-gradient text-primary-foreground">
+                  <Plus className="h-4 w-4 mr-1" /> Adicionar
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        )}
 
         {/* Duplicate viewer */}
         {showDuplicataId && (
