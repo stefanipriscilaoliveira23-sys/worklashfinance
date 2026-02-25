@@ -15,10 +15,7 @@ import NovoContratoDialog from "@/components/parcelas/NovoContratoDialog";
 import MonthNavigator, { getCurrentMonthKey, type DateFilter, getDateRange } from "@/components/MonthNavigator";
 import type { Tables } from "@/integrations/supabase/types";
 
-const TIPOS_MENTORIA = [
-  "Mentoria Outsider", "Mentoria Digital Beauty", "Consultoria Premium",
-  "Consultoria Express", "Renovação Mentoria"
-] as const;
+const TIPOS_MENTORIA = ["Mentorias", "Renovações"] as const;
 
 const STATUS_LABELS: Record<string, { label: string; className: string }> = {
   Pendente: { label: "A vencer", className: "bg-yellow-500/10 text-yellow-400 border-yellow-500/20" },

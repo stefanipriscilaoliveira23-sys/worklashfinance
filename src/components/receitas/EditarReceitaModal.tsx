@@ -28,7 +28,7 @@ export function EditarReceitaModal({ receita, open, onClose }: EditarReceitaModa
   const [data, setData] = useState("");
   const [produtoNome, setProdutoNome] = useState("");
   const [produtoId, setProdutoId] = useState<string | null>(null);
-  const [categoria, setCategoria] = useState<ProdutoCategoria>("Outros");
+  const [categoria, setCategoria] = useState<ProdutoCategoria>("Digitais");
   const [plataforma, setPlataforma] = useState<PlataformaOrigem>("Hotmart");
   const [valorBruto, setValorBruto] = useState(0);
   const [taxaPercent, setTaxaPercent] = useState(0);
@@ -72,7 +72,7 @@ export function EditarReceitaModal({ receita, open, onClose }: EditarReceitaModa
         if (match) matchedId = match.id;
       }
       setProdutoId(matchedId);
-      setCategoria(receita.produto_categoria ?? "Outros");
+      setCategoria(receita.produto_categoria ?? "Digitais");
       setPlataforma(receita.plataforma ?? "Hotmart");
       setValorBruto(receita.valor_bruto ?? 0);
       setTaxaPercent(receita.taxa_plataforma_percentual ?? 0);
@@ -293,7 +293,7 @@ export function EditarReceitaModal({ receita, open, onClose }: EditarReceitaModa
               </Select>
             </div>
             <div className="space-y-1.5">
-              <Label className="text-foreground/80">{categoria === "Renovação Mentoria" ? "Fim anterior" : "Fim da mentoria"}</Label>
+              <Label className="text-foreground/80">{categoria === "Renovações" ? "Fim anterior" : "Fim da mentoria"}</Label>
               <Input type="date" value={dataFimMentoria} onChange={(e) => setDataFimMentoria(e.target.value)} className="bg-secondary/50 border-border" />
             </div>
           </div>

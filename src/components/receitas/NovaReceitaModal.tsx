@@ -19,11 +19,8 @@ type ProdutoCategoria = Database["public"]["Enums"]["produto_categoria"];
 type Periodicidade = Database["public"]["Enums"]["periodicidade"];
 
 const PLATAFORMAS: PlataformaOrigem[] = ["Hotmart", "Kiwify", "Eduzz", "Direto Pix", "Outro"];
-const CATEGORIAS: ProdutoCategoria[] = [
-  "Mentoria Outsider", "Mentoria Digital Beauty", "Consultoria Premium", "Consultoria Express",
-  "Curso/Formação", "Ferramenta", "Apostila", "Produto Físico", "Renovação Mentoria", "Outros"
-];
-const MENTORIA_CATS: ProdutoCategoria[] = ["Mentoria Outsider", "Mentoria Digital Beauty", "Consultoria Premium", "Consultoria Express", "Renovação Mentoria"];
+const CATEGORIAS: ProdutoCategoria[] = ["Mentorias", "Renovações", "Digitais", "Físicos"];
+const MENTORIA_CATS: ProdutoCategoria[] = ["Mentorias", "Renovações"];
 
 interface ParcelaRow {
   numero: number;
@@ -41,7 +38,7 @@ export function NovaReceitaModal({ open, onClose }: { open: boolean; onClose: ()
   const [data, setData] = useState(format(new Date(), "yyyy-MM-dd"));
   const [produtoNome, setProdutoNome] = useState("");
   const [produtoId, setProdutoId] = useState<string | null>(null);
-  const [categoria, setCategoria] = useState<ProdutoCategoria>("Outros");
+  const [categoria, setCategoria] = useState<ProdutoCategoria>("Digitais");
   const [plataforma, setPlataforma] = useState<PlataformaOrigem>("Hotmart");
   const [valorBruto, setValorBruto] = useState(0);
   const [taxaPercent, setTaxaPercent] = useState(0);
@@ -175,7 +172,7 @@ export function NovaReceitaModal({ open, onClose }: { open: boolean; onClose: ()
           periodicidade,
           data_inicio: data,
           data_fim_prevista: parcelas[parcelas.length - 1]?.data || null,
-          is_renovacao: categoria === "Renovação Mentoria",
+          is_renovacao: categoria === "Renovações",
           data_termino_mentoria_anterior: dataTerminoAnterior || null,
           data_ultimo_acesso_anterior: dataUltimoAcesso || null,
           receita_id: receita.id,
@@ -215,7 +212,7 @@ export function NovaReceitaModal({ open, onClose }: { open: boolean; onClose: ()
       toast.error("Preencha todos os campos obrigatórios (produto, cliente, email, origens)");
       return;
     }
-    if (categoria === "Renovação Mentoria" && (!dataTerminoAnterior || !dataUltimoAcesso)) {
+    if (categoria === "Renovações" && (!dataTerminoAnterior || !dataUltimoAcesso)) {
       toast.error("Preencha as datas da mentoria anterior");
       return;
     }
@@ -374,7 +371,7 @@ export function NovaReceitaModal({ open, onClose }: { open: boolean; onClose: ()
               </div>
             )}
 
-            {categoria === "Renovação Mentoria" && (
+            {categoria === "Renovações" && (
               <div className="space-y-1.5">
                 <Label className="text-foreground/80">Fim anterior (data fim da mentoria anterior)</Label>
                 <Input type="date" value={dataFimMentoria} onChange={(e) => setDataFimMentoria(e.target.value)} className="bg-secondary/50 border-border" />
@@ -483,7 +480,7 @@ export function NovaReceitaModal({ open, onClose }: { open: boolean; onClose: ()
               )}
             </div>
 
-            {categoria === "Renovação Mentoria" && (
+            {categoria === "Renovações" && (
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
                   <Label className="text-foreground/80">Data término mentoria anterior *</Label>

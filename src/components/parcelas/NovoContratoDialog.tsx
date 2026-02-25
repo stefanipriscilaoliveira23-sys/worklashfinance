@@ -8,10 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
-const TIPOS_MENTORIA = [
-  "Mentoria Outsider", "Mentoria Digital Beauty", "Consultoria Premium",
-  "Consultoria Express", "Renovação Mentoria"
-] as const;
+const TIPOS_MENTORIA = ["Mentorias", "Renovações"] as const;
 
 interface Props {
   open: boolean;
@@ -22,7 +19,7 @@ export default function NovoContratoDialog({ open, onClose }: Props) {
   const queryClient = useQueryClient();
   const [clienteNome, setClienteNome] = useState("");
   const [clienteEmail, setClienteEmail] = useState("");
-  const [tipoMentoria, setTipoMentoria] = useState<string>("Mentoria Outsider");
+  const [tipoMentoria, setTipoMentoria] = useState<string>("Mentorias");
   const [valorTotal, setValorTotal] = useState("");
   const [entradaValor, setEntradaValor] = useState("");
   const [quantParcelas, setQuantParcelas] = useState("1");
@@ -32,7 +29,7 @@ export default function NovoContratoDialog({ open, onClose }: Props) {
   const resetForm = () => {
     setClienteNome("");
     setClienteEmail("");
-    setTipoMentoria("Mentoria Outsider");
+    setTipoMentoria("Mentorias");
     setValorTotal("");
     setEntradaValor("");
     setQuantParcelas("1");

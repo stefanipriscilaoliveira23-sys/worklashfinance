@@ -11,10 +11,9 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, L
 import { Navigate } from "react-router-dom";
 
 const ASCENSION_LEVELS = [
-  { name: "Apostila/Ferramenta", cats: ["Apostila", "Ferramenta", "Produto Físico"] },
-  { name: "Curso/Formação", cats: ["Curso/Formação"] },
-  { name: "Consultoria", cats: ["Consultoria Express", "Consultoria Premium"] },
-  { name: "Mentoria", cats: ["Mentoria Outsider", "Mentoria Digital Beauty", "Renovação Mentoria"] },
+  { name: "Digitais/Físicos", cats: ["Digitais", "Físicos"] },
+  { name: "Mentorias", cats: ["Mentorias"] },
+  { name: "Renovações", cats: ["Renovações"] },
 ];
 
 export default function BusinessIntelligence() {

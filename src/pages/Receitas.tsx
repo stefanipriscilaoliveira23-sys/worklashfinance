@@ -16,15 +16,12 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import MonthNavigator, { getCurrentMonthKey, type DateFilter, filterByDate } from "@/components/MonthNavigator";
 
 const PLATAFORMAS = ["Hotmart", "Kiwify", "Eduzz", "Direto Pix", "Outro"] as const;
-const CATEGORIAS = [
-  "Mentoria Outsider", "Mentoria Digital Beauty", "Consultoria Premium", "Consultoria Express",
-  "Curso/Formação", "Ferramenta", "Apostila", "Produto Físico", "Renovação Mentoria", "Outros"
-] as const;
+const CATEGORIAS = ["Mentorias", "Renovações", "Digitais", "Físicos"] as const;
 
-const MENTORIA_CATS = ["Mentoria Outsider", "Mentoria Digital Beauty", "Consultoria Premium", "Consultoria Express"];
-const RENOVACAO_CATS = ["Renovação Mentoria"];
-const DIGITAL_CATS = ["Curso/Formação", "Ferramenta", "Apostila"];
-const FISICO_CATS = ["Produto Físico"];
+const MENTORIA_CATS = ["Mentorias"];
+const RENOVACAO_CATS = ["Renovações"];
+const DIGITAL_CATS = ["Digitais"];
+const FISICO_CATS = ["Físicos"];
 
 export default function Receitas() {
   const { role } = useAuth();

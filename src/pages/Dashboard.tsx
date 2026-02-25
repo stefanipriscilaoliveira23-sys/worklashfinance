@@ -132,15 +132,14 @@ export default function Dashboard() {
     return s + entrada + parcRecebidas;
   }, 0);
 
-  // D) KPIs Digitais (Curso/Formação, Ferramenta, Apostila, Outros — receitas avulsas)
-  const categoriasDigitais = ["Curso/Formação", "Ferramenta", "Apostila", "Outros"];
-  const digitaisMes = receitasMes.filter(r => categoriasDigitais.includes(r.produto_categoria ?? ""));
+  // D) KPIs Digitais
+  const digitaisMes = receitasMes.filter(r => r.produto_categoria === "Digitais");
   const qtdDigitais = digitaisMes.length;
   const valorTotalDigitais = digitaisMes.reduce((s, r) => s + (r.valor_bruto ?? 0), 0);
   const recebidoDigitaisMes = digitaisMes.reduce((s, r) => s + (r.valor_liquido ?? r.valor_bruto ?? 0), 0);
 
-  // E) KPIs Produtos Físicos (receitas avulsas)
-  const produtosFisicosMes = receitasMes.filter(r => r.produto_categoria === "Produto Físico");
+  // E) KPIs Produtos Físicos
+  const produtosFisicosMes = receitasMes.filter(r => r.produto_categoria === "Físicos");
   const qtdProdutosFisicos = produtosFisicosMes.length;
   const valorTotalProdutosFisicos = produtosFisicosMes.reduce((s, r) => s + (r.valor_bruto ?? 0), 0);
   const recebidoProdutosFisicosMes = produtosFisicosMes.reduce((s, r) => s + (r.valor_liquido ?? r.valor_bruto ?? 0), 0);
@@ -182,12 +181,11 @@ export default function Dashboard() {
     const { start: ms, end: me } = getMonthRange(tempDate.getFullYear(), tempDate.getMonth());
     const label = tempDate.toLocaleString("pt-BR", { month: "short", year: "2-digit" });
     const rm = receitas.filter(r => r.data >= ms && r.data <= me);
-    const mentoriaCatsHist = ["Mentoria Outsider", "Mentoria Digital Beauty", "Consultoria Premium", "Consultoria Express"];
-    const mentorias = rm.filter(r => mentoriaCatsHist.includes(r.produto_categoria ?? "")).reduce((s, r) => s + (r.valor_bruto ?? 0), 0);
-    const renovacoes = rm.filter(r => r.produto_categoria === "Renovação Mentoria").reduce((s, r) => s + (r.valor_bruto ?? 0), 0);
+    const mentorias = rm.filter(r => r.produto_categoria === "Mentorias").reduce((s, r) => s + (r.valor_bruto ?? 0), 0);
+    const renovacoes = rm.filter(r => r.produto_categoria === "Renovações").reduce((s, r) => s + (r.valor_bruto ?? 0), 0);
     const parcelasVal = detalhes.filter(p => p.data_vencimento >= ms && p.data_vencimento <= me && p.status === "Quitado").reduce((s, p) => s + (p.valor_real ?? p.valor_sugerido ?? 0), 0);
-    const fisicos = rm.filter(r => r.produto_categoria === "Produto Físico").reduce((s, r) => s + (r.valor_bruto ?? 0), 0);
-    const digitais = rm.filter(r => ["Curso/Formação", "Ferramenta", "Apostila"].includes(r.produto_categoria ?? "")).reduce((s, r) => s + (r.valor_bruto ?? 0), 0);
+    const fisicos = rm.filter(r => r.produto_categoria === "Físicos").reduce((s, r) => s + (r.valor_bruto ?? 0), 0);
+    const digitais = rm.filter(r => r.produto_categoria === "Digitais").reduce((s, r) => s + (r.valor_bruto ?? 0), 0);
     const total = rm.reduce((s, r) => s + (r.valor_bruto ?? 0), 0) + parcelasVal;
     comparacaoMensal.push({ periodo: label, mentorias, renovacoes, parcelas: parcelasVal, fisicos, digitais, total });
     tempDate.setMonth(tempDate.getMonth() + 1);
