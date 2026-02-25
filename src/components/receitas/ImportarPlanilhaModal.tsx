@@ -55,37 +55,34 @@ function findColumnValue(row: Record<string, any>, patterns: string[]): any {
   const keys = Object.keys(row);
   for (const pattern of patterns) {
     const pNorm = pattern.toLowerCase().trim();
-    // Exact match first
     const exactKey = keys.find(k => k.trim().toLowerCase() === pNorm);
     if (exactKey && row[exactKey] !== undefined && row[exactKey] !== null && row[exactKey] !== "") return row[exactKey];
   }
-  // Then partial match (column contains pattern or vice-versa)
+
   for (const pattern of patterns) {
     const pNorm = pattern.toLowerCase().trim();
-    const key = keys.find(k => {
-      const kNorm = k.trim().toLowerCase();
-      return kNorm.includes(pNorm) || pNorm.includes(kNorm);
-    });
+    const key = keys.find(k => k.trim().toLowerCase().includes(pNorm));
     if (key && row[key] !== undefined && row[key] !== null && row[key] !== "") return row[key];
   }
+
   return undefined;
 }
 
 const HOTMART_FIELDS: Record<string, string[]> = {
-  data: ["Data transação", "Data Transação", "Data da transação", "Transaction Date", "data", "Data da Transação", "Data Compra", "Data compra"],
+  data: ["Data de Venda", "Data transação", "Data Transação", "Data da transação", "Data da Transação", "Transaction Date", "data", "Data Compra", "Data compra"],
   produto_nome: ["Produto", "Product", "Nome do Produto"],
   valor_liquido: ["Faturamento líquido do(a) Produtor(a)", "Faturamento líquido", "Net Revenue", "Valor Líquido"],
   valor_liquido_convertido: ["Valor que você recebeu convertido", "Valor recebido convertido", "Converted received value"],
-  valor_bruto_original: ["Preço total", "Total Price", "Valor Bruto", "Preço Total"],
+  valor_bruto_original: ["Preço Total", "Preço total", "Total Price", "Valor Bruto", "Preço do Produto"],
   taxa_plataforma_valor: ["Taxa de processamento", "Processing Fee", "Taxa"],
-  cliente_nome: ["Comprador(a)", "Comprador", "Buyer", "Nome do Comprador", "Nome Comprador"],
-  cliente_email: ["Email do(a) Comprador(a)", "Email do Comprador", "Buyer Email", "E-mail"],
-  forma_pagamento: ["Método de pagamento", "Payment Method", "Forma de Pagamento"],
-  moeda_original: ["Moeda de compra", "Purchase Currency", "Moeda"],
-  taxa_cambio: ["Cotação", "Exchange Rate", "Taxa de Câmbio"],
-  src_checkout: ["Src", "src", "SRC", "src_checkout", "Source", "Origem do Checkout"],
+  cliente_nome: ["Nome", "Comprador(a)", "Comprador", "Buyer", "Nome do Comprador", "Nome Comprador"],
+  cliente_email: ["Email", "Email do(a) Comprador(a)", "Email do Comprador", "Buyer Email", "E-mail"],
+  forma_pagamento: ["Tipo de Pagamento", "Método de pagamento", "Payment Method", "Forma de Pagamento"],
+  moeda_original: ["Moeda", "Moeda de compra", "Purchase Currency"],
+  taxa_cambio: ["Taxa de Câmbio do valor recebido", "Taxa de Câmbio", "Taxa de Câmbio Real", "Cotação", "Exchange Rate"],
+  src_checkout: ["Origem de Checkout", "Origem da venda", "Src", "src", "SRC", "src_checkout", "Source"],
   sck: ["Sck", "sck", "SCK", "Sck (User Agent)"],
-  utm_source: ["utm_source", "UTM Source"],
+  utm_source: ["Origem da venda", "utm_source", "UTM Source", "Origem"],
 };
 
 const KIWIFY_FIELDS: Record<string, string[]> = {
@@ -193,11 +190,8 @@ export function ImportarPlanilhaModal({ open, onClose }: { open: boolean; onClos
           const sheet = workbook.Sheets[workbook.SheetNames[0]];
           const json = XLSX.utils.sheet_to_json<Record<string, any>>(sheet);
 
-          if (json.length > 0) console.log("[Import] Colunas da planilha:", Object.keys(json[0]));
-          if (json.length > 0) console.log("[Import] Primeira linha:", json[0]);
-
           const fields = PLATFORM_FIELDS[plataforma] ?? {};
-          const mapped: ImportRow[] = json.map((row, rowIdx) => {
+          const mapped: ImportRow[] = json.map((row) => {
             const getField = (field: string) => findColumnValue(row, fields[field] ?? []);
 
             let dateStr = "";
@@ -253,21 +247,22 @@ export function ImportarPlanilhaModal({ open, onClose }: { open: boolean; onClos
             const valorLiquidoOriginal = parseNum(getField("valor_liquido"));
             const taxaValor = parseNum(getField("taxa_plataforma_valor"));
             const moeda = String(getField("moeda_original") ?? "BRL").trim();
-            const taxaCambioRow = parseNum(getField("taxa_cambio")) || 1;
             const precoTotalOriginal = parseNum(getField("valor_bruto_original"));
             const valorLiquidoConvertido = parseNum(getField("valor_liquido_convertido"));
 
-            // Original values (in original currency)
-            const brutoOriginal = precoTotalOriginal > 0 ? precoTotalOriginal : valorLiquidoOriginal + taxaValor;
             const liqOriginal = valorLiquidoOriginal;
+            const brutoOriginal = precoTotalOriginal > 0 ? precoTotalOriginal : valorLiquidoOriginal + taxaValor;
 
-            // Converted to BRL
+            const taxaCambioBase = parseNum(getField("taxa_cambio"));
+            const taxaCambioDerivada = valorLiquidoConvertido > 0 && liqOriginal > 0 ? valorLiquidoConvertido / liqOriginal : 0;
+            const taxaCambioRow = moeda !== "BRL"
+              ? (taxaCambioBase > 1 ? taxaCambioBase : (taxaCambioDerivada > 1 ? taxaCambioDerivada : 1))
+              : 1;
+
             let valorBruto: number;
             let valorLiqFinal: number;
-            if (moeda !== "BRL" && taxaCambioRow > 1) {
-              // Bruto stays in original currency for display; valor_bruto stores BRL conversion
+            if (moeda !== "BRL") {
               valorBruto = brutoOriginal * taxaCambioRow;
-              // Líquido: use "Valor que você recebeu convertido" if available (already BRL), otherwise convert
               valorLiqFinal = valorLiquidoConvertido > 0 ? valorLiquidoConvertido : liqOriginal * taxaCambioRow;
             } else {
               valorBruto = brutoOriginal;
@@ -294,7 +289,7 @@ export function ImportarPlanilhaModal({ open, onClose }: { open: boolean; onClos
               valor_bruto: valorBruto,
             });
 
-            if (rowIdx === 0) console.log("[Import] Row 0 mapped:", { dateStr, rawDate, moeda, taxaCambioRow, srcCheckout, sckValue, utmSource, brutoOriginal, valorLiqFinal });
+            
 
             return {
               data: dateStr,
