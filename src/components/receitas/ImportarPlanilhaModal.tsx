@@ -67,6 +67,7 @@ const HOTMART_FIELDS: Record<string, string[]> = {
   data: ["Data transação", "Data Transação", "Data da transação", "Transaction Date", "data"],
   produto_nome: ["Produto", "Product", "Nome do Produto"],
   valor_liquido: ["Faturamento líquido do(a) Produtor(a)", "Faturamento líquido", "Net Revenue", "Valor Líquido"],
+  valor_liquido_convertido: ["Valor que você recebeu convertido", "Valor recebido convertido", "Converted received value"],
   valor_bruto_original: ["Preço total", "Total Price", "Valor Bruto", "Preço Total"],
   taxa_plataforma_valor: ["Taxa de processamento", "Processing Fee", "Taxa"],
   cliente_nome: ["Comprador(a)", "Comprador", "Buyer", "Nome do Comprador", "Nome Comprador"],
@@ -222,6 +223,7 @@ export function ImportarPlanilhaModal({ open, onClose }: { open: boolean; onClos
             const moeda = String(getField("moeda_original") ?? "BRL").trim();
             const taxaCambioRow = parseNum(getField("taxa_cambio")) || 1;
             const precoTotalOriginal = parseNum(getField("valor_bruto_original"));
+            const valorLiquidoConvertido = parseNum(getField("valor_liquido_convertido"));
 
             // Original values (in original currency)
             const brutoOriginal = precoTotalOriginal > 0 ? precoTotalOriginal : valorLiquidoOriginal + taxaValor;
@@ -231,11 +233,13 @@ export function ImportarPlanilhaModal({ open, onClose }: { open: boolean; onClos
             let valorBruto: number;
             let valorLiqFinal: number;
             if (moeda !== "BRL" && taxaCambioRow > 1) {
+              // Bruto stays in original currency for display; valor_bruto stores BRL conversion
               valorBruto = brutoOriginal * taxaCambioRow;
-              valorLiqFinal = liqOriginal * taxaCambioRow;
+              // Líquido: use "Valor que você recebeu convertido" if available (already BRL), otherwise convert
+              valorLiqFinal = valorLiquidoConvertido > 0 ? valorLiquidoConvertido : liqOriginal * taxaCambioRow;
             } else {
               valorBruto = brutoOriginal;
-              valorLiqFinal = liqOriginal;
+              valorLiqFinal = valorLiquidoConvertido > 0 ? valorLiquidoConvertido : liqOriginal;
             }
 
             const produtoNome = String(getField("produto_nome") ?? "").trim();
@@ -533,17 +537,10 @@ export function ImportarPlanilhaModal({ open, onClose }: { open: boolean; onClos
                       <th className="p-2 text-left text-muted-foreground">Data</th>
                       <th className="p-2 text-left text-muted-foreground">Produto</th>
                       <th className="p-2 text-left text-muted-foreground">Cliente</th>
-                      <th className="p-2 text-right text-muted-foreground">
-                        {hasUsd ? "Bruto (orig.)" : "Bruto"}
-                      </th>
-                      <th className="p-2 text-right text-muted-foreground">
-                        {hasUsd ? "Líquido (orig.)" : "Líquido"}
-                      </th>
+                      <th className="p-2 text-right text-muted-foreground">Bruto</th>
+                      <th className="p-2 text-right text-muted-foreground">Líquido (R$)</th>
                       {hasUsd && (
-                        <>
-                          <th className="p-2 text-right text-muted-foreground">Câmbio</th>
-                          <th className="p-2 text-right text-muted-foreground">Bruto R$</th>
-                        </>
+                        <th className="p-2 text-right text-muted-foreground">Câmbio</th>
                       )}
                       <th className="p-2 text-left text-muted-foreground">Origem</th>
                       <th className="p-2 text-left text-muted-foreground">Status</th>
@@ -589,32 +586,21 @@ export function ImportarPlanilhaModal({ open, onClose }: { open: boolean; onClos
                           {r.cliente_email && <div className="text-[9px] text-muted-foreground truncate">{r.cliente_email}</div>}
                         </td>
                         <td className="p-2 text-right whitespace-nowrap">
-                          {hasUsd && r.moeda_original !== "BRL" && r.taxa_cambio > 1
+                          {r.moeda_original !== "BRL" && r.taxa_cambio > 1
                             ? formatOriginal(r.valor_bruto_original, r.moeda_original)
                             : formatCurrency(r.valor_bruto)
                           }
                         </td>
                         <td className="p-2 text-right text-primary whitespace-nowrap">
-                          {hasUsd && r.moeda_original !== "BRL" && r.taxa_cambio > 1
-                            ? formatOriginal(r.valor_liquido_original, r.moeda_original)
-                            : formatCurrency(r.valor_liquido)
-                          }
+                          {formatCurrency(r.valor_liquido)}
                         </td>
                         {hasUsd && (
-                          <>
-                            <td className="p-2 text-right text-muted-foreground whitespace-nowrap">
-                              {r.moeda_original !== "BRL" && r.taxa_cambio > 1
-                                ? `${r.taxa_cambio.toFixed(2)}`
-                                : "—"
-                              }
-                            </td>
-                            <td className="p-2 text-right whitespace-nowrap">
-                              {r.moeda_original !== "BRL" && r.taxa_cambio > 1
-                                ? formatCurrency(r.valor_bruto)
-                                : "—"
-                              }
-                            </td>
-                          </>
+                          <td className="p-2 text-right text-muted-foreground whitespace-nowrap">
+                            {r.moeda_original !== "BRL" && r.taxa_cambio > 1
+                              ? `${r.taxa_cambio.toFixed(2)}`
+                              : "—"
+                            }
+                          </td>
                         )}
                         <td className="p-2 max-w-[100px]">
                           {(r.src_checkout || r.utm_source) ? (
