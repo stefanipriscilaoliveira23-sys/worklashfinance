@@ -72,9 +72,15 @@ function findColumnValue(row: Record<string, any>, patterns: string[]): any {
 
   for (const pattern of patterns) {
     const pNorm = normalizeKey(pattern);
-    if (!pNorm) continue;
+    if (!pNorm || pNorm.length < 4) continue;
 
-    const partial = keyMeta.find((k) => k.norm.includes(pNorm) || pNorm.includes(k.norm));
+    const partial = keyMeta.find((k) => {
+      // Only allow partial match if the shorter string is at least 60% of the longer
+      const shorter = Math.min(k.norm.length, pNorm.length);
+      const longer = Math.max(k.norm.length, pNorm.length);
+      if (shorter / longer < 0.5) return false;
+      return k.norm.includes(pNorm) || pNorm.includes(k.norm);
+    });
     if (partial) {
       const value = row[partial.raw];
       if (value !== undefined && value !== null && value !== "") return value;
@@ -152,6 +158,7 @@ const HOTMART_FIELDS: Record<string, string[]> = {
 const KIWIFY_FIELDS: Record<string, string[]> = {
   data: ["Data de Criação", "Data", "Created At"],
   produto_nome: ["Produto", "Product"],
+  valor_bruto_original: ["Valor da Compra", "Valor Bruto", "Valor Total", "Gross Value", "Preço"],
   valor_liquido: ["Valor líquido", "Valor Líquido", "Net Value"],
   taxa_plataforma_valor: ["Taxas", "Fees", "Taxa"],
   cliente_nome: ["Cliente", "Customer", "Nome"],
@@ -161,10 +168,11 @@ const KIWIFY_FIELDS: Record<string, string[]> = {
 
 const EDUZZ_FIELDS: Record<string, string[]> = {
   data: ["Data de Pagamento", "Data", "Payment Date"],
-  produto_nome: ["Produto", "Product"],
+  produto_nome: ["Produto", "Product", "Nome do Produto"],
+  valor_bruto_original: ["Valor da Venda", "Valor do Item", "Valor Bruto", "Sale Value"],
   valor_liquido: ["Ganho Liquido", "Ganho Líquido", "Net Gain"],
   taxa_plataforma_valor: ["Taxa Eduzz", "Taxa", "Fee"],
-  cliente_nome: ["Cliente / Nome", "Cliente", "Customer"],
+  cliente_nome: ["Cliente / Nome", "Cliente", "Customer", "Nome"],
   cliente_email: ["Cliente / E-mail", "Email", "E-mail"],
   forma_pagamento: ["Forma de Pagamento", "Payment"],
   utm_source: ["UTM Source", "utm_source"],
