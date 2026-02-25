@@ -53,10 +53,16 @@ interface ImportRow {
 // Flexible column matching: try multiple variations for each field
 function findColumnValue(row: Record<string, any>, patterns: string[]): any {
   for (const pattern of patterns) {
+    const pNorm = pattern.toLowerCase().trim();
+    // First try exact match
+    const exactKey = Object.keys(row).find(k => k.trim().toLowerCase() === pNorm);
+    if (exactKey && row[exactKey] !== undefined && row[exactKey] !== null && row[exactKey] !== "") return row[exactKey];
+    // Then try includes (column contains pattern or pattern contains column)
     const key = Object.keys(row).find(k => {
       const kNorm = k.trim().toLowerCase();
-      const pNorm = pattern.toLowerCase();
-      return kNorm === pNorm || kNorm.includes(pNorm) || pNorm.includes(kNorm);
+      // Only use includes for patterns with 4+ chars to avoid false matches
+      if (pNorm.length >= 4) return kNorm.includes(pNorm) || pNorm.includes(kNorm);
+      return false;
     });
     if (key && row[key] !== undefined && row[key] !== null && row[key] !== "") return row[key];
   }
@@ -75,8 +81,9 @@ const HOTMART_FIELDS: Record<string, string[]> = {
   forma_pagamento: ["Método de pagamento", "Payment Method", "Forma de Pagamento"],
   moeda_original: ["Moeda de compra", "Purchase Currency", "Moeda"],
   taxa_cambio: ["Cotação", "Exchange Rate", "Taxa de Câmbio"],
-  src_checkout: ["Src", "src", "SRC", "src_checkout"],
-  sck: ["Sck", "sck", "SCK"],
+  src_checkout: ["Src", "src", "SRC", "src_checkout", "Source", "Origem do Checkout"],
+  sck: ["Sck", "sck", "SCK", "Sck (User Agent)"],
+  utm_source: ["utm_source", "UTM Source"],
 };
 
 const KIWIFY_FIELDS: Record<string, string[]> = {
@@ -191,23 +198,23 @@ export function ImportarPlanilhaModal({ open, onClose }: { open: boolean; onClos
             let dateStr = "";
             const rawDate = getField("data");
             if (rawDate) {
-              // Handle Excel serial dates
               if (typeof rawDate === "number") {
+                // Excel serial date
                 const excelEpoch = new Date(1899, 11, 30);
                 const d = new Date(excelEpoch.getTime() + rawDate * 86400000);
                 dateStr = d.toISOString().split("T")[0];
               } else {
-                const parsed = new Date(rawDate);
-                if (!isNaN(parsed.getTime())) dateStr = parsed.toISOString().split("T")[0];
-                else {
-                  // Try DD/MM/YYYY format
-                  const parts = String(rawDate).split(/[\/\-\.]/);
-                  if (parts.length === 3) {
-                    const [d, m, y] = parts;
-                    const tryDate = new Date(`${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`);
-                    if (!isNaN(tryDate.getTime())) dateStr = tryDate.toISOString().split("T")[0];
-                    else dateStr = String(rawDate);
-                  } else dateStr = String(rawDate);
+                const raw = String(rawDate).trim();
+                // Try extracting date from "DD/MM/YYYY HH:MM:SS" or "DD/MM/YYYY"
+                const brMatch = raw.match(/^(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{4})/);
+                if (brMatch) {
+                  const [, dd, mm, yyyy] = brMatch;
+                  dateStr = `${yyyy}-${mm.padStart(2, "0")}-${dd.padStart(2, "0")}`;
+                } else {
+                  // Try ISO or other parseable format
+                  const parsed = new Date(raw);
+                  if (!isNaN(parsed.getTime())) dateStr = parsed.toISOString().split("T")[0];
+                  else dateStr = raw;
                 }
               }
             }
@@ -426,7 +433,7 @@ export function ImportarPlanilhaModal({ open, onClose }: { open: boolean; onClos
   const uniqueUnknownProducts = [...new Set(unknownProducts.map((r) => r.produto_nome))];
   const duplicateCount = rows.filter((r) => r.flag === "duplicata").length;
   const selectedCount = rows.filter((r) => r.selected).length;
-  const hasUsd = rows.some(r => r.moeda_original !== "BRL" && r.taxa_cambio > 1);
+  const hasUsd = rows.some(r => r.moeda_original !== "BRL");
 
   const formatOriginal = (value: number, moeda: string) => {
     if (moeda === "USD") return `$ ${value.toFixed(2)}`;
@@ -586,7 +593,7 @@ export function ImportarPlanilhaModal({ open, onClose }: { open: boolean; onClos
                           {r.cliente_email && <div className="text-[9px] text-muted-foreground truncate">{r.cliente_email}</div>}
                         </td>
                         <td className="p-2 text-right whitespace-nowrap">
-                          {r.moeda_original !== "BRL" && r.taxa_cambio > 1
+                          {r.moeda_original !== "BRL"
                             ? formatOriginal(r.valor_bruto_original, r.moeda_original)
                             : formatCurrency(r.valor_bruto)
                           }
