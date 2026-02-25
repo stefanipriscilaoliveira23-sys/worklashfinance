@@ -98,14 +98,13 @@ export function useDashboardData(periodStart?: string, periodEnd?: string) {
   const fixasEmpresa = allDespEmp
     .filter(d => d.tipo_despesa === "Fixa")
     .reduce((s, d) => s + (d.valor_original ?? 0), 0);
-  const proLabore = meta.data?.pro_labore ?? 30000;
   const diasMes = getDaysInMonth(periodDate.getFullYear(), periodDate.getMonth());
-  const custoDiario = (fixasEmpresa + proLabore) / diasMes;
+  const custoDiario = fixasEmpresa / diasMes;
   const diaAtual = now.getDate();
   const queimadoHoje = custoDiario * diaAtual;
 
-  // Total de despesas do mês (somente empresa + pró-labore)
-  const totalDespesasMes = allDespEmp.reduce((s, d) => s + (d.valor_original ?? 0), 0) + proLabore;
+  // Total de despesas do mês (somente empresa — pró-labore já incluso nas despesas)
+  const totalDespesasMes = allDespEmp.reduce((s, d) => s + (d.valor_original ?? 0), 0);
   const lucroProjetado = totalLiquido - totalDespesasMes;
 
   // Alertas

@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from "recharts";
 
 const MESES = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
-const PRO_LABORE_DEFAULT = 30000;
+const PRO_LABORE_DEFAULT = 30000; // kept for reference but no longer added separately
 
 export default function Projecao() {
   const now = new Date();
@@ -93,9 +93,9 @@ export default function Projecao() {
     { nome: "Otimista", fator: 1.3, cor: "text-emerald-400" },
   ].map(c => {
     const faturamento = mediaDiaria * c.fator * diasMes;
-    const lucro = faturamento - totalDespesas - proLabore;
+    const lucro = faturamento - totalDespesas;
     const margem = faturamento > 0 ? (lucro / faturamento) * 100 : 0;
-    return { ...c, faturamento, totalDespesas: totalDespesas + proLabore, lucro, margem };
+    return { ...c, faturamento, totalDespesas, lucro, margem };
   });
 
   // META SIMULATOR
@@ -174,7 +174,7 @@ export default function Projecao() {
             </div>
             <p className={`text-2xl font-bold ${c.cor}`}>{formatCurrency(c.faturamento)}</p>
             <div className="mt-3 space-y-1 text-xs text-muted-foreground">
-              <p>Despesas + Pro-labore: {formatCurrency(c.totalDespesas)}</p>
+              <p>Despesas: {formatCurrency(c.totalDespesas)}</p>
               <p className={c.lucro >= 0 ? "text-emerald-400" : "text-destructive"}>
                 Lucro: {formatCurrency(c.lucro)} ({formatPercent(c.margem)})
               </p>

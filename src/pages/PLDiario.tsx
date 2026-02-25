@@ -89,8 +89,7 @@ export default function PLDiario() {
       if (fc) result[fc.key] += (d.valor_original ?? 0);
       else result.outrosFixos += (d.valor_original ?? 0);
     });
-    // Add pro-labore to salarios
-    result.salarios += proLabore;
+    // Pro-labore já incluso nas despesas da empresa
     return result;
   }, [allFixas, proLabore]);
 
