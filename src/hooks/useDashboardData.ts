@@ -104,11 +104,10 @@ export function useDashboardData(periodStart?: string, periodEnd?: string) {
   const diaAtual = now.getDate();
   const queimadoHoje = custoDiario * diaAtual;
 
-  // Despesas lançadas
-  const despesasLancadas = allDespEmp.reduce((s, d) => s + (d.valor_pago_total ?? 0), 0) +
-    allDespPes.reduce((s, d) => s + (d.valor_pago_total ?? 0), 0);
-  const fixosRestantes = (fixasEmpresa + proLabore) - (fixasEmpresa + proLabore) * (diaAtual / diasMes);
-  const lucroProjetado = totalLiquido - despesasLancadas - fixosRestantes;
+  // Total de despesas do mês (valor comprometido, não apenas o pago)
+  const totalDespesasMes = allDespEmp.reduce((s, d) => s + (d.valor_original ?? 0), 0) +
+    allDespPes.reduce((s, d) => s + (d.valor_original ?? 0), 0) + proLabore;
+  const lucroProjetado = totalLiquido - totalDespesasMes;
 
   // Alertas
   const contasAtrasoEmp = allDespEmp.filter(d => d.status === "Em Atraso");
