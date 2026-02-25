@@ -37,7 +37,7 @@ export function useDashboardData(periodStart?: string, periodEnd?: string) {
   const despesasEmpresa = useQuery({
     queryKey: ["despesas-empresa-mes", mesInicio, mesFim],
     queryFn: async () => {
-      const { data } = await supabase.from("despesas_empresa").select("*");
+      const { data } = await supabase.from("despesas_empresa").select("*").gte("data_vencimento", mesInicio).lte("data_vencimento", mesFim);
       return data ?? [];
     },
   });
@@ -45,7 +45,7 @@ export function useDashboardData(periodStart?: string, periodEnd?: string) {
   const despesasPessoal = useQuery({
     queryKey: ["despesas-pessoal-mes", mesInicio, mesFim],
     queryFn: async () => {
-      const { data } = await supabase.from("despesas_pessoal").select("*");
+      const { data } = await supabase.from("despesas_pessoal").select("*").gte("data_vencimento", mesInicio).lte("data_vencimento", mesFim);
       return data ?? [];
     },
   });
