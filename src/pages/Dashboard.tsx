@@ -8,6 +8,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
+import MonthNavigator, { getCurrentMonthKey, getDateRange, type DateFilter } from "@/components/MonthNavigator";
 
 const GOLD_COLORS = ["#C9A84C", "#E5C76B", "#A68A3E", "#D4B85A", "#8B7432", "#F0D87E"];
 
@@ -25,17 +26,25 @@ function MetricCard({ label, value, sub, icon: Icon, variant }: { label: string;
 }
 
 export default function Dashboard() {
-  const d = useDashboardData();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [editingMeta, setEditingMeta] = useState(false);
   const [metaInput, setMetaInput] = useState("");
+  const [dateFilter, setDateFilter] = useState<DateFilter>({ type: "month", key: getCurrentMonthKey() });
+
+  const { start: periodStart, end: periodEnd } = getDateRange(dateFilter);
+  const d = useDashboardData(periodStart, periodEnd);
+
+  const mesInicio = d.mesInicio;
+  const mesFim = d.mesFim;
+
+  // Derive month/year from selected period for meta save
+  const periodDate = new Date(periodStart + "T00:00:00");
 
   const saveMeta = useMutation({
     mutationFn: async (valor: number) => {
-      const now = new Date();
-      const mes = now.getMonth() + 1;
-      const ano = now.getFullYear();
+      const mes = periodDate.getMonth() + 1;
+      const ano = periodDate.getFullYear();
       const { data: existing } = await supabase.from("metas").select("id").eq("mes", mes).eq("ano", ano).maybeSingle();
       if (existing) {
         const { error } = await supabase.from("metas").update({ valor_meta: valor }).eq("id", existing.id);
@@ -56,7 +65,7 @@ export default function Dashboard() {
 
   // Extra data for new KPIs
   const now = new Date();
-  const { start: mesInicio, end: mesFim } = getMonthRange(now.getFullYear(), now.getMonth());
+
 
   const { data: allReceitas } = useQuery({
     queryKey: ["dash-receitas-all"],
@@ -188,7 +197,10 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <h1 className="text-xl font-bold text-foreground">Dashboard</h1>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <h1 className="text-xl font-bold text-foreground">Dashboard</h1>
+        <MonthNavigator filter={dateFilter} onChange={setDateFilter} />
+      </div>
 
       {/* LINHA 1 — 5 cards grandes */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4">

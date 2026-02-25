@@ -2,13 +2,17 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { getMonthRange, getWeekRange, getDaysInMonth } from "@/lib/format";
 
-const now = new Date();
-const year = now.getFullYear();
-const month = now.getMonth();
-const { start: mesInicio, end: mesFim } = getMonthRange(year, month);
-const today = now.toISOString().split("T")[0];
+export function useDashboardData(periodStart?: string, periodEnd?: string) {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth();
+  const today = now.toISOString().split("T")[0];
 
-export function useDashboardData() {
+  // Use provided period or default to current month
+  const { start: defaultStart, end: defaultEnd } = getMonthRange(year, month);
+  const mesInicio = periodStart ?? defaultStart;
+  const mesFim = periodEnd ?? defaultEnd;
+
   const receitas = useQuery({
     queryKey: ["receitas-mes", mesInicio, mesFim],
     queryFn: async () => {
@@ -17,10 +21,15 @@ export function useDashboardData() {
     },
   });
 
+  // Derive month/year from period for meta lookup
+  const periodDate = new Date(mesInicio + "T00:00:00");
+  const metaMonth = periodDate.getMonth() + 1;
+  const metaYear = periodDate.getFullYear();
+
   const meta = useQuery({
-    queryKey: ["meta-mes", month + 1, year],
+    queryKey: ["meta-mes", metaMonth, metaYear],
     queryFn: async () => {
-      const { data } = await supabase.from("metas").select("*").eq("mes", month + 1).eq("ano", year).maybeSingle();
+      const { data } = await supabase.from("metas").select("*").eq("mes", metaMonth).eq("ano", metaYear).maybeSingle();
       return data;
     },
   });
@@ -58,9 +67,9 @@ export function useDashboardData() {
   });
 
   const ultimasReceitas = useQuery({
-    queryKey: ["ultimas-receitas"],
+    queryKey: ["ultimas-receitas", mesInicio, mesFim],
     queryFn: async () => {
-      const { data } = await supabase.from("receitas").select("*").order("data", { ascending: false }).limit(10);
+      const { data } = await supabase.from("receitas").select("*").gte("data", mesInicio).lte("data", mesFim).order("data", { ascending: false }).limit(10);
       return data ?? [];
     },
   });
@@ -90,7 +99,7 @@ export function useDashboardData() {
     .filter(d => d.tipo_despesa === "Fixa")
     .reduce((s, d) => s + (d.valor_original ?? 0), 0);
   const proLabore = meta.data?.pro_labore ?? 30000;
-  const diasMes = getDaysInMonth(year, month);
+  const diasMes = getDaysInMonth(periodDate.getFullYear(), periodDate.getMonth());
   const custoDiario = (fixasEmpresa + proLabore) / diasMes;
   const diaAtual = now.getDate();
   const queimadoHoje = custoDiario * diaAtual;
@@ -119,13 +128,14 @@ export function useDashboardData() {
   }));
   const totalInadimplente = parcelasAtraso.reduce((s, p) => s + ((p.valor_real ?? p.valor_sugerido ?? 0) - (p.valor_pago_parcial ?? 0)), 0);
 
-  // Gráfico faturamento diário (receitas + parcelas quitadas)
+  // Gráfico faturamento diário (within selected period)
   const faturamentoDiario: { data: string; valor: number }[] = [];
-  const thirtyDaysAgo = new Date();
-  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-  for (let i = 0; i < 30; i++) {
-    const d = new Date(thirtyDaysAgo);
-    d.setDate(thirtyDaysAgo.getDate() + i);
+  const startD = new Date(mesInicio + "T00:00:00");
+  const endD = new Date(mesFim + "T00:00:00");
+  const diffDays = Math.ceil((endD.getTime() - startD.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+  for (let i = 0; i < diffDays; i++) {
+    const d = new Date(startD);
+    d.setDate(startD.getDate() + i);
     const ds = d.toISOString().split("T")[0];
     const totalReceitas = receitasMes.filter(r => r.data === ds).reduce((s, r) => s + (r.valor_bruto ?? 0), 0);
     const totalParcelasDia = parcelasMesQuitadas.filter(p => (p.data_pagamento ?? p.data_vencimento) === ds).reduce((s, p) => s + (p.valor_real ?? p.valor_sugerido ?? 0), 0);
@@ -139,7 +149,6 @@ export function useDashboardData() {
     const cat = r.produto_categoria || "Outros";
     catMap.set(cat, (catMap.get(cat) ?? 0) + (r.valor_bruto ?? 0));
   });
-  // Adicionar parcelas quitadas por tipo de mentoria
   parcelasMesQuitadas.forEach(p => {
     const pm = p.parcelas_mentoria as any;
     const cat = pm?.tipo_mentoria || "Parcelas Mentoria";
@@ -148,9 +157,9 @@ export function useDashboardData() {
   catMap.forEach((value, name) => composicaoPorCategoria.push({ name, value }));
 
   // Métricas mentoria
-  const parcelasMes = allParcelas.filter(p => p.data_vencimento >= mesInicio && p.data_vencimento <= mesFim);
-  const previstaMes = parcelasMes.reduce((s, p) => s + (p.valor_real ?? p.valor_sugerido ?? 0), 0);
-  const recebidaMes = parcelasMes.filter(p => p.status === "Quitado").reduce((s, p) => s + (p.valor_real ?? p.valor_sugerido ?? 0), 0);
+  const parcelasMes2 = allParcelas.filter(p => p.data_vencimento >= mesInicio && p.data_vencimento <= mesFim);
+  const previstaMes = parcelasMes2.reduce((s, p) => s + (p.valor_real ?? p.valor_sugerido ?? 0), 0);
+  const recebidaMes = parcelasMes2.filter(p => p.status === "Quitado").reduce((s, p) => s + (p.valor_real ?? p.valor_sugerido ?? 0), 0);
   const saldoReceberMes = previstaMes - recebidaMes;
   const saldoTotalFuturo = allParcelas
     .filter(p => p.data_vencimento > today && p.status !== "Quitado")
@@ -164,8 +173,8 @@ export function useDashboardData() {
   const renovacoes = allParcelasGeral.filter(p => p.is_renovacao && p.criado_em >= sixStr);
   const taxaRenovacao = encerradas.length > 0 ? (renovacoes.length / encerradas.length) * 100 : 0;
 
-  const totalReceberMes = parcelasMes.reduce((s, p) => s + (p.valor_real ?? p.valor_sugerido ?? 0), 0);
-  const totalAtrasoMentoria = parcelasMes
+  const totalReceberMes = parcelasMes2.reduce((s, p) => s + (p.valor_real ?? p.valor_sugerido ?? 0), 0);
+  const totalAtrasoMentoria = parcelasMes2
     .filter(p => p.status === "Atraso" || (p.data_vencimento < today && p.status === "Pendente"))
     .reduce((s, p) => s + ((p.valor_real ?? p.valor_sugerido ?? 0) - (p.valor_pago_parcial ?? 0)), 0);
   const taxaInadimplencia = totalReceberMes > 0 ? (totalAtrasoMentoria / totalReceberMes) * 100 : 0;
@@ -191,5 +200,6 @@ export function useDashboardData() {
     qtdParcelasQuitadasMes: parcelasMesQuitadas.length,
     receitaParcelasMes,
     qtdReceitasMes: receitasMes.length,
+    mesInicio, mesFim,
   };
 }
