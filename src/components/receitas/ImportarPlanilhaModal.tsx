@@ -52,17 +52,19 @@ interface ImportRow {
 
 // Flexible column matching: try multiple variations for each field
 function findColumnValue(row: Record<string, any>, patterns: string[]): any {
+  const keys = Object.keys(row);
   for (const pattern of patterns) {
     const pNorm = pattern.toLowerCase().trim();
-    // First try exact match
-    const exactKey = Object.keys(row).find(k => k.trim().toLowerCase() === pNorm);
+    // Exact match first
+    const exactKey = keys.find(k => k.trim().toLowerCase() === pNorm);
     if (exactKey && row[exactKey] !== undefined && row[exactKey] !== null && row[exactKey] !== "") return row[exactKey];
-    // Then try includes (column contains pattern or pattern contains column)
-    const key = Object.keys(row).find(k => {
+  }
+  // Then partial match (column contains pattern or vice-versa)
+  for (const pattern of patterns) {
+    const pNorm = pattern.toLowerCase().trim();
+    const key = keys.find(k => {
       const kNorm = k.trim().toLowerCase();
-      // Only use includes for patterns with 4+ chars to avoid false matches
-      if (pNorm.length >= 4) return kNorm.includes(pNorm) || pNorm.includes(kNorm);
-      return false;
+      return kNorm.includes(pNorm) || pNorm.includes(kNorm);
     });
     if (key && row[key] !== undefined && row[key] !== null && row[key] !== "") return row[key];
   }
@@ -70,7 +72,7 @@ function findColumnValue(row: Record<string, any>, patterns: string[]): any {
 }
 
 const HOTMART_FIELDS: Record<string, string[]> = {
-  data: ["Data transação", "Data Transação", "Data da transação", "Transaction Date", "data"],
+  data: ["Data transação", "Data Transação", "Data da transação", "Transaction Date", "data", "Data da Transação", "Data Compra", "Data compra"],
   produto_nome: ["Produto", "Product", "Nome do Produto"],
   valor_liquido: ["Faturamento líquido do(a) Produtor(a)", "Faturamento líquido", "Net Revenue", "Valor Líquido"],
   valor_liquido_convertido: ["Valor que você recebeu convertido", "Valor recebido convertido", "Converted received value"],
@@ -191,12 +193,24 @@ export function ImportarPlanilhaModal({ open, onClose }: { open: boolean; onClos
           const sheet = workbook.Sheets[workbook.SheetNames[0]];
           const json = XLSX.utils.sheet_to_json<Record<string, any>>(sheet);
 
+          if (json.length > 0) console.log("[Import] Colunas da planilha:", Object.keys(json[0]));
+          if (json.length > 0) console.log("[Import] Primeira linha:", json[0]);
+
           const fields = PLATFORM_FIELDS[plataforma] ?? {};
-          const mapped: ImportRow[] = json.map((row) => {
+          const mapped: ImportRow[] = json.map((row, rowIdx) => {
             const getField = (field: string) => findColumnValue(row, fields[field] ?? []);
 
             let dateStr = "";
-            const rawDate = getField("data");
+            // Try mapped field first, then fallback: find any column with "data" or "date"
+            let rawDate = getField("data");
+            if (rawDate === undefined || rawDate === null || rawDate === "") {
+              const dateKey = Object.keys(row).find(k => {
+                const kl = k.trim().toLowerCase();
+                return kl.includes("data") || kl.includes("date");
+              });
+              if (dateKey) rawDate = row[dateKey];
+            }
+            
             if (rawDate) {
               if (typeof rawDate === "number") {
                 // Excel serial date
@@ -205,16 +219,27 @@ export function ImportarPlanilhaModal({ open, onClose }: { open: boolean; onClos
                 dateStr = d.toISOString().split("T")[0];
               } else {
                 const raw = String(rawDate).trim();
-                // Try extracting date from "DD/MM/YYYY HH:MM:SS" or "DD/MM/YYYY"
-                const brMatch = raw.match(/^(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{4})/);
+                // DD/MM/YYYY or DD/MM/YYYY HH:MM:SS
+                const brMatch = raw.match(/(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{2,4})/);
                 if (brMatch) {
-                  const [, dd, mm, yyyy] = brMatch;
-                  dateStr = `${yyyy}-${mm.padStart(2, "0")}-${dd.padStart(2, "0")}`;
+                  let [, p1, p2, p3] = brMatch;
+                  // If p3 is 2-digit year, expand
+                  if (p3.length === 2) p3 = `20${p3}`;
+                  // Determine if DD/MM/YYYY or MM/DD/YYYY: if p1 > 12, it must be DD
+                  const day = Number(p1) > 12 ? p1 : (Number(p2) > 12 ? p2 : p1);
+                  const month = day === p1 ? p2 : p1;
+                  dateStr = `${p3}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
                 } else {
-                  // Try ISO or other parseable format
-                  const parsed = new Date(raw);
-                  if (!isNaN(parsed.getTime())) dateStr = parsed.toISOString().split("T")[0];
-                  else dateStr = raw;
+                  // YYYY-MM-DD or other ISO
+                  const isoMatch = raw.match(/(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})/);
+                  if (isoMatch) {
+                    const [, y, m, d] = isoMatch;
+                    dateStr = `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
+                  } else {
+                    const parsed = new Date(raw);
+                    if (!isNaN(parsed.getTime())) dateStr = parsed.toISOString().split("T")[0];
+                    else dateStr = "";
+                  }
                 }
               }
             }
@@ -268,6 +293,8 @@ export function ImportarPlanilhaModal({ open, onClose }: { open: boolean; onClos
               data: dateStr,
               valor_bruto: valorBruto,
             });
+
+            if (rowIdx === 0) console.log("[Import] Row 0 mapped:", { dateStr, rawDate, moeda, taxaCambioRow, srcCheckout, sckValue, utmSource, brutoOriginal, valorLiqFinal });
 
             return {
               data: dateStr,
