@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { toast } from "sonner";
-import { Plus, Search, Loader2, DollarSign, Lock, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
+import { Plus, Search, Loader2, DollarSign, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 import MonthNavigator, { getCurrentMonthKey, type DateFilter, filterByDate, getDateRange } from "@/components/MonthNavigator";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,7 +19,7 @@ import type { Tables } from "@/integrations/supabase/types";
 import { Constants } from "@/integrations/supabase/types";
 
 const CATEGORIAS = Constants.public.Enums.despesa_categoria_pessoal;
-const PRO_LABORE = 30000;
+
 
 const STATUS_STYLE: Record<string, string> = {
   "A Vencer": "bg-yellow-500/10 text-yellow-400 border-yellow-500/20",
@@ -52,16 +52,6 @@ export default function DespesasPessoal() {
   const [editItem, setEditItem] = useState<Tables<"despesas_pessoal"> | null>(null);
   const [editForm, setEditForm] = useState({ descricao: "", categoria: "" as any, tipo_despesa: "Fixa" as any, valor_original: "", data_vencimento: "", forma_pagamento: "", observacao: "" });
 
-  // Fetch pro_labore from configuracoes
-  const { data: configProLabore } = useQuery({
-    queryKey: ["config-prolabore"],
-    queryFn: async () => {
-      const { data } = await supabase.from("configuracoes").select("valor").eq("chave", "pro_labore").single();
-      return data?.valor ? parseFloat(data.valor) : PRO_LABORE;
-    },
-  });
-
-  const proLaboreValue = configProLabore ?? PRO_LABORE;
 
   const { data: despesas, isLoading } = useQuery({
     queryKey: ["despesas-pessoal"],
@@ -178,7 +168,7 @@ export default function DespesasPessoal() {
 
   const { start: mesStart, end: mesEnd } = getDateRange(dateFilter);
   const mesAtual = (despesas ?? []).filter(d => d.data_vencimento && d.data_vencimento >= mesStart && d.data_vencimento <= mesEnd);
-  const totalMes = mesAtual.reduce((s, d) => s + (d.valor_original ?? 0), 0) + (tab === "fixas" ? proLaboreValue : 0);
+  const totalMes = mesAtual.reduce((s, d) => s + (d.valor_original ?? 0), 0);
   const pagoMes = mesAtual.reduce((s, d) => s + (d.valor_pago_total ?? 0), 0);
   const emAtraso = mesAtual.filter(d => d.status === "Em Atraso").reduce((s, d) => s + (d.saldo_pendente ?? 0), 0);
   const pendenteMes = mesAtual.filter(d => d.status === "A Vencer").reduce((s, d) => s + (d.saldo_pendente ?? 0), 0);
@@ -236,17 +226,6 @@ export default function DespesasPessoal() {
         </div>
 
         <TabsContent value="fixas">
-          {/* Pro-labore fixed row */}
-          <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 mb-4 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <Lock className="h-4 w-4 text-primary" />
-              <div>
-                <p className="text-sm font-medium text-foreground">Pró-labore</p>
-                <p className="text-xs text-muted-foreground">Valor fixo mensal (Configurações)</p>
-              </div>
-            </div>
-            <p className="text-lg font-bold text-primary">{formatCurrency(proLaboreValue)}</p>
-          </div>
           {isLoading ? <div className="flex justify-center p-16"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div> : (
             <div className="rounded-xl border border-border bg-card overflow-hidden">
               <div className="overflow-x-auto">
