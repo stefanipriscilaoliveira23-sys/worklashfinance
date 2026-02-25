@@ -142,6 +142,8 @@ export default function Receitas() {
 
   // Filter parcelas the same way
   const filteredParcelas = parcelasComoReceitas.filter((r: any) => {
+    // Parcelas nunca são importadas de planilha
+    if (filtroImportado === "importado") return false;
     if (filtroPlataforma !== "all" && r.plataforma !== filtroPlataforma) return false;
     if (filtroProduto !== "all" && r.produto_nome !== filtroProduto) return false;
     if (search) {
