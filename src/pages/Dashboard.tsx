@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useDashboardData } from "@/hooks/useDashboardData";
-import { formatCurrency, formatPercent, formatDate, getMonthRange } from "@/lib/format";
-import { Loader2, AlertTriangle, TrendingUp, Target, Flame, DollarSign, Users, CalendarClock, ArrowRight, ShoppingCart, RefreshCw, BookOpen, CreditCard, BarChart3, Pencil } from "lucide-react";
+import { formatCurrency, formatPercent, formatDate, getMonthRange, getWeekRange } from "@/lib/format";
+import { Loader2, AlertTriangle, TrendingUp, Target, Flame, DollarSign, Users, CalendarClock, ArrowRight, ShoppingCart, RefreshCw, BookOpen, CreditCard, BarChart3, Pencil, PiggyBank } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -309,32 +309,21 @@ export default function Dashboard() {
         <MetricCard label="Diferença Meta" value={formatCurrency(diffMeta)} icon={TrendingUp} variant={diffMeta < 0 ? "alert" : undefined} sub={diffMeta >= 0 ? "Superou" : "Abaixo"} />
       </div>
 
-      {/* LINHA 2 — 3 cards de alerta */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-5">
-          <div className="flex items-center gap-2 mb-2">
-            <AlertTriangle className="h-4 w-4 text-destructive" />
-            <span className="text-xs font-medium text-destructive uppercase tracking-wider">Contas em atraso</span>
-          </div>
-          <p className="text-xl font-bold text-destructive">{d.contasAtrasoQtd} contas</p>
-          <p className="text-sm text-destructive/70">{formatCurrency(d.totalAtraso)}</p>
-          <button onClick={() => navigate("/despesas-empresa")} className="mt-3 text-xs text-primary hover:underline flex items-center gap-1">Ver todas <ArrowRight className="h-3 w-3" /></button>
-        </div>
+      {/* LINHA 2 — 4 cards de alerta */}
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+        {/* Contas em atraso (empresa + pessoal) */}
+        <DashAlertCard
+          title="Contas em atraso"
+          icon={AlertTriangle}
+          mesInicio={mesInicio}
+          mesFim={mesFim}
+          navigate={navigate}
+        />
 
-        <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-5">
-          <div className="flex items-center gap-2 mb-2">
-            <CalendarClock className="h-4 w-4 text-destructive" />
-            <span className="text-xs font-medium text-destructive uppercase tracking-wider">Vencendo esta semana</span>
-          </div>
-          <div className="space-y-1 max-h-20 overflow-auto">
-            {d.vencendoSemana.length === 0 && <p className="text-sm text-muted-foreground">Nenhuma</p>}
-            {d.vencendoSemana.slice(0, 3).map((v, i) => (
-              <p key={i} className="text-xs text-foreground truncate">{v.descricao} — {formatCurrency(v.saldo_pendente)} — {formatDate(v.data_vencimento)}</p>
-            ))}
-          </div>
-          <button onClick={() => navigate("/despesas-empresa")} className="mt-3 text-xs text-primary hover:underline flex items-center gap-1">Ver todas <ArrowRight className="h-3 w-3" /></button>
-        </div>
+        {/* Vencendo esta semana (empresa + pessoal) */}
+        <DashVencendoCard navigate={navigate} />
 
+        {/* Alunas inadimplentes */}
         <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-5">
           <div className="flex items-center gap-2 mb-2">
             <Users className="h-4 w-4 text-destructive" />
@@ -344,6 +333,9 @@ export default function Dashboard() {
           <p className="text-sm text-destructive/70">{formatCurrency(d.totalInadimplente)}</p>
           <button onClick={() => navigate("/parcelas")} className="mt-3 text-xs text-primary hover:underline flex items-center gap-1">Ver alunas <ArrowRight className="h-3 w-3" /></button>
         </div>
+
+        {/* Cofrinho */}
+        <DashCofrinhoCard mesInicio={mesInicio} mesFim={mesFim} navigate={navigate} />
       </div>
 
       {/* B) KPIs Renovação + C) KPIs Mentoria */}
@@ -522,6 +514,156 @@ export default function Dashboard() {
           </table>
         </div>
       </div>
+    </div>
+  );
+}
+
+const PRIO_ORDER: Record<string, number> = { "Alta": 0, "Média": 1, "Baixa": 2 };
+const PRIO_STYLE: Record<string, string> = {
+  "Alta": "bg-destructive/10 text-destructive",
+  "Média": "bg-yellow-500/10 text-yellow-400",
+  "Baixa": "bg-secondary text-muted-foreground",
+};
+
+function sortByPriority(items: any[]) {
+  return [...items].sort((a, b) => (PRIO_ORDER[a.prioridade] ?? 1) - (PRIO_ORDER[b.prioridade] ?? 1));
+}
+
+function DashAlertCard({ title, icon: Icon, mesInicio, mesFim, navigate }: any) {
+  const { data: despEmp } = useQuery({
+    queryKey: ["dash-desp-emp-atraso", mesInicio, mesFim],
+    queryFn: async () => {
+      const { data } = await supabase.from("despesas_empresa").select("*").eq("status", "Em Atraso").gte("data_vencimento", mesInicio).lte("data_vencimento", mesFim);
+      return data ?? [];
+    },
+  });
+  const { data: despPes } = useQuery({
+    queryKey: ["dash-desp-pes-atraso", mesInicio, mesFim],
+    queryFn: async () => {
+      const { data } = await supabase.from("despesas_pessoal").select("*").eq("status", "Em Atraso").gte("data_vencimento", mesInicio).lte("data_vencimento", mesFim);
+      return data ?? [];
+    },
+  });
+
+  const all = sortByPriority([
+    ...(despEmp ?? []).map((d: any) => ({ ...d, _tipo: "Empresa" })),
+    ...(despPes ?? []).map((d: any) => ({ ...d, _tipo: "Pessoal" })),
+  ]);
+  const total = all.reduce((s: number, d: any) => s + (d.saldo_pendente ?? 0), 0);
+
+  return (
+    <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-5">
+      <div className="flex items-center gap-2 mb-2">
+        <Icon className="h-4 w-4 text-destructive" />
+        <span className="text-xs font-medium text-destructive uppercase tracking-wider">Contas em atraso</span>
+      </div>
+      <p className="text-xl font-bold text-destructive">{all.length} contas</p>
+      <p className="text-sm text-destructive/70">{formatCurrency(total)}</p>
+      <div className="space-y-1 mt-2 max-h-24 overflow-auto">
+        {all.slice(0, 5).map((d: any, i: number) => (
+          <div key={i} className="flex items-center gap-1.5 text-xs">
+            <span className={`px-1.5 py-0.5 rounded text-[9px] font-medium ${PRIO_STYLE[d.prioridade] ?? ""}`}>{d.prioridade}</span>
+            <span className="text-muted-foreground text-[9px]">{d._tipo}</span>
+            <span className="text-foreground truncate flex-1">{d.descricao}</span>
+            <span className="text-destructive font-medium shrink-0">{formatCurrency(d.saldo_pendente)}</span>
+          </div>
+        ))}
+      </div>
+      <button onClick={() => navigate("/despesas-empresa")} className="mt-3 text-xs text-primary hover:underline flex items-center gap-1">Ver todas <ArrowRight className="h-3 w-3" /></button>
+    </div>
+  );
+}
+
+function DashVencendoCard({ navigate }: { navigate: (path: string) => void }) {
+  const { start: semInicio, end: semFim } = getWeekRange();
+  const { data: despEmp } = useQuery({
+    queryKey: ["dash-desp-emp-semana", semInicio, semFim],
+    queryFn: async () => {
+      const { data } = await supabase.from("despesas_empresa").select("*").gte("data_vencimento", semInicio).lte("data_vencimento", semFim).neq("status", "Pago");
+      return data ?? [];
+    },
+  });
+  const { data: despPes } = useQuery({
+    queryKey: ["dash-desp-pes-semana", semInicio, semFim],
+    queryFn: async () => {
+      const { data } = await supabase.from("despesas_pessoal").select("*").gte("data_vencimento", semInicio).lte("data_vencimento", semFim).neq("status", "Pago");
+      return data ?? [];
+    },
+  });
+
+  const all = sortByPriority([
+    ...(despEmp ?? []).map((d: any) => ({ ...d, _tipo: "Empresa" })),
+    ...(despPes ?? []).map((d: any) => ({ ...d, _tipo: "Pessoal" })),
+  ]);
+  const total = all.reduce((s: number, d: any) => s + (d.saldo_pendente ?? 0), 0);
+
+  return (
+    <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-5">
+      <div className="flex items-center gap-2 mb-2">
+        <CalendarClock className="h-4 w-4 text-destructive" />
+        <span className="text-xs font-medium text-destructive uppercase tracking-wider">Vencendo esta semana</span>
+      </div>
+      <p className="text-xl font-bold text-destructive">{formatCurrency(total)}</p>
+      <p className="text-sm text-destructive/70">{all.length} contas</p>
+      <div className="space-y-1 mt-2 max-h-24 overflow-auto">
+        {all.slice(0, 5).map((d: any, i: number) => (
+          <div key={i} className="flex items-center gap-1.5 text-xs">
+            <span className={`px-1.5 py-0.5 rounded text-[9px] font-medium ${PRIO_STYLE[d.prioridade] ?? ""}`}>{d.prioridade}</span>
+            <span className="text-muted-foreground text-[9px]">{d._tipo}</span>
+            <span className="text-foreground truncate flex-1">{d.descricao}</span>
+            <span className="text-destructive font-medium shrink-0">{formatCurrency(d.saldo_pendente)}</span>
+          </div>
+        ))}
+        {all.length === 0 && <p className="text-sm text-muted-foreground">Nenhuma</p>}
+      </div>
+      <button onClick={() => navigate("/despesas-empresa")} className="mt-3 text-xs text-primary hover:underline flex items-center gap-1">Ver todas <ArrowRight className="h-3 w-3" /></button>
+    </div>
+  );
+}
+
+function DashCofrinhoCard({ mesInicio, mesFim, navigate }: { mesInicio: string; mesFim: string; navigate: (path: string) => void }) {
+  const { data: cofrinhoAll } = useQuery({
+    queryKey: ["dash-cofrinho-all"],
+    queryFn: async () => {
+      const { data } = await supabase.from("cofrinho").select("*");
+      return data ?? [];
+    },
+  });
+  const { data: despEmp } = useQuery({
+    queryKey: ["dash-desp-emp-prio", mesInicio, mesFim],
+    queryFn: async () => {
+      const { data } = await supabase.from("despesas_empresa").select("*").gte("data_vencimento", mesInicio).lte("data_vencimento", mesFim).neq("status", "Pago");
+      return data ?? [];
+    },
+  });
+  const { data: despPes } = useQuery({
+    queryKey: ["dash-desp-pes-prio", mesInicio, mesFim],
+    queryFn: async () => {
+      const { data } = await supabase.from("despesas_pessoal").select("*").gte("data_vencimento", mesInicio).lte("data_vencimento", mesFim).neq("status", "Pago");
+      return data ?? [];
+    },
+  });
+
+  const saldo = (cofrinhoAll ?? []).reduce((s: number, e: any) => s + (e.valor ?? 0), 0);
+  const prioAlta = [...(despEmp ?? []), ...(despPes ?? [])].filter((d: any) => d.prioridade === "Alta");
+  const totalPrio = prioAlta.reduce((s: number, d: any) => s + (d.saldo_pendente ?? d.valor_original ?? 0), 0);
+  const pct = totalPrio > 0 ? Math.min(100, (saldo / totalPrio) * 100) : 100;
+
+  return (
+    <div className="rounded-xl border border-primary/30 bg-primary/5 p-5">
+      <div className="flex items-center gap-2 mb-2">
+        <PiggyBank className="h-4 w-4 text-primary" />
+        <span className="text-xs font-medium text-primary uppercase tracking-wider">Cofrinho</span>
+      </div>
+      <p className="text-xl font-bold text-primary">{formatCurrency(saldo)}</p>
+      <p className="text-xs text-muted-foreground mt-1">Prioridade: {formatCurrency(totalPrio)}</p>
+      <div className="mt-2">
+        <div className="h-2 bg-secondary rounded-full overflow-hidden">
+          <div className={`h-full rounded-full transition-all ${pct >= 100 ? "bg-emerald-500" : pct >= 50 ? "bg-yellow-500" : "bg-destructive"}`} style={{ width: `${pct}%` }} />
+        </div>
+        <p className="text-[10px] text-muted-foreground mt-1">{pct >= 100 ? "✅ Cobre as prioridades" : `${pct.toFixed(0)}% das prioridades`}</p>
+      </div>
+      <button onClick={() => navigate("/cofrinho")} className="mt-3 text-xs text-primary hover:underline flex items-center gap-1">Ver cofrinho <ArrowRight className="h-3 w-3" /></button>
     </div>
   );
 }

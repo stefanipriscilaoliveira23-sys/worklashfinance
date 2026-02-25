@@ -41,6 +41,7 @@ export default function DespesasPessoal() {
   const [novaForm, setNovaForm] = useState({
     descricao: "", categoria: "" as any, tipo_despesa: "Fixa" as "Fixa" | "Variável",
     valor_original: "", data_vencimento: "", forma_pagamento: "", observacao: "",
+    prioridade: "Média" as "Alta" | "Média" | "Baixa",
   });
 
   const [showPagamento, setShowPagamento] = useState<Tables<"despesas_pessoal"> | null>(null);
@@ -50,7 +51,7 @@ export default function DespesasPessoal() {
 
   // Edit modal
   const [editItem, setEditItem] = useState<Tables<"despesas_pessoal"> | null>(null);
-  const [editForm, setEditForm] = useState({ descricao: "", categoria: "" as any, tipo_despesa: "Fixa" as any, valor_original: "", data_vencimento: "", forma_pagamento: "", observacao: "" });
+  const [editForm, setEditForm] = useState({ descricao: "", categoria: "" as any, tipo_despesa: "Fixa" as any, valor_original: "", data_vencimento: "", forma_pagamento: "", observacao: "", prioridade: "Média" as "Alta" | "Média" | "Baixa" });
 
 
   const { data: despesas, isLoading } = useQuery({
@@ -75,6 +76,7 @@ export default function DespesasPessoal() {
         data_vencimento: novaForm.data_vencimento || null,
         forma_pagamento: novaForm.forma_pagamento || null,
         observacao: novaForm.observacao || null,
+        prioridade: novaForm.prioridade as any,
       });
       if (error) throw error;
     },
@@ -82,7 +84,7 @@ export default function DespesasPessoal() {
       queryClient.invalidateQueries({ queryKey: ["despesas-pessoal"] });
       toast.success("Despesa criada");
       setShowNova(false);
-      setNovaForm({ descricao: "", categoria: "" as any, tipo_despesa: "Fixa", valor_original: "", data_vencimento: "", forma_pagamento: "", observacao: "" });
+      setNovaForm({ descricao: "", categoria: "" as any, tipo_despesa: "Fixa", valor_original: "", data_vencimento: "", forma_pagamento: "", observacao: "", prioridade: "Média" });
     },
     onError: (e: any) => toast.error(e.message),
   });
@@ -144,6 +146,7 @@ export default function DespesasPessoal() {
         descricao: editForm.descricao, categoria: editForm.categoria, tipo_despesa: editForm.tipo_despesa,
         valor_original: valor, saldo_pendente: Math.max(0, novoSaldo),
         data_vencimento: editForm.data_vencimento || null, forma_pagamento: editForm.forma_pagamento || null, observacao: editForm.observacao || null,
+        prioridade: editForm.prioridade as any,
       }).eq("id", editItem.id);
       if (error) throw error;
     },
@@ -152,7 +155,7 @@ export default function DespesasPessoal() {
   });
 
   const openEdit = (d: Tables<"despesas_pessoal">) => {
-    setEditForm({ descricao: d.descricao, categoria: d.categoria, tipo_despesa: d.tipo_despesa, valor_original: String(d.valor_original), data_vencimento: d.data_vencimento ?? "", forma_pagamento: d.forma_pagamento ?? "", observacao: d.observacao ?? "" });
+    setEditForm({ descricao: d.descricao, categoria: d.categoria, tipo_despesa: d.tipo_despesa, valor_original: String(d.valor_original), data_vencimento: d.data_vencimento ?? "", forma_pagamento: d.forma_pagamento ?? "", observacao: d.observacao ?? "", prioridade: (d as any).prioridade ?? "Média" });
     setEditItem(d);
   };
 
@@ -232,19 +235,20 @@ export default function DespesasPessoal() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-border bg-secondary/30">
-                      {["Descrição", "Categoria", "Valor", "Pago", "Saldo", "Vencimento", "Pagamento", "Status", "Ações"].map(h => (
+                      {["Descrição", "Categoria", "Prioridade", "Valor", "Pago", "Saldo", "Vencimento", "Pagamento", "Status", "Ações"].map(h => (
                         <th key={h} className={`p-3 text-xs font-medium text-muted-foreground ${["Valor", "Pago", "Saldo"].includes(h) ? "text-right" : "text-left"}`}>{h}</th>
                       ))}
                     </tr>
                   </thead>
                   <tbody>
                     {filtered.length === 0 && (
-                      <tr><td colSpan={9} className="p-12 text-center text-muted-foreground">Nenhuma despesa encontrada</td></tr>
+                      <tr><td colSpan={10} className="p-12 text-center text-muted-foreground">Nenhuma despesa encontrada</td></tr>
                     )}
                     {filtered.map(d => (
                       <tr key={d.id} className="border-b border-border/50 hover:bg-surface-hover transition-colors">
                         <td className="p-3 font-medium max-w-[200px] truncate">{d.descricao}</td>
                         <td className="p-3 text-xs text-muted-foreground">{d.categoria}</td>
+                        <td className="p-3"><span className={`px-2 py-0.5 rounded text-[10px] font-medium ${(d as any).prioridade === "Alta" ? "bg-destructive/10 text-destructive" : (d as any).prioridade === "Baixa" ? "bg-secondary text-muted-foreground" : "bg-yellow-500/10 text-yellow-400"}`}>{(d as any).prioridade ?? "Média"}</span></td>
                         <td className="p-3 text-right">{formatCurrency(d.valor_original)}</td>
                         <td className="p-3 text-right text-muted-foreground">{formatCurrency(d.valor_pago_total)}</td>
                         <td className="p-3 text-right text-primary">{formatCurrency(d.saldo_pendente)}</td>
@@ -278,19 +282,20 @@ export default function DespesasPessoal() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-border bg-secondary/30">
-                      {["Descrição", "Categoria", "Valor", "Pago", "Saldo", "Vencimento", "Pagamento", "Status", "Ações"].map(h => (
+                      {["Descrição", "Categoria", "Prioridade", "Valor", "Pago", "Saldo", "Vencimento", "Pagamento", "Status", "Ações"].map(h => (
                         <th key={h} className={`p-3 text-xs font-medium text-muted-foreground ${["Valor", "Pago", "Saldo"].includes(h) ? "text-right" : "text-left"}`}>{h}</th>
                       ))}
                     </tr>
                   </thead>
                   <tbody>
                     {filtered.length === 0 && (
-                      <tr><td colSpan={9} className="p-12 text-center text-muted-foreground">Nenhuma despesa encontrada</td></tr>
+                      <tr><td colSpan={10} className="p-12 text-center text-muted-foreground">Nenhuma despesa encontrada</td></tr>
                     )}
                     {filtered.map(d => (
                       <tr key={d.id} className="border-b border-border/50 hover:bg-surface-hover transition-colors">
                         <td className="p-3 font-medium max-w-[200px] truncate">{d.descricao}</td>
                         <td className="p-3 text-xs text-muted-foreground">{d.categoria}</td>
+                        <td className="p-3"><span className={`px-2 py-0.5 rounded text-[10px] font-medium ${(d as any).prioridade === "Alta" ? "bg-destructive/10 text-destructive" : (d as any).prioridade === "Baixa" ? "bg-secondary text-muted-foreground" : "bg-yellow-500/10 text-yellow-400"}`}>{(d as any).prioridade ?? "Média"}</span></td>
                         <td className="p-3 text-right">{formatCurrency(d.valor_original)}</td>
                         <td className="p-3 text-right text-muted-foreground">{formatCurrency(d.valor_pago_total)}</td>
                         <td className="p-3 text-right text-primary">{formatCurrency(d.saldo_pendente)}</td>
@@ -346,6 +351,17 @@ export default function DespesasPessoal() {
                   </SelectContent>
                 </Select>
               </div>
+            </div>
+            <div>
+              <Label className="text-muted-foreground">Prioridade</Label>
+              <Select value={novaForm.prioridade} onValueChange={v => setNovaForm(f => ({ ...f, prioridade: v as any }))}>
+                <SelectTrigger className="bg-secondary/50 border-border"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Alta">🔴 Alta</SelectItem>
+                  <SelectItem value="Média">🟡 Média</SelectItem>
+                  <SelectItem value="Baixa">⚪ Baixa</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
@@ -427,6 +443,17 @@ export default function DespesasPessoal() {
               <div><Label className="text-muted-foreground">Data Vencimento</Label><Input type="date" value={editForm.data_vencimento} onChange={e => setEditForm(f => ({ ...f, data_vencimento: e.target.value }))} className="bg-secondary/50 border-border" /></div>
             </div>
             <div><Label className="text-muted-foreground">Forma de Pagamento</Label><Input value={editForm.forma_pagamento} onChange={e => setEditForm(f => ({ ...f, forma_pagamento: e.target.value }))} className="bg-secondary/50 border-border" /></div>
+            <div>
+              <Label className="text-muted-foreground">Prioridade</Label>
+              <Select value={editForm.prioridade} onValueChange={v => setEditForm(f => ({ ...f, prioridade: v as any }))}>
+                <SelectTrigger className="bg-secondary/50 border-border"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Alta">🔴 Alta</SelectItem>
+                  <SelectItem value="Média">🟡 Média</SelectItem>
+                  <SelectItem value="Baixa">⚪ Baixa</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
             <div><Label className="text-muted-foreground">Observação</Label><Textarea value={editForm.observacao} onChange={e => setEditForm(f => ({ ...f, observacao: e.target.value }))} className="bg-secondary/50 border-border" rows={2} /></div>
           </div>
           <DialogFooter>
