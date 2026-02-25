@@ -50,39 +50,106 @@ interface ImportRow {
   duplicata_receita_id: string | null;
 }
 
-// Flexible column matching: try multiple variations for each field
+// Flexible column matching with robust normalization (accents, spaces, underscores, symbols)
+const normalizeKey = (value: string) =>
+  value
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]/g, "");
+
 function findColumnValue(row: Record<string, any>, patterns: string[]): any {
   const keys = Object.keys(row);
+  const keyMeta = keys.map((k) => ({ raw: k, norm: normalizeKey(k) }));
+
   for (const pattern of patterns) {
-    const pNorm = pattern.toLowerCase().trim();
-    const exactKey = keys.find(k => k.trim().toLowerCase() === pNorm);
-    if (exactKey && row[exactKey] !== undefined && row[exactKey] !== null && row[exactKey] !== "") return row[exactKey];
+    const pNorm = normalizeKey(pattern);
+    if (!pNorm) continue;
+
+    const exact = keyMeta.find((k) => k.norm === pNorm);
+    if (exact) {
+      const value = row[exact.raw];
+      if (value !== undefined && value !== null && value !== "") return value;
+    }
   }
 
   for (const pattern of patterns) {
-    const pNorm = pattern.toLowerCase().trim();
-    const key = keys.find(k => k.trim().toLowerCase().includes(pNorm));
-    if (key && row[key] !== undefined && row[key] !== null && row[key] !== "") return row[key];
+    const pNorm = normalizeKey(pattern);
+    if (!pNorm) continue;
+
+    const partial = keyMeta.find((k) => k.norm.includes(pNorm) || pNorm.includes(k.norm));
+    if (partial) {
+      const value = row[partial.raw];
+      if (value !== undefined && value !== null && value !== "") return value;
+    }
   }
 
   return undefined;
 }
 
+function parseSpreadsheetDate(rawDate: any): string {
+  if (rawDate === undefined || rawDate === null || rawDate === "") return "";
+
+  if (typeof rawDate === "number") {
+    const excelEpoch = new Date(1899, 11, 30);
+    const d = new Date(excelEpoch.getTime() + rawDate * 86400000);
+    return isNaN(d.getTime()) ? "" : d.toISOString().split("T")[0];
+  }
+
+  const raw = String(rawDate).trim();
+  if (!raw) return "";
+
+  // Excel serial date as string (e.g. "45678" or "45678.25")
+  if (/^\d{4,}(?:[.,]\d+)?$/.test(raw)) {
+    const serial = Number(raw.replace(",", "."));
+    if (!Number.isNaN(serial)) {
+      const excelEpoch = new Date(1899, 11, 30);
+      const d = new Date(excelEpoch.getTime() + serial * 86400000);
+      if (!isNaN(d.getTime())) return d.toISOString().split("T")[0];
+    }
+  }
+
+  // DD/MM/YYYY (with optional time/timezone)
+  const brMatch = raw.match(/(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})/);
+  if (brMatch) {
+    let [, d, m, y] = brMatch;
+    if (y.length === 2) y = `20${y}`;
+    const day = Number(d);
+    const month = Number(m);
+    if (day >= 1 && day <= 31 && month >= 1 && month <= 12) {
+      return `${y}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+    }
+  }
+
+  // YYYY-MM-DD / YYYY/MM/DD
+  const isoMatch = raw.match(/(\d{4})[\/\-.](\d{1,2})[\/\-.](\d{1,2})/);
+  if (isoMatch) {
+    const [, y, m, d] = isoMatch;
+    return `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
+  }
+
+  const parsed = new Date(raw);
+  return isNaN(parsed.getTime()) ? "" : parsed.toISOString().split("T")[0];
+}
+
 const HOTMART_FIELDS: Record<string, string[]> = {
-  data: ["Data de Venda", "Data transação", "Data Transação", "Data da transação", "Data da Transação", "Transaction Date", "data", "Data Compra", "Data compra"],
+  data: [
+    "Data de Venda", "Data da Venda", "Data transação", "Data Transação", "Data da transação", "Data da Transação",
+    "Data de compra", "Data da compra", "Data Compra", "Transaction Date", "Sale Date", "data", "date"
+  ],
   produto_nome: ["Produto", "Product", "Nome do Produto"],
-  valor_liquido: ["Faturamento líquido do(a) Produtor(a)", "Faturamento líquido", "Net Revenue", "Valor Líquido"],
-  valor_liquido_convertido: ["Valor que você recebeu convertido", "Valor recebido convertido", "Converted received value"],
-  valor_bruto_original: ["Preço Total", "Preço total", "Total Price", "Valor Bruto", "Preço do Produto"],
-  taxa_plataforma_valor: ["Taxa de processamento", "Processing Fee", "Taxa"],
+  valor_liquido: ["Faturamento líquido do(a) Produtor(a)", "Faturamento líquido", "Net Revenue", "Valor Líquido", "Received Value"],
+  valor_liquido_convertido: ["Valor que você recebeu convertido", "Valor recebido convertido", "Converted received value", "Valor recebido em BRL"],
+  valor_bruto_original: ["Preço Total", "Preço total", "Total Price", "Valor Bruto", "Preço do Produto", "Valor da compra"],
+  taxa_plataforma_valor: ["Taxa de processamento", "Processing Fee", "Taxa", "Fee"],
   cliente_nome: ["Nome", "Comprador(a)", "Comprador", "Buyer", "Nome do Comprador", "Nome Comprador"],
   cliente_email: ["Email", "Email do(a) Comprador(a)", "Email do Comprador", "Buyer Email", "E-mail"],
   forma_pagamento: ["Tipo de Pagamento", "Método de pagamento", "Payment Method", "Forma de Pagamento"],
-  moeda_original: ["Moeda", "Moeda de compra", "Purchase Currency"],
-  taxa_cambio: ["Taxa de Câmbio do valor recebido", "Taxa de Câmbio", "Taxa de Câmbio Real", "Cotação", "Exchange Rate"],
-  src_checkout: ["Origem de Checkout", "Origem da venda", "Src", "src", "SRC", "src_checkout", "Source"],
-  sck: ["Sck", "sck", "SCK", "Sck (User Agent)"],
-  utm_source: ["Origem da venda", "utm_source", "UTM Source", "Origem"],
+  moeda_original: ["Moeda", "Moeda de compra", "Moeda da compra", "Purchase Currency", "Currency"],
+  taxa_cambio: ["Taxa de Câmbio do valor recebido", "Taxa de Câmbio", "Taxa de Câmbio Real", "Taxa de cambio", "Cotação", "Cotacao", "Exchange Rate"],
+  src_checkout: ["Origem de Checkout", "Origem da venda", "SRC Checkout", "Src Checkout", "Src", "src", "SRC", "src_checkout", "Source"],
+  sck: ["Sck", "sck", "SCK", "Sck (User Agent)", "Checkout Key"],
+  utm_source: ["Origem da venda", "utm_source", "UTM Source", "Origem", "Source"],
 };
 
 const KIWIFY_FIELDS: Record<string, string[]> = {
@@ -198,62 +265,49 @@ export function ImportarPlanilhaModal({ open, onClose }: { open: boolean; onClos
             // Try mapped field first, then fallback: find any column with "data" or "date"
             let rawDate = getField("data");
             if (rawDate === undefined || rawDate === null || rawDate === "") {
-              const dateKey = Object.keys(row).find(k => {
-                const kl = k.trim().toLowerCase();
+              const dateKey = Object.keys(row).find((k) => {
+                const kl = normalizeKey(k);
                 return kl.includes("data") || kl.includes("date");
               });
               if (dateKey) rawDate = row[dateKey];
             }
-            
-            if (rawDate) {
-              if (typeof rawDate === "number") {
-                // Excel serial date
-                const excelEpoch = new Date(1899, 11, 30);
-                const d = new Date(excelEpoch.getTime() + rawDate * 86400000);
-                dateStr = d.toISOString().split("T")[0];
-              } else {
-                const raw = String(rawDate).trim();
-                // DD/MM/YYYY or DD/MM/YYYY HH:MM:SS
-                const brMatch = raw.match(/(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{2,4})/);
-                if (brMatch) {
-                  let [, p1, p2, p3] = brMatch;
-                  // If p3 is 2-digit year, expand
-                  if (p3.length === 2) p3 = `20${p3}`;
-                  // Determine if DD/MM/YYYY or MM/DD/YYYY: if p1 > 12, it must be DD
-                  const day = Number(p1) > 12 ? p1 : (Number(p2) > 12 ? p2 : p1);
-                  const month = day === p1 ? p2 : p1;
-                  dateStr = `${p3}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
-                } else {
-                  // YYYY-MM-DD or other ISO
-                  const isoMatch = raw.match(/(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})/);
-                  if (isoMatch) {
-                    const [, y, m, d] = isoMatch;
-                    dateStr = `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
-                  } else {
-                    const parsed = new Date(raw);
-                    if (!isNaN(parsed.getTime())) dateStr = parsed.toISOString().split("T")[0];
-                    else dateStr = "";
-                  }
-                }
-              }
-            }
+            dateStr = parseSpreadsheetDate(rawDate);
 
             const parseNum = (v: any) => {
-              if (v === undefined || v === null) return 0;
+              if (v === undefined || v === null || v === "") return 0;
               if (typeof v === "number") return v;
-              return parseFloat(String(v).replace(/[^\d.,-]/g, "").replace(",", ".")) || 0;
+
+              const raw = String(v).trim();
+              if (!raw) return 0;
+              const cleaned = raw.replace(/[^\d,.-]/g, "");
+
+              if (cleaned.includes(",") && cleaned.includes(".")) {
+                const lastComma = cleaned.lastIndexOf(",");
+                const lastDot = cleaned.lastIndexOf(".");
+                if (lastComma > lastDot) {
+                  return Number(cleaned.replace(/\./g, "").replace(",", ".")) || 0;
+                }
+                return Number(cleaned.replace(/,/g, "")) || 0;
+              }
+
+              if (cleaned.includes(",")) {
+                return Number(cleaned.replace(/\./g, "").replace(",", ".")) || 0;
+              }
+
+              return Number(cleaned) || 0;
             };
 
             const valorLiquidoOriginal = parseNum(getField("valor_liquido"));
             const taxaValor = parseNum(getField("taxa_plataforma_valor"));
-            const moeda = String(getField("moeda_original") ?? "BRL").trim();
+            const moeda = String(getField("moeda_original") ?? "BRL").trim().toUpperCase();
             const precoTotalOriginal = parseNum(getField("valor_bruto_original"));
             const valorLiquidoConvertido = parseNum(getField("valor_liquido_convertido"));
 
             const liqOriginal = valorLiquidoOriginal;
             const brutoOriginal = precoTotalOriginal > 0 ? precoTotalOriginal : valorLiquidoOriginal + taxaValor;
 
-            const taxaCambioBase = parseNum(getField("taxa_cambio"));
+            const genericCambio = parseNum(findColumnValue(row, ["taxa de cambio", "taxa de câmbio", "cotacao", "cotação", "exchange rate", "cambio"]));
+            const taxaCambioBase = parseNum(getField("taxa_cambio")) || genericCambio;
             const taxaCambioDerivada = valorLiquidoConvertido > 0 && liqOriginal > 0 ? valorLiquidoConvertido / liqOriginal : 0;
             const taxaCambioRow = moeda !== "BRL"
               ? (taxaCambioBase > 1 ? taxaCambioBase : (taxaCambioDerivada > 1 ? taxaCambioDerivada : 1))
@@ -275,8 +329,10 @@ export function ImportarPlanilhaModal({ open, onClose }: { open: boolean; onClos
 
             const prodMatch = matchProduct(produtoNome);
 
-            const srcCheckout = getField("src_checkout") ? String(getField("src_checkout")).trim() : undefined;
-            const sckValue = getField("sck") ? String(getField("sck")).trim() : undefined;
+            const genericSource = findColumnValue(row, ["src_checkout", "src", "utm_source", "utm source", "origem da venda", "origem", "source"]);
+            const genericSck = findColumnValue(row, ["sck", "checkout key"]);
+            const srcCheckout = getField("src_checkout") ? String(getField("src_checkout")).trim() : (genericSource ? String(genericSource).trim() : undefined);
+            const sckValue = getField("sck") ? String(getField("sck")).trim() : (genericSck ? String(genericSck).trim() : undefined);
             const utmSource = getField("utm_source") ? String(getField("utm_source")).trim() : srcCheckout;
 
             const clienteNome = String(getField("cliente_nome") ?? "").trim();
