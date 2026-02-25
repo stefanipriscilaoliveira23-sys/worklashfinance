@@ -216,13 +216,13 @@ export function ImportarPlanilhaModal({ open, onClose }: { open: boolean; onClos
   });
 
   const matchProduct = (nome: string) => {
-    if (!produtos) return { id: null, found: false };
+    if (!produtos) return { id: null, found: false, catalogName: null };
     const lower = nome.toLowerCase().trim();
     const exact = produtos.find((p) => p.nome.toLowerCase().trim() === lower);
-    if (exact) return { id: exact.id, found: true };
+    if (exact) return { id: exact.id, found: true, catalogName: exact.nome };
     const partial = produtos.find((p) => lower.includes(p.nome.toLowerCase().trim()) || p.nome.toLowerCase().trim().includes(lower));
-    if (partial) return { id: partial.id, found: true };
-    return { id: null, found: false };
+    if (partial) return { id: partial.id, found: true, catalogName: partial.nome };
+    return { id: null, found: false, catalogName: null };
   };
 
   const findDuplicate = (r: { cliente_email: string; produto_nome: string; data: string; valor_bruto: number }) => {
@@ -346,7 +346,7 @@ export function ImportarPlanilhaModal({ open, onClose }: { open: boolean; onClos
 
             return {
               data: dateStr,
-              produto_nome: produtoNome,
+              produto_nome: prodMatch.catalogName ?? produtoNome,
               valor_bruto: valorBruto,
               valor_bruto_original: brutoOriginal,
               taxa_plataforma_valor: taxaValor,
