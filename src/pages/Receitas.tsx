@@ -150,18 +150,28 @@ export default function Receitas() {
     return true;
   });
 
-  // Merge, filter by date, and sort
-  const allEntries = [...filtered, ...filteredParcelas]
+  // Only receitas (actual sales), filtered by date
+  const salesEntries = filtered
     .filter(r => filterByDate(r.data, dateFilter))
     .sort((a, b) => (a.data ?? "").localeCompare(b.data ?? ""));
 
-  // Tab filtering
+  // Only parcelas, filtered by date
+  const parcelasEntries = filteredParcelas
+    .filter(r => filterByDate(r.data, dateFilter))
+    .sort((a, b) => (a.data ?? "").localeCompare(b.data ?? ""));
+
+  // Merge for "Todas" tab
+  const allEntries = [...salesEntries, ...parcelasEntries]
+    .sort((a, b) => (a.data ?? "").localeCompare(b.data ?? ""));
+
+  // Tab filtering — category tabs show only sales, "parcelas" tab shows only parcelas
   const getTabData = () => {
     switch (tab) {
-      case "mentorias": return allEntries.filter(r => MENTORIA_CATS.includes(r.produto_categoria ?? ""));
-      case "renovacoes": return allEntries.filter(r => RENOVACAO_CATS.includes(r.produto_categoria ?? ""));
-      case "digitais": return allEntries.filter(r => DIGITAL_CATS.includes(r.produto_categoria ?? ""));
-      case "fisicos": return allEntries.filter(r => FISICO_CATS.includes(r.produto_categoria ?? ""));
+      case "mentorias": return salesEntries.filter(r => MENTORIA_CATS.includes(r.produto_categoria ?? ""));
+      case "renovacoes": return salesEntries.filter(r => RENOVACAO_CATS.includes(r.produto_categoria ?? ""));
+      case "digitais": return salesEntries.filter(r => DIGITAL_CATS.includes(r.produto_categoria ?? ""));
+      case "fisicos": return salesEntries.filter(r => FISICO_CATS.includes(r.produto_categoria ?? ""));
+      case "parcelas": return parcelasEntries;
       default: return allEntries;
     }
   };
@@ -343,6 +353,29 @@ export default function Receitas() {
     </table>
   );
 
+  const renderParcelasTable = () => (
+    <table className="w-full text-sm">
+      <thead><tr className="border-b border-border bg-secondary/30">
+        {["Data Pgto", "Cliente", "Produto", "Parcela", "Valor", "Ações"].map(h => (
+          <th key={h} className={`p-3 text-xs font-medium text-muted-foreground ${h === "Valor" ? "text-right" : "text-left"}`}>{h}</th>
+        ))}
+      </tr></thead>
+      <tbody>
+        {tabData.length === 0 && <tr><td colSpan={6} className="p-12 text-center text-muted-foreground">Nenhuma parcela recebida neste período</td></tr>}
+        {tabData.map((r: any) => (
+          <tr key={r.id} className="border-b border-border/50 hover:bg-surface-hover transition-colors">
+            <td className="p-3">{formatDate(r.data)}</td>
+            <td className="p-3">{r.cliente_nome || "—"}</td>
+            <td className="p-3">{r.produto_nome}</td>
+            <td className="p-3 text-xs"><span className="text-primary font-medium">{r.parcela_label}</span></td>
+            <td className="p-3 text-right text-primary">{formatCurrency(r.valor_bruto)}</td>
+            <td className="p-3 text-muted-foreground text-xs">{r.observacao || "—"}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+
   // removed gerais table (same as "todas")
 
   return (
@@ -414,6 +447,7 @@ export default function Receitas() {
           <TabsTrigger value="renovacoes">Renovações</TabsTrigger>
           <TabsTrigger value="digitais">Digitais</TabsTrigger>
           <TabsTrigger value="fisicos">Físicos</TabsTrigger>
+          <TabsTrigger value="parcelas">Parcelas</TabsTrigger>
         </TabsList>
 
         <div className="rounded-xl border border-border bg-card overflow-hidden mt-4">
@@ -427,6 +461,7 @@ export default function Receitas() {
                 <TabsContent value="renovacoes" className="m-0">{renderRenovacoesTable()}</TabsContent>
                 <TabsContent value="digitais" className="m-0">{renderDigitaisTable()}</TabsContent>
                 <TabsContent value="fisicos" className="m-0">{renderFisicosTable()}</TabsContent>
+                <TabsContent value="parcelas" className="m-0">{renderParcelasTable()}</TabsContent>
               </>
             )}
           </div>
