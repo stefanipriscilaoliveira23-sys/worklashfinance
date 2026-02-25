@@ -85,14 +85,36 @@ export default function Receitas() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
+      // 1. Find related parcelas_mentoria linked to this receita
+      const { data: parcelas } = await supabase
+        .from("parcelas_mentoria")
+        .select("id")
+        .eq("receita_id", id);
+
+      if (parcelas && parcelas.length > 0) {
+        const pmIds = parcelas.map((p) => p.id);
+        // 2. Delete parcelas_mentoria_detalhe for those contracts
+        await supabase
+          .from("parcelas_mentoria_detalhe")
+          .delete()
+          .in("parcela_mentoria_id", pmIds);
+        // 3. Delete the parcelas_mentoria contracts themselves
+        await supabase
+          .from("parcelas_mentoria")
+          .delete()
+          .in("id", pmIds);
+      }
+
+      // 4. Delete the receita
       const { error } = await supabase.from("receitas").delete().eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["receitas-all"] });
-      toast.success("Receita excluída");
+      queryClient.invalidateQueries({ queryKey: ["parcelas"] });
+      toast.success("Receita e parcelas relacionadas excluídas");
     },
-    onError: () => toast.error("Erro ao excluir — apenas administradores podem excluir"),
+    onError: () => toast.error("Erro ao excluir receita"),
   });
 
   const allReceitas = receitas ?? [];
