@@ -3,24 +3,24 @@ import {
   Package, TrendingUp, BarChart3, Settings, LogOut, TrendingUp as Logo, FileSpreadsheet, PiggyBank
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth, isAdmin } from "@/contexts/AuthContext";
 import {
   Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent,
   SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarFooter
 } from "@/components/ui/sidebar";
 
-const menuItems = [
-  { title: "Dashboard", url: "/", icon: LayoutDashboard },
-  { title: "Receitas", url: "/receitas", icon: DollarSign },
-  { title: "Parcelas de Mentoria", url: "/parcelas", icon: CalendarCheck },
-  { title: "Despesas — Empresa", url: "/despesas-empresa", icon: Building2 },
-  { title: "Despesas — Pessoal", url: "/despesas-pessoal", icon: User },
-  { title: "Eventos Especiais", url: "/eventos", icon: PartyPopper },
-  { title: "Produtos e Margem", url: "/produtos", icon: Package },
-  { title: "Projeção", url: "/projecao", icon: TrendingUp },
-  { title: "P&L Diário", url: "/pl-diario", icon: FileSpreadsheet },
-  { title: "Clientes", url: "/clientes", icon: Users },
-  { title: "Cofrinho", url: "/cofrinho", icon: PiggyBank },
+const allMenuItems = [
+  { title: "Dashboard", url: "/", icon: LayoutDashboard, adminOnly: false },
+  { title: "Receitas", url: "/receitas", icon: DollarSign, adminOnly: false },
+  { title: "Parcelas de Mentoria", url: "/parcelas", icon: CalendarCheck, adminOnly: false },
+  { title: "Clientes", url: "/clientes", icon: Users, adminOnly: false },
+  { title: "Despesas — Empresa", url: "/despesas-empresa", icon: Building2, adminOnly: true },
+  { title: "Despesas — Pessoal", url: "/despesas-pessoal", icon: User, adminOnly: true },
+  { title: "Eventos Especiais", url: "/eventos", icon: PartyPopper, adminOnly: true },
+  { title: "Produtos e Margem", url: "/produtos", icon: Package, adminOnly: true },
+  { title: "Projeção", url: "/projecao", icon: TrendingUp, adminOnly: true },
+  { title: "P&L Diário", url: "/pl-diario", icon: FileSpreadsheet, adminOnly: true },
+  { title: "Cofrinho", url: "/cofrinho", icon: PiggyBank, adminOnly: true },
 ];
 
 const adminItems = [
@@ -30,6 +30,8 @@ const adminItems = [
 
 export function AppSidebar() {
   const { role, signOut, user } = useAuth();
+  const admin = isAdmin(role);
+  const visibleItems = allMenuItems.filter(item => !item.adminOnly || admin);
 
   return (
     <Sidebar className="border-r border-border bg-sidebar">
@@ -51,7 +53,7 @@ export function AppSidebar() {
         <SidebarGroup>
           <SidebarGroupContent>
             <SidebarMenu>
-              {menuItems.map((item) => (
+              {visibleItems.map((item) => (
                 <SidebarMenuItem key={item.url}>
                   <SidebarMenuButton asChild>
                     <NavLink
@@ -67,7 +69,7 @@ export function AppSidebar() {
                 </SidebarMenuItem>
               ))}
 
-              {role === "admin" && (
+              {admin && (
                 <>
                   <div className="my-3 mx-3 h-px bg-border" />
                   {adminItems.map((item) => (
