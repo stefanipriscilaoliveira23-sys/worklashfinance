@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from "recharts";
 
 const MESES = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
+const PRO_LABORE_DEFAULT = 30000;
 
 export default function Projecao() {
   const now = new Date();
@@ -22,10 +23,27 @@ export default function Projecao() {
   const diasPassados = Math.max(diaAtual, 1);
   const diasRestantes = Math.max(diasMes - diasPassados, 0);
 
+  const { data: configProLabore } = useQuery({
+    queryKey: ["config-prolabore"],
+    queryFn: async () => {
+      const { data } = await supabase.from("configuracoes").select("valor").eq("chave", "pro_labore").single();
+      return data?.valor ? parseFloat(data.valor) : PRO_LABORE_DEFAULT;
+    },
+  });
+  const proLabore = configProLabore ?? PRO_LABORE_DEFAULT;
+
   const { data: receitas, isLoading: loadRec } = useQuery({
     queryKey: ["receitas-projecao", start, end],
     queryFn: async () => {
       const { data } = await supabase.from("receitas").select("*").gte("data", start).lte("data", end).order("data");
+      return data ?? [];
+    },
+  });
+
+  const { data: parcelasQuitadas } = useQuery({
+    queryKey: ["parcelas-quitadas-projecao", start, end],
+    queryFn: async () => {
+      const { data } = await supabase.from("parcelas_mentoria_detalhe").select("*").gte("data_pagamento", start).lte("data_pagamento", end).eq("status", "Quitado");
       return data ?? [];
     },
   });
@@ -57,16 +75,17 @@ export default function Projecao() {
   if (loadRec) return <div className="flex items-center justify-center h-64"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
 
   const allReceitas = receitas ?? [];
-  const faturadoAteHoje = allReceitas.reduce((s, r) => s + (r.valor_bruto ?? 0), 0);
-  const liquidoAteHoje = allReceitas.reduce((s, r) => s + (r.valor_liquido ?? 0), 0);
+  const allParcelas = parcelasQuitadas ?? [];
+  
+  // Revenue includes both receitas and parcelas quitadas
+  const faturadoReceitas = allReceitas.reduce((s, r) => s + (r.valor_bruto ?? 0), 0);
+  const faturadoParcelas = allParcelas.reduce((s, p) => s + (p.valor_real ?? p.valor_sugerido ?? 0), 0);
+  const faturadoAteHoje = faturadoReceitas + faturadoParcelas;
   const mediaDiaria = diasPassados > 0 ? faturadoAteHoje / diasPassados : 0;
 
-  const proLabore = 30000;
   const despesasMes = (despesas ?? []).filter(d => d.data_vencimento && d.data_vencimento >= start && d.data_vencimento <= end);
   const totalDespesas = despesasMes.reduce((s, d) => s + (d.valor_original ?? 0), 0);
   const despesasPagas = despesasMes.reduce((s, d) => s + (d.valor_pago_total ?? 0), 0);
-  const despesasFixasMes = despesasMes.filter(d => d.tipo_despesa === "Fixa").reduce((s, d) => s + (d.valor_original ?? 0), 0);
-  const despesasRestantes = totalDespesas - despesasPagas;
 
   const cenarios = [
     { nome: "Conservador", fator: 0.8, cor: "text-destructive" },
@@ -85,13 +104,18 @@ export default function Projecao() {
   const metaDiaria = diasRestantes > 0 ? falta / diasRestantes : 0;
   const noRitmo = mediaDiaria >= metaDiaria;
 
-  // GRÁFICO TRIPLO
+  // GRÁFICO TRIPLO — combine receitas + parcelas by day
   const chartData: { dia: number; real?: number; projecao?: number; meta?: number }[] = [];
   let acumReal = 0;
   const receitasPorDia = new Map<number, number>();
   allReceitas.forEach(r => {
     const dia = parseInt(r.data.split("-")[2]);
     receitasPorDia.set(dia, (receitasPorDia.get(dia) ?? 0) + (r.valor_bruto ?? 0));
+  });
+  allParcelas.forEach(p => {
+    if (!p.data_pagamento) return;
+    const dia = parseInt(p.data_pagamento.split("-")[2]);
+    receitasPorDia.set(dia, (receitasPorDia.get(dia) ?? 0) + (p.valor_real ?? p.valor_sugerido ?? 0));
   });
 
   for (let d = 1; d <= diasMes; d++) {
@@ -100,13 +124,11 @@ export default function Projecao() {
       acumReal += receitasPorDia.get(d) ?? 0;
       entry.real = acumReal;
     }
-    // Projeção
     if (d > diasPassados) {
       entry.projecao = acumReal + mediaDiaria * (d - diasPassados);
     } else {
       entry.projecao = acumReal;
     }
-    // Meta linear
     entry.meta = metaValor > 0 ? (metaValor / diasMes) * d : undefined;
     chartData.push(entry);
   }

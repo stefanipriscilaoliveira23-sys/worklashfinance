@@ -6,8 +6,10 @@ import { Loader2, Download, ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
+const PRO_LABORE_DEFAULT = 30000;
+
 const CATEGORY_COLS: { key: string; label: string; cats: string[] }[] = [
-  { key: "parcelas", label: "Parcelas", cats: [] }, // special: from parcelas_mentoria_detalhe
+  { key: "parcelas", label: "Parcelas", cats: [] },
   { key: "mentorias", label: "Mentorias", cats: ["Mentoria Outsider", "Mentoria Digital Beauty"] },
   { key: "cursos", label: "Cursos Digitais", cats: ["Curso/Formação", "Ferramenta", "Apostila"] },
   { key: "renovacoes", label: "Renovações", cats: ["Renovação Mentoria"] },
@@ -30,6 +32,15 @@ export default function PLDiario() {
   const { start, end } = getMonthRange(ano, mes);
   const diasMes = getDaysInMonth(ano, mes);
   const mesLabel = new Date(ano, mes).toLocaleString("pt-BR", { month: "long", year: "numeric" });
+
+  const { data: configProLabore } = useQuery({
+    queryKey: ["config-prolabore"],
+    queryFn: async () => {
+      const { data } = await supabase.from("configuracoes").select("valor").eq("chave", "pro_labore").single();
+      return data?.valor ? parseFloat(data.valor) : PRO_LABORE_DEFAULT;
+    },
+  });
+  const proLabore = configProLabore ?? PRO_LABORE_DEFAULT;
 
   const { data: receitas, isLoading: lr } = useQuery({
     queryKey: ["pl-receitas", start, end],
@@ -63,23 +74,14 @@ export default function PLDiario() {
     },
   });
 
-  const { data: meta } = useQuery({
-    queryKey: ["pl-meta", mes + 1, ano],
-    queryFn: async () => {
-      const { data } = await supabase.from("metas").select("*").eq("mes", mes + 1).eq("ano", ano).maybeSingle();
-      return data;
-    },
-  });
-
   const [observacoes, setObservacoes] = useState<Record<string, string>>({});
 
   const allReceitas = receitas ?? [];
   const allParcelas = parcelasDetalhe ?? [];
   const allFixas = despesasEmpFixas ?? [];
   const allVariaveis = despesasEmpVar ?? [];
-  const proLabore = meta?.pro_labore ?? 30000;
 
-  // Fixed expenses (monthly) rationed daily
+  // Fixed expenses rationed daily - pro-labore from configuracoes
   const fixosMap = useMemo(() => {
     const result: Record<string, number> = { aluguel: 0, salarios: 0, assinaturas: 0, outrosFixos: 0 };
     allFixas.forEach(d => {
@@ -111,7 +113,6 @@ export default function PLDiario() {
       else if (d.categoria === "Variável") map[dia].outros += (d.valor_pago_total ?? d.valor_original ?? 0);
       else map[dia].outros += (d.valor_pago_total ?? d.valor_original ?? 0);
     });
-    // Taxas from receitas
     allReceitas.forEach(r => {
       if (!map[r.data]) map[r.data] = { impostos: 0, comissoes: 0, trafego: 0, taxas: 0, outros: 0 };
       map[r.data].taxas += (r.taxa_plataforma_valor ?? 0);

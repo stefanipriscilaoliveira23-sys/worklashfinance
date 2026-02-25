@@ -4,8 +4,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatCurrency, formatPercent, formatDate, getMonthRange, getDaysInMonth } from "@/lib/format";
 import { toast } from "sonner";
-import { Loader2, Package, TrendingUp, Users, BarChart3, PieChart as PieIcon, ChevronLeft, ChevronRight, Plus, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
+import { Loader2, Package, TrendingUp, Users, BarChart3, PieChart as PieIcon, Plus, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import MonthNavigator, { getCurrentMonthKey, type DateFilter, getDateRange } from "@/components/MonthNavigator";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -27,21 +28,29 @@ const CATEGORIAS: ProdutoCategoria[] = [
 ];
 const PLATAFORMAS = ["Hotmart", "Kiwify", "Eduzz", "Direto Pix", "Outro"];
 
+const PRO_LABORE_DEFAULT = 30000;
+
 export default function ProdutosMargem() {
   const { role } = useAuth();
   const queryClient = useQueryClient();
   const [tab, setTab] = useState("catalogo");
-  const now = new Date();
-  const [ano, setAno] = useState(now.getFullYear());
-  const [mes, setMes] = useState(now.getMonth());
-  const { start, end } = getMonthRange(ano, mes);
-  const mesLabel = new Date(ano, mes).toLocaleString("pt-BR", { month: "long", year: "numeric" });
+  const [dateFilter, setDateFilter] = useState<DateFilter>({ type: "month", key: getCurrentMonthKey() });
+  const { start, end } = getDateRange(dateFilter);
 
   // Product form state
   const [showProdForm, setShowProdForm] = useState(false);
   const [editProd, setEditProd] = useState<any>(null);
   const [prodForm, setProdForm] = useState({ nome: "", categoria: "Outros" as ProdutoCategoria, plataformas: [] as string[], custo_direto_percentual: 0, observacao: "" });
   const [showCompradores, setShowCompradores] = useState<{ nome: string; compradores: { nome: string; data: string; valor: number }[] } | null>(null);
+
+  const { data: configProLabore } = useQuery({
+    queryKey: ["config-prolabore"],
+    queryFn: async () => {
+      const { data } = await supabase.from("configuracoes").select("valor").eq("chave", "pro_labore").single();
+      return data?.valor ? parseFloat(data.valor) : PRO_LABORE_DEFAULT;
+    },
+  });
+  const proLabore = configProLabore ?? PRO_LABORE_DEFAULT;
 
   const { data: produtos, isLoading: loadProd } = useQuery({
     queryKey: ["produtos-catalogo"],
@@ -67,6 +76,14 @@ export default function ProdutosMargem() {
     },
   });
 
+  const { data: parcelasQuitadas } = useQuery({
+    queryKey: ["parcelas-quitadas-all"],
+    queryFn: async () => {
+      const { data } = await supabase.from("parcelas_mentoria_detalhe").select("*, parcelas_mentoria!inner(*)").eq("status", "Quitado");
+      return data ?? [];
+    },
+  });
+
   const { data: estoque } = useQuery({
     queryKey: ["estoque-cmv"],
     queryFn: async () => {
@@ -80,14 +97,6 @@ export default function ProdutosMargem() {
     queryFn: async () => {
       const { data } = await supabase.from("despesas_empresa").select("*");
       return data ?? [];
-    },
-  });
-
-  const { data: meta } = useQuery({
-    queryKey: ["rateio-meta", mes + 1, ano],
-    queryFn: async () => {
-      const { data } = await supabase.from("metas").select("*").eq("mes", mes + 1).eq("ano", ano).maybeSingle();
-      return data;
     },
   });
 
@@ -124,16 +133,17 @@ export default function ProdutosMargem() {
 
   const allReceitas = receitas ?? [];
   const receitasMes = allReceitas.filter(r => r.data >= start && r.data <= end);
-  const proLabore = meta?.pro_labore ?? 30000;
+  const parcelasQuitadasMes = (parcelasQuitadas ?? []).filter((p: any) => {
+    const dt = p.data_pagamento ?? p.data_vencimento;
+    return dt && dt >= start && dt <= end;
+  });
 
-  // CATÁLOGO — match by produto_id when available, fallback to category for non-ambiguous types
+  // CATÁLOGO
   const allParcelas = parcelasMentoria ?? [];
   const catalogData = (produtos ?? []).map(p => {
     const vendasReceitas = allReceitas.filter(r => r.produto_id === p.id || r.produto_nome === p.nome);
     const vendasParcelas = allParcelas.filter(pm => {
-      // Use produto_id when available (accurate link)
       if ((pm as any).produto_id) return (pm as any).produto_id === p.id;
-      // Fallback: match by category only for non-ambiguous categories (not Renovação Mentoria)
       if (pm.tipo_mentoria === "Renovação Mentoria") return false;
       return pm.tipo_mentoria === p.categoria;
     });
@@ -141,7 +151,6 @@ export default function ProdutosMargem() {
     const compradoresRaw: { nome: string; data: string; valor: number }[] = [];
     vendasReceitas.forEach(r => compradoresRaw.push({ nome: r.cliente_nome ?? "—", data: r.data, valor: r.valor_bruto ?? 0 }));
     vendasParcelas.forEach(pm => compradoresRaw.push({ nome: pm.cliente_nome, data: pm.data_inicio, valor: pm.valor_total ?? 0 }));
-    // Deduplicate by client name — keep most recent entry per client (count as 1 sale per person)
     const clienteDedup = new Map<string, { nome: string; data: string; valor: number }>();
     compradoresRaw.forEach(c => {
       const key = c.nome.toLowerCase().trim();
@@ -158,25 +167,47 @@ export default function ProdutosMargem() {
     return { ...p, vendas: totalVendas, precoMedio, margemPerc, totalBruto, compradores };
   });
 
-  // DESEMPENHO DO MÊS
-  const desempenhoMap = new Map<string, { nome: string; unidades: number; bruto: number; taxaTotal: number; liquido: number; custoPerc: number }>();
-  receitasMes.forEach(r => {
-    const key = r.produto_nome;
-    const existing = desempenhoMap.get(key) ?? { nome: key, unidades: 0, bruto: 0, taxaTotal: 0, liquido: 0, custoPerc: 0 };
-    existing.unidades += 1;
-    existing.bruto += r.valor_bruto ?? 0;
-    existing.taxaTotal += r.taxa_plataforma_valor ?? 0;
-    existing.liquido += r.valor_liquido ?? 0;
-    const prod = (produtos ?? []).find(p => p.id === r.produto_id || p.nome === r.produto_nome);
-    if (prod) existing.custoPerc = prod.custo_direto_percentual ?? 0;
-    desempenhoMap.set(key, existing);
-  });
-  const desempenho = Array.from(desempenhoMap.values()).map(d => {
-    const custoTotal = d.liquido * (d.custoPerc / 100);
-    const margemR = d.liquido - custoTotal;
-    const margemP = d.liquido > 0 ? (margemR / d.liquido) * 100 : 0;
-    return { ...d, custoTotal, margemR, margemP, taxaMedia: d.unidades > 0 ? d.taxaTotal / d.unidades : 0 };
-  }).sort((a, b) => b.margemR - a.margemR);
+  // DESEMPENHO DO MÊS — show ALL catalog products
+  const desempenhoData = useMemo(() => {
+    const map = new Map<string, { nome: string; produtoId: string; unidades: number; bruto: number; taxaTotal: number; liquido: number; custoPerc: number }>();
+    
+    // Initialize with ALL catalog products
+    (produtos ?? []).forEach(p => {
+      map.set(p.id, { nome: p.nome, produtoId: p.id, unidades: 0, bruto: 0, taxaTotal: 0, liquido: 0, custoPerc: p.custo_direto_percentual ?? 0 });
+    });
+
+    // Add receitas data
+    receitasMes.forEach(r => {
+      const prod = (produtos ?? []).find(p => p.id === r.produto_id || p.nome === r.produto_nome);
+      const key = prod ? prod.id : r.produto_nome;
+      const existing = map.get(key) ?? { nome: r.produto_nome, produtoId: key, unidades: 0, bruto: 0, taxaTotal: 0, liquido: 0, custoPerc: prod?.custo_direto_percentual ?? 0 };
+      existing.unidades += 1;
+      existing.bruto += r.valor_bruto ?? 0;
+      existing.taxaTotal += r.taxa_plataforma_valor ?? 0;
+      existing.liquido += r.valor_liquido ?? 0;
+      map.set(key, existing);
+    });
+
+    // Add parcelas quitadas
+    parcelasQuitadasMes.forEach((pq: any) => {
+      const parent = pq.parcelas_mentoria;
+      const prod = (produtos ?? []).find(p => p.id === parent.produto_id);
+      const key = prod ? prod.id : parent.tipo_mentoria;
+      const existing = map.get(key) ?? { nome: prod?.nome ?? parent.tipo_mentoria, produtoId: key, unidades: 0, bruto: 0, taxaTotal: 0, liquido: 0, custoPerc: prod?.custo_direto_percentual ?? 0 };
+      const val = pq.valor_real ?? pq.valor_sugerido ?? 0;
+      existing.unidades += 1;
+      existing.bruto += val;
+      existing.liquido += val;
+      map.set(key, existing);
+    });
+
+    return Array.from(map.values()).map(d => {
+      const custoTotal = d.liquido * (d.custoPerc / 100);
+      const margemR = d.liquido - custoTotal;
+      const margemP = d.liquido > 0 ? (margemR / d.liquido) * 100 : 0;
+      return { ...d, custoTotal, margemR, margemP, taxaMedia: d.unidades > 0 ? d.taxaTotal / d.unidades : 0 };
+    }).sort((a, b) => b.margemR - a.margemR);
+  }, [receitasMes, parcelasQuitadasMes, produtos]);
 
   // LTV & FUNIL
   const clienteMap = new Map<string, typeof allReceitas>();
@@ -206,17 +237,24 @@ export default function ProdutosMargem() {
   // CMV
   const estoqueData = (estoque ?? []).map(e => ({
     nome: e.produto_descricao, data: e.data_compra, valorTotal: e.valor_total, absorvido: e.valor_absorvido ?? 0, restante: e.valor_restante ?? 0,
-    margemPct: e.valor_total > 0 ? ((e.valor_absorvido ?? 0) / e.valor_total) * 100 : 0, margemR: (e.valor_absorvido ?? 0) - e.valor_total,
+    margemPct: e.valor_total > 0 ? ((e.valor_absorvido ?? 0) / e.valor_total * 100) : 0, margemR: (e.valor_absorvido ?? 0) - e.valor_total,
   }));
 
-  // RATEIO DE DESPESAS
+  // RATEIO DE DESPESAS — include parcelas quitadas in revenue
   const allDespEmp = despesasEmp ?? [];
-  const fixasEmpresa = allDespEmp.filter(d => d.tipo_despesa === "Fixa").reduce((s, d) => s + (d.valor_original ?? 0), 0);
+  const fixasEmpresaMes = allDespEmp.filter(d => d.tipo_despesa === "Fixa" && d.data_vencimento && d.data_vencimento >= start && d.data_vencimento <= end).reduce((s, d) => s + (d.valor_original ?? 0), 0);
+  // Fallback: if no fixed expenses in this month range, use all fixed expenses (they're monthly recurring)
+  const fixasEmpresa = fixasEmpresaMes > 0 ? fixasEmpresaMes : allDespEmp.filter(d => d.tipo_despesa === "Fixa").reduce((s, d) => s + (d.valor_original ?? 0), 0);
   const totalFixos = fixasEmpresa + proLabore;
-  const receitaTotalMes = receitasMes.reduce((s, r) => s + (r.valor_bruto ?? 0), 0);
+  
+  const receitaTotalMesReceitas = receitasMes.reduce((s, r) => s + (r.valor_bruto ?? 0), 0);
+  const receitaTotalMesParcelas = parcelasQuitadasMes.reduce((s: number, p: any) => s + (p.valor_real ?? p.valor_sugerido ?? 0), 0);
+  const receitaTotalMes = receitaTotalMesReceitas + receitaTotalMesParcelas;
 
   const rateioData = useMemo(() => {
     const catMap = new Map<string, { receita: number; custoDireto: number }>();
+    
+    // Receitas
     receitasMes.forEach(r => {
       const cat = r.produto_categoria || "Outros";
       const e = catMap.get(cat) ?? { receita: 0, custoDireto: 0 };
@@ -225,6 +263,19 @@ export default function ProdutosMargem() {
       if (prod) e.custoDireto += (r.valor_liquido ?? 0) * ((prod.custo_direto_percentual ?? 0) / 100);
       catMap.set(cat, e);
     });
+
+    // Parcelas quitadas
+    parcelasQuitadasMes.forEach((pq: any) => {
+      const parent = pq.parcelas_mentoria;
+      const cat = parent.tipo_mentoria || "Outros";
+      const e = catMap.get(cat) ?? { receita: 0, custoDireto: 0 };
+      const val = pq.valor_real ?? pq.valor_sugerido ?? 0;
+      e.receita += val;
+      const prod = (produtos ?? []).find(p => p.id === parent.produto_id);
+      if (prod) e.custoDireto += val * ((prod.custo_direto_percentual ?? 0) / 100);
+      catMap.set(cat, e);
+    });
+
     return Array.from(catMap.entries()).map(([cat, v]) => {
       const pctReceita = receitaTotalMes > 0 ? (v.receita / receitaTotalMes) * 100 : 0;
       const fixosAbsorvidos = totalFixos * (pctReceita / 100);
@@ -233,10 +284,7 @@ export default function ProdutosMargem() {
       const margemPct = v.receita > 0 ? (margemLiquida / v.receita) * 100 : 0;
       return { cat, receita: v.receita, pctReceita, fixosAbsorvidos, custoDireto: v.custoDireto, custoTotal, margemLiquida, margemPct };
     }).sort((a, b) => b.receita - a.receita);
-  }, [receitasMes, totalFixos, receitaTotalMes, produtos]);
-
-  const prevMonth = () => { if (mes === 0) { setMes(11); setAno(a => a - 1); } else setMes(m => m - 1); };
-  const nextMonth = () => { if (mes === 11) { setMes(0); setAno(a => a + 1); } else setMes(m => m + 1); };
+  }, [receitasMes, parcelasQuitadasMes, totalFixos, receitaTotalMes, produtos]);
 
   if (isLoading) return <div className="flex items-center justify-center h-64"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
 
@@ -278,12 +326,7 @@ export default function ProdutosMargem() {
                       <td className={`p-3 text-right font-medium ${p.margemPerc >= 70 ? "text-emerald-400" : "text-foreground"}`}>{formatPercent(p.margemPerc)}</td>
                       <td className="p-3 text-right">
                         {p.vendas > 0 ? (
-                          <button
-                            onClick={() => setShowCompradores({ nome: p.nome, compradores: p.compradores })}
-                            className="text-primary underline underline-offset-2 hover:text-primary/80 transition-colors cursor-pointer font-medium"
-                          >
-                            {p.vendas}
-                          </button>
+                          <button onClick={() => setShowCompradores({ nome: p.nome, compradores: p.compradores })} className="text-primary underline underline-offset-2 hover:text-primary/80 transition-colors cursor-pointer font-medium">{p.vendas}</button>
                         ) : (
                           <span className="text-muted-foreground">0</span>
                         )}
@@ -307,10 +350,8 @@ export default function ProdutosMargem() {
 
         {/* DESEMPENHO */}
         <TabsContent value="desempenho">
-          <div className="rounded-xl border border-border bg-card overflow-hidden">
-            <div className="p-4 border-b border-border">
-              <h3 className="text-sm font-medium text-muted-foreground">Desempenho — {mesLabel}</h3>
-            </div>
+          <MonthNavigator filter={dateFilter} onChange={setDateFilter} />
+          <div className="rounded-xl border border-border bg-card overflow-hidden mt-4">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead><tr className="border-b border-border bg-secondary/30">
@@ -319,17 +360,17 @@ export default function ProdutosMargem() {
                   ))}
                 </tr></thead>
                 <tbody>
-                  {desempenho.length === 0 && <tr><td colSpan={8} className="p-12 text-center text-muted-foreground">Sem vendas neste mês</td></tr>}
-                  {desempenho.map((d, i) => (
-                    <tr key={i} className={`border-b border-border/50 hover:bg-surface-hover transition-colors ${d.margemP >= 70 ? "bg-emerald-500/5" : ""}`}>
+                  {desempenhoData.length === 0 && <tr><td colSpan={8} className="p-12 text-center text-muted-foreground">Nenhum produto no catálogo</td></tr>}
+                  {desempenhoData.map((d, i) => (
+                    <tr key={i} className={`border-b border-border/50 hover:bg-surface-hover transition-colors ${d.margemP >= 70 ? "bg-emerald-500/5" : ""} ${d.unidades === 0 ? "opacity-50" : ""}`}>
                       <td className="p-3 font-medium">{d.nome}</td>
                       <td className="p-3 text-right">{d.unidades}</td>
                       <td className="p-3 text-right">{formatCurrency(d.bruto)}</td>
-                      <td className="p-3 text-right text-muted-foreground">{formatCurrency(d.taxaMedia)}</td>
+                      <td className="p-3 text-right text-muted-foreground">{d.unidades > 0 ? formatCurrency(d.taxaMedia) : "—"}</td>
                       <td className="p-3 text-right">{formatCurrency(d.liquido)}</td>
                       <td className="p-3 text-right text-muted-foreground">{formatCurrency(d.custoTotal)}</td>
                       <td className="p-3 text-right text-primary">{formatCurrency(d.margemR)}</td>
-                      <td className={`p-3 text-right font-medium ${d.margemP >= 70 ? "text-emerald-400" : "text-foreground"}`}>{formatPercent(d.margemP)}</td>
+                      <td className={`p-3 text-right font-medium ${d.margemP >= 70 ? "text-emerald-400" : "text-foreground"}`}>{d.unidades > 0 ? formatPercent(d.margemP) : "—"}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -433,11 +474,7 @@ export default function ProdutosMargem() {
         {/* RATEIO DE DESPESAS */}
         <TabsContent value="rateio">
           <div className="space-y-4">
-            <div className="flex items-center gap-3">
-              <Button variant="ghost" size="icon" onClick={prevMonth} className="text-muted-foreground"><ChevronLeft className="h-4 w-4" /></Button>
-              <span className="text-sm font-medium text-foreground capitalize">{mesLabel}</span>
-              <Button variant="ghost" size="icon" onClick={nextMonth} className="text-muted-foreground"><ChevronRight className="h-4 w-4" /></Button>
-            </div>
+            <MonthNavigator filter={dateFilter} onChange={setDateFilter} />
 
             <div className="grid grid-cols-3 gap-3">
               <div className="rounded-xl border border-border bg-card p-4">
