@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -16,30 +16,48 @@ interface Props {
   onSuccess: () => void;
 }
 
+const parseMoneyInput = (value: string) => {
+  const cleaned = value.replace(/[^\d.,-]/g, "").trim();
+  if (!cleaned) return NaN;
+
+  if (cleaned.includes(",") && cleaned.includes(".")) {
+    return Number(cleaned.replace(/\./g, "").replace(",", "."));
+  }
+
+  if (cleaned.includes(",")) {
+    return Number(cleaned.replace(",", "."));
+  }
+
+  return Number(cleaned);
+};
+
 export default function PagamentoDialog({ showPagamento, onClose, onSuccess }: Props) {
   const [pgValor, setPgValor] = useState("");
   const [pgData, setPgData] = useState(new Date().toISOString().split("T")[0]);
   const [pgObs, setPgObs] = useState("");
 
-  // Reset form when opening
-  const handleOpen = (open: boolean) => {
-    if (!open) {
-      onClose();
-      setPgValor("");
-      setPgObs("");
-    }
-  };
+  useEffect(() => {
+    if (!showPagamento) return;
 
-  // Set default value when showPagamento changes
-  if (showPagamento && !pgValor) {
-    setPgValor(String(showPagamento.saldo_parcela ?? showPagamento.valor_real ?? showPagamento.valor_sugerido ?? 0));
-  }
+    const valorParcela = showPagamento.valor_real ?? showPagamento.valor_sugerido ?? 0;
+    const jaPagoNaParcela = showPagamento.valor_pago_parcial ?? 0;
+    const saldoDaParcela = Math.max(0, valorParcela - jaPagoNaParcela);
 
+    setPgValor(String(saldoDaParcela));
+  }, [showPagamento]);
   const registrarPagamento = useMutation({
     mutationFn: async () => {
       if (!showPagamento) return;
-      const valor = parseFloat(pgValor);
-      if (isNaN(valor) || valor <= 0) throw new Error("Valor inválido");
+
+      const valorParcela = showPagamento.valor_real ?? showPagamento.valor_sugerido ?? 0;
+      const jaPagoNaParcela = showPagamento.valor_pago_parcial ?? 0;
+      const restanteParcela = Math.max(0, valorParcela - jaPagoNaParcela);
+
+      const valor = parseMoneyInput(pgValor);
+      if (!Number.isFinite(valor) || valor <= 0) throw new Error("Valor inválido");
+      if (valor > restanteParcela + 0.01) {
+        throw new Error(`Valor acima do restante da parcela (${restanteParcela.toFixed(2)})`);
+      }
 
       // 1. Insert partial payment record
       const { error: pgError } = await supabase.from("pagamentos_parciais").insert({
@@ -52,8 +70,7 @@ export default function PagamentoDialog({ showPagamento, onClose, onSuccess }: P
       if (pgError) throw pgError;
 
       // 2. Update the current installment's paid amount and status
-      const novoPago = (showPagamento.valor_pago_parcial ?? 0) + valor;
-      const valorParcela = showPagamento.valor_real ?? showPagamento.valor_sugerido ?? 0;
+      const novoPago = jaPagoNaParcela + valor;
       const parcelaQuitada = novoPago >= valorParcela;
       const novoStatus = parcelaQuitada ? "Quitado" : "Parcialmente Pago";
 
@@ -90,10 +107,7 @@ export default function PagamentoDialog({ showPagamento, onClose, onSuccess }: P
         for (const det of allDetalhes) {
           const valorDet = det.valor_real ?? det.valor_sugerido ?? 0;
           const pagoDet = det.id === showPagamento.id ? novoPago : (det.valor_pago_parcial ?? 0);
-          // If installment is fully paid, add its value; if partially, add what was paid
-          const contribuicao = det.status === "Quitado" || (det.id === showPagamento.id && parcelaQuitada)
-            ? valorDet
-            : pagoDet;
+          const contribuicao = Math.max(0, Math.min(valorDet, pagoDet));
           acumuladoPago += contribuicao;
           const saldoRestante = Math.max(0, valorTotal - acumuladoPago);
 
@@ -124,7 +138,16 @@ export default function PagamentoDialog({ showPagamento, onClose, onSuccess }: P
   });
 
   return (
-    <Dialog open={!!showPagamento} onOpenChange={handleOpen}>
+    <Dialog
+      open={!!showPagamento}
+      onOpenChange={(open) => {
+        if (!open) {
+          onClose();
+          setPgValor("");
+          setPgObs("");
+        }
+      }}
+    >
       <DialogContent className="bg-card border-border">
         <DialogHeader>
           <DialogTitle className="text-foreground">Registrar Pagamento</DialogTitle>
@@ -132,7 +155,7 @@ export default function PagamentoDialog({ showPagamento, onClose, onSuccess }: P
         <div className="space-y-4">
           <div>
             <Label className="text-muted-foreground">Valor</Label>
-            <Input type="number" value={pgValor} onChange={e => setPgValor(e.target.value)} className="bg-secondary/50 border-border" />
+            <Input type="text" inputMode="decimal" value={pgValor} onChange={e => setPgValor(e.target.value)} className="bg-secondary/50 border-border" />
           </div>
           <div>
             <Label className="text-muted-foreground">Data do Pagamento</Label>
