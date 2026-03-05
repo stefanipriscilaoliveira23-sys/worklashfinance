@@ -41,6 +41,7 @@ export default function PagamentoDialog({ showPagamento, onClose, onSuccess }: P
       const valor = parseFloat(pgValor);
       if (isNaN(valor) || valor <= 0) throw new Error("Valor inválido");
 
+      // 1. Insert partial payment record
       const { error: pgError } = await supabase.from("pagamentos_parciais").insert({
         referencia_id: showPagamento.id,
         referencia_tipo: "parcela_mentoria_detalhe",
@@ -50,30 +51,64 @@ export default function PagamentoDialog({ showPagamento, onClose, onSuccess }: P
       });
       if (pgError) throw pgError;
 
+      // 2. Update the current installment's paid amount and status
       const novoPago = (showPagamento.valor_pago_parcial ?? 0) + valor;
-      const valorReal = showPagamento.valor_real ?? showPagamento.valor_sugerido ?? 0;
-      const novoSaldo = Math.max(0, valorReal - novoPago);
-      const novoStatus = novoSaldo <= 0 ? "Quitado" : "Parcialmente Pago";
+      const valorParcela = showPagamento.valor_real ?? showPagamento.valor_sugerido ?? 0;
+      const parcelaQuitada = novoPago >= valorParcela;
+      const novoStatus = parcelaQuitada ? "Quitado" : "Parcialmente Pago";
 
       const { error: upError } = await supabase
         .from("parcelas_mentoria_detalhe")
         .update({
           valor_pago_parcial: novoPago,
-          saldo_parcela: novoSaldo,
           status: novoStatus as any,
-          data_pagamento: novoSaldo <= 0 ? pgData : showPagamento.data_pagamento,
+          data_pagamento: parcelaQuitada ? pgData : showPagamento.data_pagamento,
         })
         .eq("id", showPagamento.id);
       if (upError) throw upError;
 
+      // 3. Fetch parent contract to get valor_total and entrada_valor
+      const { data: parentContract } = await supabase
+        .from("parcelas_mentoria")
+        .select("valor_total, entrada_valor")
+        .eq("id", showPagamento.parcela_mentoria_id)
+        .single();
+
+      // 4. Fetch ALL installments to recalculate saldo_parcela for each
       const { data: allDetalhes } = await supabase
         .from("parcelas_mentoria_detalhe")
-        .select("status")
-        .eq("parcela_mentoria_id", showPagamento.parcela_mentoria_id);
+        .select("*")
+        .eq("parcela_mentoria_id", showPagamento.parcela_mentoria_id)
+        .order("numero_parcela");
 
-      if (allDetalhes) {
-        const allQuitado = allDetalhes.every(d => d.status === "Quitado");
-        const anyAtraso = allDetalhes.some(d => d.status === "Atraso");
+      if (allDetalhes && parentContract) {
+        const valorTotal = parentContract.valor_total ?? 0;
+        const entrada = parentContract.entrada_valor ?? 0;
+        let acumuladoPago = entrada;
+
+        // Recalculate saldo_parcela for each installment in order
+        for (const det of allDetalhes) {
+          const valorDet = det.valor_real ?? det.valor_sugerido ?? 0;
+          const pagoDet = det.id === showPagamento.id ? novoPago : (det.valor_pago_parcial ?? 0);
+          // If installment is fully paid, add its value; if partially, add what was paid
+          const contribuicao = det.status === "Quitado" || (det.id === showPagamento.id && parcelaQuitada)
+            ? valorDet
+            : pagoDet;
+          acumuladoPago += contribuicao;
+          const saldoRestante = Math.max(0, valorTotal - acumuladoPago);
+
+          await supabase
+            .from("parcelas_mentoria_detalhe")
+            .update({ saldo_parcela: saldoRestante })
+            .eq("id", det.id);
+        }
+
+        // 5. Update parent contract status
+        const updatedStatuses = allDetalhes.map(d =>
+          d.id === showPagamento.id ? novoStatus : d.status
+        );
+        const allQuitado = updatedStatuses.every(s => s === "Quitado");
+        const anyAtraso = updatedStatuses.some(s => s === "Atraso");
         const parentStatus = allQuitado ? "Quitado" : anyAtraso ? "Atraso" : "Pendente";
         await supabase.from("parcelas_mentoria").update({ status_geral: parentStatus as any }).eq("id", showPagamento.parcela_mentoria_id);
       }
