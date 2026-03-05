@@ -226,8 +226,12 @@ export function NovaReceitaModal({ open, onClose }: { open: boolean; onClose: ()
   });
 
   const handleSubmit = () => {
-    if (!produtoId || !clienteNome || !clienteEmail || origensVenda.length === 0) {
-      toast.error("Preencha todos os campos obrigatórios (produto, cliente, email, origens)");
+    const erros: string[] = [];
+    if (!produtoId) erros.push("Produto");
+    if (!clienteNome) erros.push("Nome do cliente");
+    if (!clienteEmail) erros.push("Email do cliente");
+    if (erros.length > 0) {
+      toast.error("Campos obrigatórios faltando: " + erros.join(", "));
       return;
     }
     if (valorContrato <= 0) {
@@ -242,8 +246,12 @@ export function NovaReceitaModal({ open, onClose }: { open: boolean; onClose: ()
   };
 
   const canGoStep2 = () => {
-    if (!produtoId || !clienteNome || !clienteEmail || origensVenda.length === 0) {
-      toast.error("Preencha todos os campos obrigatórios");
+    const erros: string[] = [];
+    if (!produtoId) erros.push("Produto");
+    if (!clienteNome) erros.push("Nome do cliente");
+    if (!clienteEmail) erros.push("Email do cliente");
+    if (erros.length > 0) {
+      toast.error("Campos obrigatórios faltando: " + erros.join(", "));
       return false;
     }
     if (valorContrato <= 0) {
@@ -338,7 +346,7 @@ export function NovaReceitaModal({ open, onClose }: { open: boolean; onClose: ()
 
               {/* Origens venda */}
               <div className="space-y-1.5">
-                <Label className="text-foreground/80">Origens da venda * (selecione uma ou mais)</Label>
+                <Label className="text-foreground/80">Origens da venda (opcional)</Label>
                 <div className="flex flex-wrap gap-2">
                   {(origensOpcoes ?? []).map((o) => (
                     <button
