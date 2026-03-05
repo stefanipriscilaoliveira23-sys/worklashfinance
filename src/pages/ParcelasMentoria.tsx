@@ -141,14 +141,6 @@ export default function ParcelasMentoria() {
     <div className="space-y-6 animate-fade-in">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <h1 className="text-xl font-bold text-foreground">Parcelas de Mentoria</h1>
-        <Button
-          size="sm"
-          className="gap-1"
-          onClick={() => setShowNovoContrato(true)}
-        >
-          <Plus className="h-4 w-4" />
-          Novo Contrato
-        </Button>
       </div>
 
       <MonthNavigator filter={dateFilter} onChange={setDateFilter} />
