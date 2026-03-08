@@ -266,7 +266,8 @@ export default function DespesasEmpresa() {
         <div className="flex gap-2">
           <Button
             onClick={() => {
-              exportCsv(`despesas-empresa-${dateFilter.key}.csv`,
+              const label = dateFilter.type === "month" ? dateFilter.key : `${dateFilter.start}_${dateFilter.end}`;
+              exportCsv(`despesas-empresa-${label}.csv`,
                 ["Descrição", "Categoria", "Tipo", "Valor Original", "Valor Pago", "Saldo Pendente", "Vencimento", "Pagamento", "Status", "Prioridade", "Forma Pgto", "Observação"],
                 filtered.map(d => [d.descricao, d.categoria, d.tipo_despesa, d.valor_original, d.valor_pago_total, d.saldo_pendente, d.data_vencimento, d.data_pagamento, d.status, d.prioridade, d.forma_pagamento, d.observacao])
               );

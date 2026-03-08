@@ -148,7 +148,8 @@ export default function ParcelasMentoria() {
               const p = d.parcelas_mentoria;
               return [p.cliente_nome, p.tipo_mentoria, d.numero_parcela, p.quant_parcelas, d.data_vencimento, d.data_pagamento, d.valor_sugerido, d.valor_real, d.valor_pago_parcial, d.saldo_parcela, d.status, d.observacao];
             });
-            exportCsv(`parcelas-mentoria-${dateFilter.key}.csv`,
+            const label = dateFilter.type === "month" ? dateFilter.key : `${dateFilter.start}_${dateFilter.end}`;
+            exportCsv(`parcelas-mentoria-${label}.csv`,
               ["Cliente", "Tipo", "Nº Parcela", "Total Parcelas", "Vencimento", "Pagamento", "Valor Sugerido", "Valor Real", "Valor Pago", "Saldo Restante", "Status", "Observação"],
               rows
             );

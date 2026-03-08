@@ -419,11 +419,11 @@ export default function Receitas() {
         <div className="flex gap-2">
           <Button
             onClick={() => {
-              const allRows = [...filtered, ...filteredParcelas];
-              const dateFiltered = filterByDate(allRows, dateFilter, (r: any) => r.data);
-              exportCsv(`receitas-${dateFilter.key}.csv`,
+              const allRows = [...filtered, ...filteredParcelas].filter((r: any) => filterByDate(r.data, dateFilter));
+              const label = dateFilter.type === "month" ? dateFilter.key : `${dateFilter.start}_${dateFilter.end}`;
+              exportCsv(`receitas-${label}.csv`,
                 ["Data", "Produto", "Categoria", "Plataforma", "Cliente", "Email", "Valor Bruto", "Taxa Plataforma", "Valor Líquido", "Forma Pgto", "Observação"],
-                dateFiltered.map((r: any) => [r.data, r.produto_nome, r.produto_categoria, r.plataforma, r.cliente_nome, r.cliente_email, r.valor_bruto, r.taxa_plataforma_valor, r.valor_liquido, r.forma_pagamento, r.observacao])
+                allRows.map((r: any) => [r.data, r.produto_nome, r.produto_categoria, r.plataforma, r.cliente_nome, r.cliente_email, r.valor_bruto, r.taxa_plataforma_valor, r.valor_liquido, r.forma_pagamento, r.observacao])
               );
             }}
             variant="outline" size="sm" className="border-border text-muted-foreground hover:text-foreground"
