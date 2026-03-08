@@ -4,7 +4,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { toast } from "sonner";
-import { Plus, Search, Loader2, DollarSign, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
+import { Plus, Search, Loader2, DollarSign, MoreHorizontal, Pencil, Trash2, Download } from "lucide-react";
+import { exportCsv } from "@/lib/exportCsv";
 import MonthNavigator, { getCurrentMonthKey, type DateFilter, filterByDate, getDateRange } from "@/components/MonthNavigator";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -262,9 +263,23 @@ export default function DespesasEmpresa() {
     <div className="space-y-6 animate-fade-in">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <h1 className="text-xl font-bold text-foreground">Despesas — Empresa</h1>
-        <Button onClick={() => setShowNova(true)} className="gold-gradient text-primary-foreground">
-          <Plus className="h-4 w-4 mr-2" /> Nova despesa
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            onClick={() => {
+              const label = dateFilter.type === "month" ? dateFilter.key : `${dateFilter.start}_${dateFilter.end}`;
+              exportCsv(`despesas-empresa-${label}.csv`,
+                ["Descrição", "Categoria", "Tipo", "Valor Original", "Valor Pago", "Saldo Pendente", "Vencimento", "Pagamento", "Status", "Prioridade", "Forma Pgto", "Observação"],
+                filtered.map(d => [d.descricao, d.categoria, d.tipo_despesa, d.valor_original, d.valor_pago_total, d.saldo_pendente, d.data_vencimento, d.data_pagamento, d.status, d.prioridade, d.forma_pagamento, d.observacao])
+              );
+            }}
+            variant="outline" size="sm" className="border-border text-muted-foreground hover:text-foreground"
+          >
+            <Download className="h-4 w-4 mr-1.5" /> CSV
+          </Button>
+          <Button onClick={() => setShowNova(true)} className="gold-gradient text-primary-foreground">
+            <Plus className="h-4 w-4 mr-2" /> Nova despesa
+          </Button>
+        </div>
       </div>
 
       <MonthNavigator filter={dateFilter} onChange={setDateFilter} />

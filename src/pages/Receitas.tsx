@@ -4,7 +4,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { toast } from "sonner";
-import { Plus, Upload, Search, Loader2, MoreHorizontal, Pencil, Trash2, FileSpreadsheet } from "lucide-react";
+import { Plus, Upload, Search, Loader2, MoreHorizontal, Pencil, Trash2, FileSpreadsheet, Download } from "lucide-react";
+import { exportCsv } from "@/lib/exportCsv";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -416,6 +417,19 @@ export default function Receitas() {
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <h1 className="text-xl font-bold text-foreground">Receitas</h1>
         <div className="flex gap-2">
+          <Button
+            onClick={() => {
+              const allRows = [...filtered, ...filteredParcelas].filter((r: any) => filterByDate(r.data, dateFilter));
+              const label = dateFilter.type === "month" ? dateFilter.key : `${dateFilter.start}_${dateFilter.end}`;
+              exportCsv(`receitas-${label}.csv`,
+                ["Data", "Produto", "Categoria", "Plataforma", "Cliente", "Email", "Valor Bruto", "Taxa Plataforma", "Valor Líquido", "Forma Pgto", "Observação"],
+                allRows.map((r: any) => [r.data, r.produto_nome, r.produto_categoria, r.plataforma, r.cliente_nome, r.cliente_email, r.valor_bruto, r.taxa_plataforma_valor, r.valor_liquido, r.forma_pagamento, r.observacao])
+              );
+            }}
+            variant="outline" size="sm" className="border-border text-muted-foreground hover:text-foreground"
+          >
+            <Download className="h-4 w-4 mr-1.5" /> CSV
+          </Button>
           <Button
             onClick={() => setFiltroImportado(f => f === "importado" ? "all" : "importado")}
             variant={filtroImportado === "importado" ? "default" : "outline"}
