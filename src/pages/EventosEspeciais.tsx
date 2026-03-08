@@ -241,9 +241,35 @@ export default function EventosEspeciais() {
 
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-semibold text-foreground">Itens do Evento</h2>
-          <Button onClick={() => setShowNovaDespesa(true)} size="sm" className="gold-gradient text-primary-foreground">
-            <Plus className="h-4 w-4 mr-1" /> Novo item
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline" size="sm"
+              className="border-border text-muted-foreground hover:text-foreground"
+              onClick={() => {
+                const rows = deps.map(d => [
+                  d.descricao,
+                  (d as any).categoria_evento,
+                  d.data_vencimento,
+                  d.data_pagamento,
+                  d.valor_original,
+                  d.valor_pago_total,
+                  d.saldo_pendente,
+                  d.status,
+                  d.observacao,
+                ]);
+                exportCsv(
+                  `evento-${selectedEvento.nome.replace(/\s+/g, "-").toLowerCase()}.csv`,
+                  ["Descrição", "Categoria", "Data Vencimento", "Data Pagamento", "Valor Original", "Valor Pago", "Saldo Pendente", "Status", "Observação"],
+                  rows
+                );
+              }}
+            >
+              <Download className="h-4 w-4 mr-1.5" /> CSV
+            </Button>
+            <Button onClick={() => setShowNovaDespesa(true)} size="sm" className="gold-gradient text-primary-foreground">
+              <Plus className="h-4 w-4 mr-1" /> Novo item
+            </Button>
+          </div>
         </div>
 
         {renderDespesaTable(fechado, "Fechado", CATEGORIA_STYLE["Fechado"])}
