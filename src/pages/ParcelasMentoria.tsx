@@ -142,6 +142,21 @@ export default function ParcelasMentoria() {
     <div className="space-y-6 animate-fade-in">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <h1 className="text-xl font-bold text-foreground">Parcelas de Mentoria</h1>
+        <Button
+          onClick={() => {
+            const rows = (allDetalhes ?? []).map((d: any) => {
+              const p = d.parcelas_mentoria;
+              return [p.cliente_nome, p.tipo_mentoria, d.numero_parcela, p.quant_parcelas, d.data_vencimento, d.data_pagamento, d.valor_sugerido, d.valor_real, d.valor_pago_parcial, d.saldo_parcela, d.status, d.observacao];
+            });
+            exportCsv(`parcelas-mentoria-${dateFilter.key}.csv`,
+              ["Cliente", "Tipo", "Nº Parcela", "Total Parcelas", "Vencimento", "Pagamento", "Valor Sugerido", "Valor Real", "Valor Pago", "Saldo Restante", "Status", "Observação"],
+              rows
+            );
+          }}
+          variant="outline" size="sm" className="border-border text-muted-foreground hover:text-foreground"
+        >
+          <Download className="h-4 w-4 mr-1.5" /> CSV
+        </Button>
       </div>
 
       <MonthNavigator filter={dateFilter} onChange={setDateFilter} />

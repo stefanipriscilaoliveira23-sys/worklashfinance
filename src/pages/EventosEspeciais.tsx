@@ -315,9 +315,29 @@ export default function EventosEspeciais() {
     <div className="space-y-6 animate-fade-in">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <h1 className="text-xl font-bold text-foreground">Eventos Especiais</h1>
-        <Button onClick={() => setShowNovoEvento(true)} className="gold-gradient text-primary-foreground">
-          <Plus className="h-4 w-4 mr-2" /> Novo evento
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            onClick={() => {
+              const allEvts = eventos ?? [];
+              const allDesp = todasDespesas ?? [];
+              const evtRows = allEvts.flatMap(ev => {
+                const desp = allDesp.filter(d => d.evento_id === ev.id);
+                if (desp.length === 0) return [[ev.nome, ev.data_evento, ev.descricao, "", "", "", "", ""]];
+                return desp.map(d => [ev.nome, ev.data_evento, ev.descricao, d.descricao, d.categoria_evento, d.valor_original, d.valor_pago_total, d.status]);
+              });
+              exportCsv("eventos-especiais.csv",
+                ["Evento", "Data Evento", "Descrição Evento", "Despesa", "Categoria", "Valor Original", "Valor Pago", "Status"],
+                evtRows
+              );
+            }}
+            variant="outline" size="sm" className="border-border text-muted-foreground hover:text-foreground"
+          >
+            <Download className="h-4 w-4 mr-1.5" /> CSV
+          </Button>
+          <Button onClick={() => setShowNovoEvento(true)} className="gold-gradient text-primary-foreground">
+            <Plus className="h-4 w-4 mr-2" /> Novo evento
+          </Button>
+        </div>
       </div>
 
       {isLoading ? (
