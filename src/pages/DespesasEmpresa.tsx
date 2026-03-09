@@ -83,7 +83,7 @@ export default function DespesasEmpresa() {
       const valor = parseFloat(novaForm.valor_original);
       if (!novaForm.descricao || !novaForm.categoria || isNaN(valor)) throw new Error("Preencha todos os campos obrigatórios");
 
-      const { error } = await supabase.from("despesas_empresa").insert({
+      const baseRecord = {
         descricao: novaForm.descricao,
         categoria: novaForm.categoria,
         tipo_despesa: novaForm.tipo_despesa,
@@ -93,8 +93,25 @@ export default function DespesasEmpresa() {
         forma_pagamento: novaForm.forma_pagamento || null,
         observacao: novaForm.observacao || null,
         prioridade: novaForm.prioridade as any,
-      });
-      if (error) throw error;
+      };
+
+      if (novaForm.tipo_despesa === "Fixa" && novaForm.data_vencimento) {
+        const baseDate = new Date(novaForm.data_vencimento + "T12:00:00");
+        const day = baseDate.getDate();
+        const baseMonth = baseDate.getMonth();
+        const baseYear = baseDate.getFullYear();
+        const records = [];
+        for (let m = baseMonth; m <= 11; m++) {
+          const d = new Date(baseYear, m, day);
+          if (d.getMonth() !== m) d.setDate(0); // last day of prev month if overflowed
+          records.push({ ...baseRecord, data_vencimento: d.toISOString().split("T")[0] });
+        }
+        const { error } = await supabase.from("despesas_empresa").insert(records);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.from("despesas_empresa").insert(baseRecord);
+        if (error) throw error;
+      }
 
       // If CMV, also create stock entry
       if (novaForm.categoria === "CMV Produto Físico" && novaForm.cmv_produto) {
