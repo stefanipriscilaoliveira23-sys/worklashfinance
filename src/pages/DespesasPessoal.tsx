@@ -156,7 +156,7 @@ export default function DespesasPessoal() {
       const updateData: any = {
         descricao: editForm.descricao, categoria: editForm.categoria, tipo_despesa: editForm.tipo_despesa,
         valor_original: valor, forma_pagamento: editForm.forma_pagamento || null, observacao: editForm.observacao || null,
-        prioridade: editForm.prioridade as any,
+        prioridade: editForm.prioridade as any, data_vencimento: editForm.data_vencimento || null,
       };
       if (mode === "future") {
         const { data: futuras } = await supabase.from("despesas_pessoal").select("id, valor_pago_total")
@@ -164,14 +164,15 @@ export default function DespesasPessoal() {
           .gte("data_vencimento", editItem.data_vencimento ?? "");
         for (const f of (futuras ?? [])) {
           const saldo = valor - (f.valor_pago_total ?? 0);
-          await supabase.from("despesas_pessoal").update({ ...updateData, saldo_pendente: Math.max(0, saldo) }).eq("id", f.id);
+          const { error } = await supabase.from("despesas_pessoal").update({ ...updateData, saldo_pendente: Math.max(0, saldo) }).eq("id", f.id);
+          if (error) throw error;
         }
       } else {
         const novoSaldo = valor - (editItem.valor_pago_total ?? 0);
-        await supabase.from("despesas_pessoal").update({
+        const { error } = await supabase.from("despesas_pessoal").update({
           ...updateData, saldo_pendente: Math.max(0, novoSaldo),
-          data_vencimento: editForm.data_vencimento || null,
         }).eq("id", editItem.id);
+        if (error) throw error;
       }
     },
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["despesas-pessoal"] }); toast.success("Despesa(s) atualizada(s)"); setEditItem(null); },
