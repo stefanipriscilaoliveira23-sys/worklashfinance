@@ -541,10 +541,13 @@ export default function DespesasEmpresa() {
             </div>
             <div><Label className="text-muted-foreground">Observação</Label><Textarea value={editForm.observacao} onChange={e => setEditForm(f => ({ ...f, observacao: e.target.value }))} className="bg-secondary/50 border-border" rows={2} /></div>
           </div>
-          <DialogFooter>
+          <DialogFooter className="flex-col sm:flex-row gap-2">
             <Button variant="outline" onClick={() => setEditItem(null)} className="border-border">Cancelar</Button>
-            <Button onClick={() => editMutation.mutate()} disabled={editMutation.isPending} className="gold-gradient text-primary-foreground">
-              {editMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Salvar"}
+            <Button onClick={() => editMutation.mutate("single")} disabled={editMutation.isPending} className="gold-gradient text-primary-foreground">
+              {editMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Salvar somente esta"}
+            </Button>
+            <Button onClick={() => editMutation.mutate("future")} disabled={editMutation.isPending} variant="secondary">
+              {editMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Salvar esta e futuras"}
             </Button>
           </DialogFooter>
         </DialogContent>
