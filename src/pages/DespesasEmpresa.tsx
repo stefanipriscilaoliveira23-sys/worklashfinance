@@ -155,15 +155,24 @@ export default function DespesasEmpresa() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase.from("despesas_empresa").delete().eq("id", id);
-      if (error) throw error;
+    mutationFn: async ({ id, mode }: { id: string; mode: "single" | "future" }) => {
+      if (mode === "future" && deleteTarget) {
+        // Delete this + all future with same description
+        const { error } = await supabase.from("despesas_empresa").delete()
+          .eq("descricao", deleteTarget.descricao)
+          .gte("data_vencimento", deleteTarget.data_vencimento ?? "");
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.from("despesas_empresa").delete().eq("id", id);
+        if (error) throw error;
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["despesas-empresa"] });
-      toast.success("Despesa excluída");
+      toast.success("Despesa(s) excluída(s)");
+      setDeleteTarget(null);
     },
-    onError: () => toast.error("Erro ao excluir — apenas administradores"),
+    onError: () => { toast.error("Erro ao excluir — apenas administradores"); setDeleteTarget(null); },
   });
 
   const editMutation = useMutation({
