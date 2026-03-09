@@ -1,0 +1,1 @@
+CREATE POLICY "Admin can delete ev despesas" ON public.eventos_despesas FOR DELETE TO authenticated USING (has_role(auth.uid(), 'admin'::app_role));
