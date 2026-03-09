@@ -54,6 +54,10 @@ export default function EventosEspeciais() {
   const [pgObs, setPgObs] = useState("");
   const [pgDestino, setPgDestino] = useState<"empresa" | "pessoal">("empresa");
 
+  // Edit event expense
+  const [editDespesa, setEditDespesa] = useState<Tables<"eventos_despesas"> | null>(null);
+  const [editDespForm, setEditDespForm] = useState({ descricao: "", valor_original: "", data_vencimento: "", observacao: "", categoria_evento: "Fechado" });
+
   const { data: eventos, isLoading } = useQuery({
     queryKey: ["eventos-especiais"],
     queryFn: async () => {
