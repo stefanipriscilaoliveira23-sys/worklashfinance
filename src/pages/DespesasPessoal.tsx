@@ -490,6 +490,37 @@ export default function DespesasPessoal() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Delete confirmation modal */}
+      <Dialog open={!!deleteTarget} onOpenChange={() => setDeleteTarget(null)}>
+        <DialogContent className="bg-card border-border">
+          <DialogHeader><DialogTitle className="text-foreground">Excluir Despesa</DialogTitle></DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Como deseja excluir <strong className="text-foreground">"{deleteTarget?.descricao}"</strong>?
+          </p>
+          <div className="flex flex-col gap-2 mt-2">
+            <Button
+              variant="outline"
+              className="border-border justify-start"
+              onClick={() => deleteTarget && deleteMutation.mutate({ id: deleteTarget.id, mode: "single" })}
+              disabled={deleteMutation.isPending}
+            >
+              Excluir somente esta
+            </Button>
+            <Button
+              variant="destructive"
+              className="justify-start"
+              onClick={() => deleteTarget && deleteMutation.mutate({ id: deleteTarget.id, mode: "future" })}
+              disabled={deleteMutation.isPending}
+            >
+              Excluir esta e todas futuras com mesmo nome
+            </Button>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setDeleteTarget(null)} className="text-muted-foreground">Cancelar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

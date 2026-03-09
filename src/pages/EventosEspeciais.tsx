@@ -367,6 +367,37 @@ export default function EventosEspeciais() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        {/* Edit event expense modal */}
+        <Dialog open={!!editDespesa} onOpenChange={() => setEditDespesa(null)}>
+          <DialogContent className="bg-card border-border">
+            <DialogHeader><DialogTitle className="text-foreground">Editar Item do Evento</DialogTitle></DialogHeader>
+            <div className="space-y-4">
+              <div><Label className="text-muted-foreground">Descrição *</Label><Input value={editDespForm.descricao} onChange={e => setEditDespForm(f => ({ ...f, descricao: e.target.value }))} className="bg-secondary/50 border-border" /></div>
+              <div><Label className="text-muted-foreground">Categoria *</Label>
+                <Select value={editDespForm.categoria_evento} onValueChange={v => setEditDespForm(f => ({ ...f, categoria_evento: v }))}>
+                  <SelectTrigger className="bg-secondary/50 border-border"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Fechado">Fechado</SelectItem>
+                    <SelectItem value="Precisa Fechar">Precisa Fechar</SelectItem>
+                    <SelectItem value="Pago/Presente">Pago/Presente</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div><Label className="text-muted-foreground">Valor *</Label><Input type="number" value={editDespForm.valor_original} onChange={e => setEditDespForm(f => ({ ...f, valor_original: e.target.value }))} className="bg-secondary/50 border-border" /></div>
+                <div><Label className="text-muted-foreground">Data pagamento</Label><Input type="date" value={editDespForm.data_vencimento} onChange={e => setEditDespForm(f => ({ ...f, data_vencimento: e.target.value }))} className="bg-secondary/50 border-border" /></div>
+              </div>
+              <div><Label className="text-muted-foreground">Observação</Label><Textarea value={editDespForm.observacao} onChange={e => setEditDespForm(f => ({ ...f, observacao: e.target.value }))} className="bg-secondary/50 border-border" rows={2} /></div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setEditDespesa(null)} className="border-border">Cancelar</Button>
+              <Button onClick={() => editDespMutation.mutate()} disabled={editDespMutation.isPending} className="gold-gradient text-primary-foreground">
+                {editDespMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Salvar"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     );
   }
