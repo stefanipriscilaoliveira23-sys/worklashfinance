@@ -289,7 +289,7 @@ export default function DespesasPessoal() {
                             <DropdownMenuContent align="end" className="bg-card border-border">
                               <DropdownMenuItem onClick={() => openEdit(d)} className="gap-2"><Pencil className="h-3.5 w-3.5" /> Editar</DropdownMenuItem>
                               {d.status !== "Pago" && <DropdownMenuItem onClick={() => { setShowPagamento(d); setPgValor(String(d.saldo_pendente ?? 0)); }} className="gap-2"><DollarSign className="h-3.5 w-3.5" /> Registrar pagamento</DropdownMenuItem>}
-                              {role === "admin" && <DropdownMenuItem onClick={() => { if (confirm("Excluir?")) deleteMutation.mutate(d.id); }} className="gap-2 text-destructive"><Trash2 className="h-3.5 w-3.5" /> Excluir</DropdownMenuItem>}
+                              {role === "admin" && <DropdownMenuItem onClick={() => setDeleteTarget(d)} className="gap-2 text-destructive"><Trash2 className="h-3.5 w-3.5" /> Excluir</DropdownMenuItem>}
                             </DropdownMenuContent>
                           </DropdownMenu>
                         </td>
