@@ -71,7 +71,7 @@ export default function DespesasPessoal() {
     mutationFn: async () => {
       const valor = parseFloat(novaForm.valor_original);
       if (!novaForm.descricao || !novaForm.categoria || isNaN(valor)) throw new Error("Preencha todos os campos obrigatórios");
-      const { error } = await supabase.from("despesas_pessoal").insert({
+      const baseRecord = {
         descricao: novaForm.descricao,
         categoria: novaForm.categoria,
         tipo_despesa: novaForm.tipo_despesa,
@@ -81,8 +81,25 @@ export default function DespesasPessoal() {
         forma_pagamento: novaForm.forma_pagamento || null,
         observacao: novaForm.observacao || null,
         prioridade: novaForm.prioridade as any,
-      });
-      if (error) throw error;
+      };
+
+      if (novaForm.tipo_despesa === "Fixa" && novaForm.data_vencimento) {
+        const baseDate = new Date(novaForm.data_vencimento + "T12:00:00");
+        const day = baseDate.getDate();
+        const baseMonth = baseDate.getMonth();
+        const baseYear = baseDate.getFullYear();
+        const records = [];
+        for (let m = baseMonth; m <= 11; m++) {
+          const d = new Date(baseYear, m, day);
+          if (d.getMonth() !== m) d.setDate(0);
+          records.push({ ...baseRecord, data_vencimento: d.toISOString().split("T")[0] });
+        }
+        const { error } = await supabase.from("despesas_pessoal").insert(records);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.from("despesas_pessoal").insert(baseRecord);
+        if (error) throw error;
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["despesas-pessoal"] });
