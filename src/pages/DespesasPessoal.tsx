@@ -54,6 +54,9 @@ export default function DespesasPessoal() {
   const [editItem, setEditItem] = useState<Tables<"despesas_pessoal"> | null>(null);
   const [editForm, setEditForm] = useState({ descricao: "", categoria: "" as any, tipo_despesa: "Fixa" as any, valor_original: "", data_vencimento: "", forma_pagamento: "", observacao: "", prioridade: "Média" as "Alta" | "Média" | "Baixa" });
 
+  // Delete confirmation modal
+  const [deleteTarget, setDeleteTarget] = useState<Tables<"despesas_pessoal"> | null>(null);
+
 
   const { data: despesas, isLoading } = useQuery({
     queryKey: ["despesas-pessoal"],
