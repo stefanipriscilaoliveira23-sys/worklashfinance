@@ -176,20 +176,33 @@ export default function DespesasEmpresa() {
   });
 
   const editMutation = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (mode: "single" | "future") => {
       if (!editItem) return;
       const valor = parseFloat(editForm.valor_original);
       if (!editForm.descricao || isNaN(valor)) throw new Error("Preencha campos obrigatórios");
-      const novoSaldo = valor - (editItem.valor_pago_total ?? 0);
-      const { error } = await supabase.from("despesas_empresa").update({
+      const updateData: any = {
         descricao: editForm.descricao, categoria: editForm.categoria, tipo_despesa: editForm.tipo_despesa,
-        valor_original: valor, saldo_pendente: Math.max(0, novoSaldo),
-        data_vencimento: editForm.data_vencimento || null, forma_pagamento: editForm.forma_pagamento || null, observacao: editForm.observacao || null,
+        valor_original: valor, forma_pagamento: editForm.forma_pagamento || null, observacao: editForm.observacao || null,
         prioridade: editForm.prioridade as any,
-      }).eq("id", editItem.id);
-      if (error) throw error;
+      };
+      if (mode === "future") {
+        // Get all future with same original description
+        const { data: futuras } = await supabase.from("despesas_empresa").select("id, valor_pago_total")
+          .eq("descricao", editItem.descricao)
+          .gte("data_vencimento", editItem.data_vencimento ?? "");
+        for (const f of (futuras ?? [])) {
+          const saldo = valor - (f.valor_pago_total ?? 0);
+          await supabase.from("despesas_empresa").update({ ...updateData, saldo_pendente: Math.max(0, saldo) }).eq("id", f.id);
+        }
+      } else {
+        const novoSaldo = valor - (editItem.valor_pago_total ?? 0);
+        await supabase.from("despesas_empresa").update({
+          ...updateData, saldo_pendente: Math.max(0, novoSaldo),
+          data_vencimento: editForm.data_vencimento || null,
+        }).eq("id", editItem.id);
+      }
     },
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["despesas-empresa"] }); toast.success("Despesa atualizada"); setEditItem(null); },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["despesas-empresa"] }); toast.success("Despesa(s) atualizada(s)"); setEditItem(null); },
     onError: (e: any) => toast.error(e.message),
   });
 
@@ -528,10 +541,13 @@ export default function DespesasEmpresa() {
             </div>
             <div><Label className="text-muted-foreground">Observação</Label><Textarea value={editForm.observacao} onChange={e => setEditForm(f => ({ ...f, observacao: e.target.value }))} className="bg-secondary/50 border-border" rows={2} /></div>
           </div>
-          <DialogFooter>
+          <DialogFooter className="flex-col sm:flex-row gap-2">
             <Button variant="outline" onClick={() => setEditItem(null)} className="border-border">Cancelar</Button>
-            <Button onClick={() => editMutation.mutate()} disabled={editMutation.isPending} className="gold-gradient text-primary-foreground">
-              {editMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Salvar"}
+            <Button onClick={() => editMutation.mutate("single")} disabled={editMutation.isPending} className="gold-gradient text-primary-foreground">
+              {editMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Salvar somente esta"}
+            </Button>
+            <Button onClick={() => editMutation.mutate("future")} disabled={editMutation.isPending} variant="secondary">
+              {editMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Salvar esta e futuras"}
             </Button>
           </DialogFooter>
         </DialogContent>
