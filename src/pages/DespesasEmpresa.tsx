@@ -180,24 +180,27 @@ export default function DespesasEmpresa() {
       if (!editItem) return;
       const valor = parseFloat(editForm.valor_original);
       if (!editForm.descricao || isNaN(valor)) throw new Error("Preencha campos obrigatórios");
-      const updateData: any = {
+      const baseData: any = {
         descricao: editForm.descricao, categoria: editForm.categoria, tipo_despesa: editForm.tipo_despesa,
         valor_original: valor, forma_pagamento: editForm.forma_pagamento || null, observacao: editForm.observacao || null,
-        prioridade: editForm.prioridade as any, data_vencimento: editForm.data_vencimento || null,
+        prioridade: editForm.prioridade as any,
       };
       if (mode === "future") {
+        // No modo futuras, NÃO altera data_vencimento — só valor, categoria, etc.
         const { data: futuras } = await supabase.from("despesas_empresa").select("id, valor_pago_total")
           .eq("descricao", editItem.descricao)
           .gte("data_vencimento", editItem.data_vencimento ?? "");
         for (const f of (futuras ?? [])) {
           const saldo = valor - (f.valor_pago_total ?? 0);
-          const { error } = await supabase.from("despesas_empresa").update({ ...updateData, saldo_pendente: Math.max(0, saldo) }).eq("id", f.id);
+          const { error } = await supabase.from("despesas_empresa").update({ ...baseData, saldo_pendente: Math.max(0, saldo) }).eq("id", f.id);
           if (error) throw error;
         }
       } else {
+        // No modo single, altera tudo incluindo data_vencimento
         const novoSaldo = valor - (editItem.valor_pago_total ?? 0);
         const { error } = await supabase.from("despesas_empresa").update({
-          ...updateData, saldo_pendente: Math.max(0, novoSaldo),
+          ...baseData, saldo_pendente: Math.max(0, novoSaldo),
+          data_vencimento: editForm.data_vencimento || null,
         }).eq("id", editItem.id);
         if (error) throw error;
       }
