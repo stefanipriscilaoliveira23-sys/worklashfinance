@@ -228,7 +228,9 @@ export default function EventosEspeciais() {
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild><button className="p-1.5 rounded hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors"><MoreHorizontal className="h-4 w-4" /></button></DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className="bg-card border-border">
+                          <DropdownMenuItem onClick={() => openEditDesp(d)} className="gap-2"><Pencil className="h-3.5 w-3.5" /> Editar</DropdownMenuItem>
                           {d.status !== "Pago" && <DropdownMenuItem onClick={() => { setShowPagamento(d); setPgValor(String(d.saldo_pendente ?? 0)); }} className="gap-2"><DollarSign className="h-3.5 w-3.5" /> Registrar pagamento</DropdownMenuItem>}
+                          {role === "admin" && <DropdownMenuItem onClick={() => { if (confirm("Excluir este item?")) deleteDespEvento.mutate(d.id); }} className="gap-2 text-destructive"><Trash2 className="h-3.5 w-3.5" /> Excluir</DropdownMenuItem>}
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </td>
