@@ -152,6 +152,35 @@ export default function EventosEspeciais() {
     onError: () => toast.error("Erro ao excluir — apenas administradores"),
   });
 
+  const deleteDespEvento = useMutation({
+    mutationFn: async (id: string) => { const { error } = await supabase.from("eventos_despesas").delete().eq("id", id); if (error) throw error; },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["eventos-despesas"] }); queryClient.invalidateQueries({ queryKey: ["eventos-despesas-all"] }); toast.success("Item excluído"); },
+    onError: () => toast.error("Erro ao excluir — apenas administradores"),
+  });
+
+  const editDespMutation = useMutation({
+    mutationFn: async () => {
+      if (!editDespesa) return;
+      const valor = parseFloat(editDespForm.valor_original);
+      if (!editDespForm.descricao || isNaN(valor)) throw new Error("Preencha campos obrigatórios");
+      const novoSaldo = valor - (editDespesa.valor_pago_total ?? 0);
+      const novoStatus = novoSaldo <= 0 ? "Pago" : (editDespesa.valor_pago_total ?? 0) > 0 ? "Parcialmente Pago" : editDespForm.categoria_evento === "Pago/Presente" ? "Pago" : "A Vencer";
+      const { error } = await supabase.from("eventos_despesas").update({
+        descricao: editDespForm.descricao, valor_original: valor, saldo_pendente: Math.max(0, novoSaldo),
+        data_vencimento: editDespForm.data_vencimento || null, observacao: editDespForm.observacao || null,
+        categoria_evento: editDespForm.categoria_evento as any, status: novoStatus as any,
+      }).eq("id", editDespesa.id);
+      if (error) throw error;
+    },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["eventos-despesas"] }); queryClient.invalidateQueries({ queryKey: ["eventos-despesas-all"] }); toast.success("Item atualizado"); setEditDespesa(null); },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  const openEditDesp = (d: Tables<"eventos_despesas">) => {
+    setEditDespForm({ descricao: d.descricao, valor_original: String(d.valor_original), data_vencimento: d.data_vencimento ?? "", observacao: d.observacao ?? "", categoria_evento: (d as any).categoria_evento ?? "Fechado" });
+    setEditDespesa(d);
+  };
+
   const getEventTotals = (eventoId: string) => {
     const deps = (todasDespesas ?? []).filter(d => d.evento_id === eventoId);
     const total = deps.reduce((s, d) => s + (d.valor_original ?? 0), 0);
