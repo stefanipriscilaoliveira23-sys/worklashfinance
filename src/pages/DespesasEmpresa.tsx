@@ -176,20 +176,33 @@ export default function DespesasEmpresa() {
   });
 
   const editMutation = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (mode: "single" | "future") => {
       if (!editItem) return;
       const valor = parseFloat(editForm.valor_original);
       if (!editForm.descricao || isNaN(valor)) throw new Error("Preencha campos obrigatórios");
-      const novoSaldo = valor - (editItem.valor_pago_total ?? 0);
-      const { error } = await supabase.from("despesas_empresa").update({
+      const updateData: any = {
         descricao: editForm.descricao, categoria: editForm.categoria, tipo_despesa: editForm.tipo_despesa,
-        valor_original: valor, saldo_pendente: Math.max(0, novoSaldo),
-        data_vencimento: editForm.data_vencimento || null, forma_pagamento: editForm.forma_pagamento || null, observacao: editForm.observacao || null,
+        valor_original: valor, forma_pagamento: editForm.forma_pagamento || null, observacao: editForm.observacao || null,
         prioridade: editForm.prioridade as any,
-      }).eq("id", editItem.id);
-      if (error) throw error;
+      };
+      if (mode === "future") {
+        // Get all future with same original description
+        const { data: futuras } = await supabase.from("despesas_empresa").select("id, valor_pago_total")
+          .eq("descricao", editItem.descricao)
+          .gte("data_vencimento", editItem.data_vencimento ?? "");
+        for (const f of (futuras ?? [])) {
+          const saldo = valor - (f.valor_pago_total ?? 0);
+          await supabase.from("despesas_empresa").update({ ...updateData, saldo_pendente: Math.max(0, saldo) }).eq("id", f.id);
+        }
+      } else {
+        const novoSaldo = valor - (editItem.valor_pago_total ?? 0);
+        await supabase.from("despesas_empresa").update({
+          ...updateData, saldo_pendente: Math.max(0, novoSaldo),
+          data_vencimento: editForm.data_vencimento || null,
+        }).eq("id", editItem.id);
+      }
     },
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["despesas-empresa"] }); toast.success("Despesa atualizada"); setEditItem(null); },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["despesas-empresa"] }); toast.success("Despesa(s) atualizada(s)"); setEditItem(null); },
     onError: (e: any) => toast.error(e.message),
   });
 
