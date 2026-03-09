@@ -54,6 +54,10 @@ export default function EventosEspeciais() {
   const [pgObs, setPgObs] = useState("");
   const [pgDestino, setPgDestino] = useState<"empresa" | "pessoal">("empresa");
 
+  // Edit event expense
+  const [editDespesa, setEditDespesa] = useState<Tables<"eventos_despesas"> | null>(null);
+  const [editDespForm, setEditDespForm] = useState({ descricao: "", valor_original: "", data_vencimento: "", observacao: "", categoria_evento: "Fechado" });
+
   const { data: eventos, isLoading } = useQuery({
     queryKey: ["eventos-especiais"],
     queryFn: async () => {
@@ -148,6 +152,35 @@ export default function EventosEspeciais() {
     onError: () => toast.error("Erro ao excluir — apenas administradores"),
   });
 
+  const deleteDespEvento = useMutation({
+    mutationFn: async (id: string) => { const { error } = await supabase.from("eventos_despesas").delete().eq("id", id); if (error) throw error; },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["eventos-despesas"] }); queryClient.invalidateQueries({ queryKey: ["eventos-despesas-all"] }); toast.success("Item excluído"); },
+    onError: () => toast.error("Erro ao excluir — apenas administradores"),
+  });
+
+  const editDespMutation = useMutation({
+    mutationFn: async () => {
+      if (!editDespesa) return;
+      const valor = parseFloat(editDespForm.valor_original);
+      if (!editDespForm.descricao || isNaN(valor)) throw new Error("Preencha campos obrigatórios");
+      const novoSaldo = valor - (editDespesa.valor_pago_total ?? 0);
+      const novoStatus = novoSaldo <= 0 ? "Pago" : (editDespesa.valor_pago_total ?? 0) > 0 ? "Parcialmente Pago" : editDespForm.categoria_evento === "Pago/Presente" ? "Pago" : "A Vencer";
+      const { error } = await supabase.from("eventos_despesas").update({
+        descricao: editDespForm.descricao, valor_original: valor, saldo_pendente: Math.max(0, novoSaldo),
+        data_vencimento: editDespForm.data_vencimento || null, observacao: editDespForm.observacao || null,
+        categoria_evento: editDespForm.categoria_evento as any, status: novoStatus as any,
+      }).eq("id", editDespesa.id);
+      if (error) throw error;
+    },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["eventos-despesas"] }); queryClient.invalidateQueries({ queryKey: ["eventos-despesas-all"] }); toast.success("Item atualizado"); setEditDespesa(null); },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  const openEditDesp = (d: Tables<"eventos_despesas">) => {
+    setEditDespForm({ descricao: d.descricao, valor_original: String(d.valor_original), data_vencimento: d.data_vencimento ?? "", observacao: d.observacao ?? "", categoria_evento: (d as any).categoria_evento ?? "Fechado" });
+    setEditDespesa(d);
+  };
+
   const getEventTotals = (eventoId: string) => {
     const deps = (todasDespesas ?? []).filter(d => d.evento_id === eventoId);
     const total = deps.reduce((s, d) => s + (d.valor_original ?? 0), 0);
@@ -195,7 +228,9 @@ export default function EventosEspeciais() {
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild><button className="p-1.5 rounded hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors"><MoreHorizontal className="h-4 w-4" /></button></DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className="bg-card border-border">
+                          <DropdownMenuItem onClick={() => openEditDesp(d)} className="gap-2"><Pencil className="h-3.5 w-3.5" /> Editar</DropdownMenuItem>
                           {d.status !== "Pago" && <DropdownMenuItem onClick={() => { setShowPagamento(d); setPgValor(String(d.saldo_pendente ?? 0)); }} className="gap-2"><DollarSign className="h-3.5 w-3.5" /> Registrar pagamento</DropdownMenuItem>}
+                          {role === "admin" && <DropdownMenuItem onClick={() => { if (confirm("Excluir este item?")) deleteDespEvento.mutate(d.id); }} className="gap-2 text-destructive"><Trash2 className="h-3.5 w-3.5" /> Excluir</DropdownMenuItem>}
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </td>
@@ -328,6 +363,37 @@ export default function EventosEspeciais() {
               <Button variant="outline" onClick={() => setShowPagamento(null)} className="border-border">Cancelar</Button>
               <Button onClick={() => registrarPagamento.mutate()} disabled={registrarPagamento.isPending} className="gold-gradient text-primary-foreground">
                 {registrarPagamento.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Confirmar"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Edit event expense modal */}
+        <Dialog open={!!editDespesa} onOpenChange={() => setEditDespesa(null)}>
+          <DialogContent className="bg-card border-border">
+            <DialogHeader><DialogTitle className="text-foreground">Editar Item do Evento</DialogTitle></DialogHeader>
+            <div className="space-y-4">
+              <div><Label className="text-muted-foreground">Descrição *</Label><Input value={editDespForm.descricao} onChange={e => setEditDespForm(f => ({ ...f, descricao: e.target.value }))} className="bg-secondary/50 border-border" /></div>
+              <div><Label className="text-muted-foreground">Categoria *</Label>
+                <Select value={editDespForm.categoria_evento} onValueChange={v => setEditDespForm(f => ({ ...f, categoria_evento: v }))}>
+                  <SelectTrigger className="bg-secondary/50 border-border"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Fechado">Fechado</SelectItem>
+                    <SelectItem value="Precisa Fechar">Precisa Fechar</SelectItem>
+                    <SelectItem value="Pago/Presente">Pago/Presente</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div><Label className="text-muted-foreground">Valor *</Label><Input type="number" value={editDespForm.valor_original} onChange={e => setEditDespForm(f => ({ ...f, valor_original: e.target.value }))} className="bg-secondary/50 border-border" /></div>
+                <div><Label className="text-muted-foreground">Data pagamento</Label><Input type="date" value={editDespForm.data_vencimento} onChange={e => setEditDespForm(f => ({ ...f, data_vencimento: e.target.value }))} className="bg-secondary/50 border-border" /></div>
+              </div>
+              <div><Label className="text-muted-foreground">Observação</Label><Textarea value={editDespForm.observacao} onChange={e => setEditDespForm(f => ({ ...f, observacao: e.target.value }))} className="bg-secondary/50 border-border" rows={2} /></div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setEditDespesa(null)} className="border-border">Cancelar</Button>
+              <Button onClick={() => editDespMutation.mutate()} disabled={editDespMutation.isPending} className="gold-gradient text-primary-foreground">
+                {editDespMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Salvar"}
               </Button>
             </DialogFooter>
           </DialogContent>

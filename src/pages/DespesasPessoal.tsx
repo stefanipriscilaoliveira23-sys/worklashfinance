@@ -54,6 +54,9 @@ export default function DespesasPessoal() {
   const [editItem, setEditItem] = useState<Tables<"despesas_pessoal"> | null>(null);
   const [editForm, setEditForm] = useState({ descricao: "", categoria: "" as any, tipo_despesa: "Fixa" as any, valor_original: "", data_vencimento: "", forma_pagamento: "", observacao: "", prioridade: "Média" as "Alta" | "Média" | "Baixa" });
 
+  // Delete confirmation modal
+  const [deleteTarget, setDeleteTarget] = useState<Tables<"despesas_pessoal"> | null>(null);
+
 
   const { data: despesas, isLoading } = useQuery({
     queryKey: ["despesas-pessoal"],
@@ -126,15 +129,23 @@ export default function DespesasPessoal() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase.from("despesas_pessoal").delete().eq("id", id);
-      if (error) throw error;
+    mutationFn: async ({ id, mode }: { id: string; mode: "single" | "future" }) => {
+      if (mode === "future" && deleteTarget) {
+        const { error } = await supabase.from("despesas_pessoal").delete()
+          .eq("descricao", deleteTarget.descricao)
+          .gte("data_vencimento", deleteTarget.data_vencimento ?? "");
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.from("despesas_pessoal").delete().eq("id", id);
+        if (error) throw error;
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["despesas-pessoal"] });
-      toast.success("Despesa excluída");
+      toast.success("Despesa(s) excluída(s)");
+      setDeleteTarget(null);
     },
-    onError: () => toast.error("Erro ao excluir — apenas administradores"),
+    onError: () => { toast.error("Erro ao excluir — apenas administradores"); setDeleteTarget(null); },
   });
 
   const editMutation = useMutation({
@@ -278,7 +289,7 @@ export default function DespesasPessoal() {
                             <DropdownMenuContent align="end" className="bg-card border-border">
                               <DropdownMenuItem onClick={() => openEdit(d)} className="gap-2"><Pencil className="h-3.5 w-3.5" /> Editar</DropdownMenuItem>
                               {d.status !== "Pago" && <DropdownMenuItem onClick={() => { setShowPagamento(d); setPgValor(String(d.saldo_pendente ?? 0)); }} className="gap-2"><DollarSign className="h-3.5 w-3.5" /> Registrar pagamento</DropdownMenuItem>}
-                              {role === "admin" && <DropdownMenuItem onClick={() => { if (confirm("Excluir?")) deleteMutation.mutate(d.id); }} className="gap-2 text-destructive"><Trash2 className="h-3.5 w-3.5" /> Excluir</DropdownMenuItem>}
+                              {role === "admin" && <DropdownMenuItem onClick={() => setDeleteTarget(d)} className="gap-2 text-destructive"><Trash2 className="h-3.5 w-3.5" /> Excluir</DropdownMenuItem>}
                             </DropdownMenuContent>
                           </DropdownMenu>
                         </td>
@@ -325,7 +336,7 @@ export default function DespesasPessoal() {
                             <DropdownMenuContent align="end" className="bg-card border-border">
                               <DropdownMenuItem onClick={() => openEdit(d)} className="gap-2"><Pencil className="h-3.5 w-3.5" /> Editar</DropdownMenuItem>
                               {d.status !== "Pago" && <DropdownMenuItem onClick={() => { setShowPagamento(d); setPgValor(String(d.saldo_pendente ?? 0)); }} className="gap-2"><DollarSign className="h-3.5 w-3.5" /> Registrar pagamento</DropdownMenuItem>}
-                              {role === "admin" && <DropdownMenuItem onClick={() => { if (confirm("Excluir?")) deleteMutation.mutate(d.id); }} className="gap-2 text-destructive"><Trash2 className="h-3.5 w-3.5" /> Excluir</DropdownMenuItem>}
+                              {role === "admin" && <DropdownMenuItem onClick={() => setDeleteTarget(d)} className="gap-2 text-destructive"><Trash2 className="h-3.5 w-3.5" /> Excluir</DropdownMenuItem>}
                             </DropdownMenuContent>
                           </DropdownMenu>
                         </td>
@@ -476,6 +487,37 @@ export default function DespesasPessoal() {
             <Button onClick={() => editMutation.mutate()} disabled={editMutation.isPending} className="gold-gradient text-primary-foreground">
               {editMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Salvar"}
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete confirmation modal */}
+      <Dialog open={!!deleteTarget} onOpenChange={() => setDeleteTarget(null)}>
+        <DialogContent className="bg-card border-border">
+          <DialogHeader><DialogTitle className="text-foreground">Excluir Despesa</DialogTitle></DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Como deseja excluir <strong className="text-foreground">"{deleteTarget?.descricao}"</strong>?
+          </p>
+          <div className="flex flex-col gap-2 mt-2">
+            <Button
+              variant="outline"
+              className="border-border justify-start"
+              onClick={() => deleteTarget && deleteMutation.mutate({ id: deleteTarget.id, mode: "single" })}
+              disabled={deleteMutation.isPending}
+            >
+              Excluir somente esta
+            </Button>
+            <Button
+              variant="destructive"
+              className="justify-start"
+              onClick={() => deleteTarget && deleteMutation.mutate({ id: deleteTarget.id, mode: "future" })}
+              disabled={deleteMutation.isPending}
+            >
+              Excluir esta e todas futuras com mesmo nome
+            </Button>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setDeleteTarget(null)} className="text-muted-foreground">Cancelar</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
