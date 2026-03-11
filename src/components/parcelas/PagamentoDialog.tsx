@@ -17,7 +17,7 @@ interface Props {
 }
 
 const parseMoneyInput = (value: string) => {
-  const cleaned = value.replace(/[^\d.,-]/g, "").trim();
+  const cleaned = value.replace(/[^^\d.,-]/g, "").trim();
   if (!cleaned) return NaN;
 
   if (cleaned.includes(",") && cleaned.includes(".")) {
@@ -30,6 +30,9 @@ const parseMoneyInput = (value: string) => {
 
   return Number(cleaned);
 };
+
+const getInstallmentValue = (detalhe: Pick<Tables<"parcelas_mentoria_detalhe">, "valor_real" | "valor_sugerido">) =>
+  detalhe.valor_real ?? detalhe.valor_sugerido ?? 0;
 
 export default function PagamentoDialog({ showPagamento, onClose, onSuccess }: Props) {
   const [pgValor, setPgValor] = useState("");
