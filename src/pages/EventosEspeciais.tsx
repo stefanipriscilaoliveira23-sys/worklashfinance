@@ -264,17 +264,20 @@ export default function EventosEspeciais() {
           <div className="rounded-xl border border-border bg-card overflow-hidden">
             <table className="w-full text-sm">
               <thead><tr className="border-b border-border bg-secondary/30">
-                {["Descrição", "Data PGT", "Valor Total", "Valor Pago", "Status", ""].map(h => (
-                  <th key={h} className={`p-3 text-xs font-medium text-muted-foreground ${["Valor Total", "Valor Pago"].includes(h) ? "text-right" : "text-left"}`}>{h}</th>
+                {["Descrição", "Data PGT", "Valor Total", "Valor Pago", "Falta Pagar", "Status", ""].map(h => (
+                  <th key={h} className={`p-3 text-xs font-medium text-muted-foreground ${["Valor Total", "Valor Pago", "Falta Pagar"].includes(h) ? "text-right" : "text-left"}`}>{h}</th>
                 ))}
               </tr></thead>
               <tbody>
-                {items.map(d => (
+                {items.map(d => {
+                  const faltaPagar = Math.max(0, (d.valor_original ?? 0) - (d.valor_pago_total ?? 0));
+                  return (
                   <tr key={d.id} className="border-b border-border/50 hover:bg-surface-hover transition-colors">
                     <td className="p-3 font-medium">{d.descricao}</td>
                     <td className="p-3 text-muted-foreground">{formatDate(d.data_vencimento)}</td>
                     <td className="p-3 text-right">{formatCurrency(d.valor_original)}</td>
                     <td className="p-3 text-right text-muted-foreground">{formatCurrency(d.valor_pago_total)}</td>
+                    <td className="p-3 text-right font-medium" style={{ color: faltaPagar > 0 ? 'hsl(var(--destructive))' : 'hsl(var(--emerald, 142 71% 45%))' }}>{formatCurrency(faltaPagar)}</td>
                     <td className="p-3"><Badge variant="outline" className={STATUS_STYLE[d.status ?? "A Vencer"] ?? STATUS_STYLE["A Vencer"]}>{d.status}</Badge></td>
                     <td className="p-3">
                       <DropdownMenu>
@@ -287,7 +290,8 @@ export default function EventosEspeciais() {
                       </DropdownMenu>
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>
