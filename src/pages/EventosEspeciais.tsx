@@ -58,6 +58,12 @@ export default function EventosEspeciais() {
   const [editDespesa, setEditDespesa] = useState<Tables<"eventos_despesas"> | null>(null);
   const [editDespForm, setEditDespForm] = useState({ descricao: "", valor_original: "", data_vencimento: "", observacao: "", categoria_evento: "Fechado" });
 
+  // Presentes em dinheiro
+  const [showNovoPresente, setShowNovoPresente] = useState(false);
+  const [presenteForm, setPresenteForm] = useState({ de_quem: "", valor: "", data_recebimento: "", observacao: "" });
+  const [editPresente, setEditPresente] = useState<any | null>(null);
+  const [editPresenteForm, setEditPresenteForm] = useState({ de_quem: "", valor: "", data_recebimento: "", observacao: "" });
+
   const { data: eventos, isLoading } = useQuery({
     queryKey: ["eventos-especiais"],
     queryFn: async () => {
