@@ -17,7 +17,7 @@ interface Props {
 }
 
 const parseMoneyInput = (value: string) => {
-  const cleaned = value.replace(/[^^\d.,-]/g, "").trim();
+  const cleaned = value.replace(/[^\d.,-]/g, "").trim();
   if (!cleaned) return NaN;
 
   if (cleaned.includes(",") && cleaned.includes(".")) {
