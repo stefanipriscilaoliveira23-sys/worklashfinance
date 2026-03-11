@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { toast } from "sonner";
-import { Plus, Loader2, ArrowLeft, DollarSign, Trash2, CalendarDays, PartyPopper, MoreHorizontal, Pencil, Download } from "lucide-react";
+import { Plus, Loader2, ArrowLeft, DollarSign, Trash2, CalendarDays, PartyPopper, MoreHorizontal, Pencil, Download, Gift } from "lucide-react";
 import { exportCsv } from "@/lib/exportCsv";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -58,6 +58,12 @@ export default function EventosEspeciais() {
   const [editDespesa, setEditDespesa] = useState<Tables<"eventos_despesas"> | null>(null);
   const [editDespForm, setEditDespForm] = useState({ descricao: "", valor_original: "", data_vencimento: "", observacao: "", categoria_evento: "Fechado" });
 
+  // Presentes em dinheiro
+  const [showNovoPresente, setShowNovoPresente] = useState(false);
+  const [presenteForm, setPresenteForm] = useState({ de_quem: "", valor: "", data_recebimento: "", observacao: "" });
+  const [editPresente, setEditPresente] = useState<any | null>(null);
+  const [editPresenteForm, setEditPresenteForm] = useState({ de_quem: "", valor: "", data_recebimento: "", observacao: "" });
+
   const { data: eventos, isLoading } = useQuery({
     queryKey: ["eventos-especiais"],
     queryFn: async () => {
@@ -82,6 +88,16 @@ export default function EventosEspeciais() {
       const { data, error } = await supabase.from("eventos_despesas").select("*").eq("evento_id", selectedEvento!.id).order("data_vencimento");
       if (error) throw error;
       return data;
+    },
+  });
+
+  const { data: presentesEvento } = useQuery({
+    queryKey: ["eventos-presentes", selectedEvento?.id],
+    enabled: !!selectedEvento,
+    queryFn: async () => {
+      const { data, error } = await supabase.from("eventos_presentes" as any).select("*").eq("evento_id", selectedEvento!.id).order("criado_em");
+      if (error) throw error;
+      return data as any[];
     },
   });
 
@@ -180,6 +196,42 @@ export default function EventosEspeciais() {
     setEditDespForm({ descricao: d.descricao, valor_original: String(d.valor_original), data_vencimento: d.data_vencimento ?? "", observacao: d.observacao ?? "", categoria_evento: (d as any).categoria_evento ?? "Fechado" });
     setEditDespesa(d);
   };
+
+  const criarPresente = useMutation({
+    mutationFn: async () => {
+      if (!selectedEvento) return;
+      const valor = parseFloat(presenteForm.valor);
+      if (!presenteForm.de_quem || isNaN(valor)) throw new Error("Preencha nome e valor");
+      const { error } = await supabase.from("eventos_presentes" as any).insert({
+        evento_id: selectedEvento.id, de_quem: presenteForm.de_quem, valor,
+        data_recebimento: presenteForm.data_recebimento || null, observacao: presenteForm.observacao || null,
+      } as any);
+      if (error) throw error;
+    },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["eventos-presentes"] }); toast.success("Presente adicionado"); setShowNovoPresente(false); setPresenteForm({ de_quem: "", valor: "", data_recebimento: "", observacao: "" }); },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  const editPresenteMutation = useMutation({
+    mutationFn: async () => {
+      if (!editPresente) return;
+      const valor = parseFloat(editPresenteForm.valor);
+      if (!editPresenteForm.de_quem || isNaN(valor)) throw new Error("Preencha nome e valor");
+      const { error } = await supabase.from("eventos_presentes" as any).update({
+        de_quem: editPresenteForm.de_quem, valor,
+        data_recebimento: editPresenteForm.data_recebimento || null, observacao: editPresenteForm.observacao || null,
+      } as any).eq("id", editPresente.id);
+      if (error) throw error;
+    },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["eventos-presentes"] }); toast.success("Presente atualizado"); setEditPresente(null); },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  const deletePresente = useMutation({
+    mutationFn: async (id: string) => { const { error } = await supabase.from("eventos_presentes" as any).delete().eq("id", id); if (error) throw error; },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["eventos-presentes"] }); toast.success("Presente excluído"); },
+    onError: () => toast.error("Erro ao excluir"),
+  });
 
   const getEventTotals = (eventoId: string) => {
     const deps = (todasDespesas ?? []).filter(d => d.evento_id === eventoId);
@@ -310,6 +362,110 @@ export default function EventosEspeciais() {
         {renderDespesaTable(fechado, "Fechado", CATEGORIA_STYLE["Fechado"])}
         {renderDespesaTable(precisaFechar, "Precisa Fechar", CATEGORIA_STYLE["Precisa Fechar"])}
         {renderDespesaTable(pagoPresente, "Pago/Presente", CATEGORIA_STYLE["Pago/Presente"])}
+
+        {/* Presentes em Dinheiro */}
+        <div className="space-y-2 mt-6">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+              <Gift className="h-4 w-4 text-emerald-400" /> Presentes em Dinheiro
+              <Badge variant="outline" className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20">{(presentesEvento ?? []).length}</Badge>
+            </h3>
+            <Button onClick={() => setShowNovoPresente(true)} size="sm" variant="outline" className="border-border text-muted-foreground hover:text-foreground">
+              <Plus className="h-4 w-4 mr-1" /> Adicionar presente
+            </Button>
+          </div>
+          {(() => {
+            const presentes = presentesEvento ?? [];
+            const totalPresentes = presentes.reduce((s: number, p: any) => s + (p.valor ?? 0), 0);
+            return (
+              <>
+                {presentes.length === 0 ? (
+                  <p className="text-xs text-muted-foreground p-4">Nenhum presente registrado</p>
+                ) : (
+                  <div className="rounded-xl border border-border bg-card overflow-hidden">
+                    <table className="w-full text-sm">
+                      <thead><tr className="border-b border-border bg-secondary/30">
+                        <th className="p-3 text-xs font-medium text-muted-foreground text-left">De quem</th>
+                        <th className="p-3 text-xs font-medium text-muted-foreground text-right">Valor</th>
+                        <th className="p-3 text-xs font-medium text-muted-foreground text-left">Data</th>
+                        <th className="p-3 text-xs font-medium text-muted-foreground text-left">Obs</th>
+                        <th className="p-3 text-xs font-medium text-muted-foreground text-left"></th>
+                      </tr></thead>
+                      <tbody>
+                        {presentes.map((p: any) => (
+                          <tr key={p.id} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
+                            <td className="p-3 font-medium">{p.de_quem}</td>
+                            <td className="p-3 text-right text-emerald-400">{formatCurrency(p.valor)}</td>
+                            <td className="p-3 text-muted-foreground">{formatDate(p.data_recebimento)}</td>
+                            <td className="p-3 text-muted-foreground text-xs">{p.observacao ?? "—"}</td>
+                            <td className="p-3">
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild><button className="p-1.5 rounded hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors"><MoreHorizontal className="h-4 w-4" /></button></DropdownMenuTrigger>
+                                <DropdownMenuContent align="end" className="bg-card border-border">
+                                  <DropdownMenuItem onClick={() => { setEditPresenteForm({ de_quem: p.de_quem, valor: String(p.valor), data_recebimento: p.data_recebimento ?? "", observacao: p.observacao ?? "" }); setEditPresente(p); }} className="gap-2"><Pencil className="h-3.5 w-3.5" /> Editar</DropdownMenuItem>
+                                  {role === "admin" && <DropdownMenuItem onClick={() => { if (confirm("Excluir este presente?")) deletePresente.mutate(p.id); }} className="gap-2 text-destructive"><Trash2 className="h-3.5 w-3.5" /> Excluir</DropdownMenuItem>}
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                      <tfoot>
+                        <tr className="border-t border-border bg-secondary/20">
+                          <td className="p-3 font-semibold text-foreground">Total</td>
+                          <td className="p-3 text-right font-bold text-emerald-400">{formatCurrency(totalPresentes)}</td>
+                          <td colSpan={3}></td>
+                        </tr>
+                      </tfoot>
+                    </table>
+                  </div>
+                )}
+              </>
+            );
+          })()}
+        </div>
+
+        {/* Dialog Novo Presente */}
+        <Dialog open={showNovoPresente} onOpenChange={setShowNovoPresente}>
+          <DialogContent className="bg-card border-border">
+            <DialogHeader><DialogTitle className="text-foreground">Adicionar Presente em Dinheiro</DialogTitle></DialogHeader>
+            <div className="space-y-4">
+              <div><Label className="text-muted-foreground">De quem *</Label><Input value={presenteForm.de_quem} onChange={e => setPresenteForm(f => ({ ...f, de_quem: e.target.value }))} className="bg-secondary/50 border-border" placeholder="Nome da pessoa" /></div>
+              <div className="grid grid-cols-2 gap-3">
+                <div><Label className="text-muted-foreground">Valor *</Label><Input type="number" value={presenteForm.valor} onChange={e => setPresenteForm(f => ({ ...f, valor: e.target.value }))} className="bg-secondary/50 border-border" /></div>
+                <div><Label className="text-muted-foreground">Data</Label><Input type="date" value={presenteForm.data_recebimento} onChange={e => setPresenteForm(f => ({ ...f, data_recebimento: e.target.value }))} className="bg-secondary/50 border-border" /></div>
+              </div>
+              <div><Label className="text-muted-foreground">Observação</Label><Textarea value={presenteForm.observacao} onChange={e => setPresenteForm(f => ({ ...f, observacao: e.target.value }))} className="bg-secondary/50 border-border" rows={2} /></div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowNovoPresente(false)} className="border-border">Cancelar</Button>
+              <Button onClick={() => criarPresente.mutate()} disabled={criarPresente.isPending} className="gold-gradient text-primary-foreground">
+                {criarPresente.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Salvar"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Dialog Editar Presente */}
+        <Dialog open={!!editPresente} onOpenChange={() => setEditPresente(null)}>
+          <DialogContent className="bg-card border-border">
+            <DialogHeader><DialogTitle className="text-foreground">Editar Presente</DialogTitle></DialogHeader>
+            <div className="space-y-4">
+              <div><Label className="text-muted-foreground">De quem *</Label><Input value={editPresenteForm.de_quem} onChange={e => setEditPresenteForm(f => ({ ...f, de_quem: e.target.value }))} className="bg-secondary/50 border-border" /></div>
+              <div className="grid grid-cols-2 gap-3">
+                <div><Label className="text-muted-foreground">Valor *</Label><Input type="number" value={editPresenteForm.valor} onChange={e => setEditPresenteForm(f => ({ ...f, valor: e.target.value }))} className="bg-secondary/50 border-border" /></div>
+                <div><Label className="text-muted-foreground">Data</Label><Input type="date" value={editPresenteForm.data_recebimento} onChange={e => setEditPresenteForm(f => ({ ...f, data_recebimento: e.target.value }))} className="bg-secondary/50 border-border" /></div>
+              </div>
+              <div><Label className="text-muted-foreground">Observação</Label><Textarea value={editPresenteForm.observacao} onChange={e => setEditPresenteForm(f => ({ ...f, observacao: e.target.value }))} className="bg-secondary/50 border-border" rows={2} /></div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setEditPresente(null)} className="border-border">Cancelar</Button>
+              <Button onClick={() => editPresenteMutation.mutate()} disabled={editPresenteMutation.isPending} className="gold-gradient text-primary-foreground">
+                {editPresenteMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Salvar"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         <Dialog open={showNovaDespesa} onOpenChange={setShowNovaDespesa}>
           <DialogContent className="bg-card border-border">
