@@ -304,6 +304,44 @@ export type Database = {
         }
         Relationships: []
       }
+      eventos_presentes: {
+        Row: {
+          criado_em: string
+          data_recebimento: string | null
+          de_quem: string
+          evento_id: string
+          id: string
+          observacao: string | null
+          valor: number
+        }
+        Insert: {
+          criado_em?: string
+          data_recebimento?: string | null
+          de_quem: string
+          evento_id: string
+          id?: string
+          observacao?: string | null
+          valor?: number
+        }
+        Update: {
+          criado_em?: string
+          data_recebimento?: string | null
+          de_quem?: string
+          evento_id?: string
+          id?: string
+          observacao?: string | null
+          valor?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "eventos_presentes_evento_id_fkey"
+            columns: ["evento_id"]
+            isOneToOne: false
+            referencedRelation: "eventos_especiais"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       metas: {
         Row: {
           ano: number
