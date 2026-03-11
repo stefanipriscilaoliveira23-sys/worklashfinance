@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { toast } from "sonner";
-import { Plus, Loader2, ArrowLeft, DollarSign, Trash2, CalendarDays, PartyPopper, MoreHorizontal, Pencil, Download } from "lucide-react";
+import { Plus, Loader2, ArrowLeft, DollarSign, Trash2, CalendarDays, PartyPopper, MoreHorizontal, Pencil, Download, Gift } from "lucide-react";
 import { exportCsv } from "@/lib/exportCsv";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
