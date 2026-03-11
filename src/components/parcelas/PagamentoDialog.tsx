@@ -52,7 +52,7 @@ export default function PagamentoDialog({ showPagamento, onClose, onSuccess }: P
     mutationFn: async () => {
       if (!showPagamento) return;
 
-      const valorParcela = showPagamento.valor_real ?? showPagamento.valor_sugerido ?? 0;
+      const valorParcela = getInstallmentValue(showPagamento);
       const jaPagoNaParcela = showPagamento.valor_pago_parcial ?? 0;
       const restanteParcela = Math.max(0, valorParcela - jaPagoNaParcela);
 
@@ -88,46 +88,60 @@ export default function PagamentoDialog({ showPagamento, onClose, onSuccess }: P
       if (upError) throw upError;
 
       // 3. Fetch parent contract to get valor_total and entrada_valor
-      const { data: parentContract } = await supabase
+      const { data: parentContract, error: parentError } = await supabase
         .from("parcelas_mentoria")
         .select("valor_total, entrada_valor")
         .eq("id", showPagamento.parcela_mentoria_id)
         .single();
+      if (parentError) throw parentError;
 
       // 4. Fetch ALL installments to recalculate saldo_parcela for each
-      const { data: allDetalhes } = await supabase
+      const { data: allDetalhes, error: detalhesError } = await supabase
         .from("parcelas_mentoria_detalhe")
         .select("*")
         .eq("parcela_mentoria_id", showPagamento.parcela_mentoria_id)
         .order("numero_parcela");
+      if (detalhesError) throw detalhesError;
 
       if (allDetalhes && parentContract) {
-        const valorTotal = parentContract.valor_total ?? 0;
         const entrada = parentContract.entrada_valor ?? 0;
-        let acumuladoPago = entrada;
+        const valorTotalContrato = parentContract.valor_total ?? 0;
+        const somaParcelas = allDetalhes.reduce((acc, det) => acc + getInstallmentValue(det), 0);
+        const valorTotalEfetivo = Math.max(valorTotalContrato, entrada + somaParcelas);
 
-        // Recalculate saldo_parcela for each installment in order
-        for (const det of allDetalhes) {
-          const valorDet = det.valor_real ?? det.valor_sugerido ?? 0;
-          const pagoDet = det.id === showPagamento.id ? novoPago : (det.valor_pago_parcial ?? 0);
+        let acumuladoPago = entrada;
+        const saldosPorDetalhe = allDetalhes.map((det) => {
+          const valorDet = getInstallmentValue(det);
+          const pagoDet = det.id === showPagamento.id ? novoPago : det.valor_pago_parcial ?? 0;
           const contribuicao = Math.max(0, Math.min(valorDet, pagoDet));
           acumuladoPago += contribuicao;
-          const saldoRestante = Math.max(0, valorTotal - acumuladoPago);
 
-          await supabase
-            .from("parcelas_mentoria_detalhe")
-            .update({ saldo_parcela: saldoRestante })
-            .eq("id", det.id);
-        }
+          return {
+            id: det.id,
+            saldoRestante: Math.max(0, valorTotalEfetivo - acumuladoPago),
+          };
+        });
+
+        await Promise.all(
+          saldosPorDetalhe.map(async ({ id, saldoRestante }) => {
+            const { error } = await supabase
+              .from("parcelas_mentoria_detalhe")
+              .update({ saldo_parcela: saldoRestante })
+              .eq("id", id);
+            if (error) throw error;
+          })
+        );
 
         // 5. Update parent contract status
-        const updatedStatuses = allDetalhes.map(d =>
-          d.id === showPagamento.id ? novoStatus : d.status
-        );
-        const allQuitado = updatedStatuses.every(s => s === "Quitado");
-        const anyAtraso = updatedStatuses.some(s => s === "Atraso");
+        const updatedStatuses = allDetalhes.map((d) => (d.id === showPagamento.id ? novoStatus : d.status));
+        const allQuitado = updatedStatuses.every((s) => s === "Quitado");
+        const anyAtraso = updatedStatuses.some((s) => s === "Atraso");
         const parentStatus = allQuitado ? "Quitado" : anyAtraso ? "Atraso" : "Pendente";
-        await supabase.from("parcelas_mentoria").update({ status_geral: parentStatus as any }).eq("id", showPagamento.parcela_mentoria_id);
+        const { error: parentStatusError } = await supabase
+          .from("parcelas_mentoria")
+          .update({ status_geral: parentStatus as any })
+          .eq("id", showPagamento.parcela_mentoria_id);
+        if (parentStatusError) throw parentStatusError;
       }
     },
     onSuccess: () => {
