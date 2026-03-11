@@ -197,7 +197,41 @@ export default function EventosEspeciais() {
     setEditDespesa(d);
   };
 
-  const getEventTotals = (eventoId: string) => {
+  const criarPresente = useMutation({
+    mutationFn: async () => {
+      if (!selectedEvento) return;
+      const valor = parseFloat(presenteForm.valor);
+      if (!presenteForm.de_quem || isNaN(valor)) throw new Error("Preencha nome e valor");
+      const { error } = await supabase.from("eventos_presentes" as any).insert({
+        evento_id: selectedEvento.id, de_quem: presenteForm.de_quem, valor,
+        data_recebimento: presenteForm.data_recebimento || null, observacao: presenteForm.observacao || null,
+      } as any);
+      if (error) throw error;
+    },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["eventos-presentes"] }); toast.success("Presente adicionado"); setShowNovoPresente(false); setPresenteForm({ de_quem: "", valor: "", data_recebimento: "", observacao: "" }); },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  const editPresenteMutation = useMutation({
+    mutationFn: async () => {
+      if (!editPresente) return;
+      const valor = parseFloat(editPresenteForm.valor);
+      if (!editPresenteForm.de_quem || isNaN(valor)) throw new Error("Preencha nome e valor");
+      const { error } = await supabase.from("eventos_presentes" as any).update({
+        de_quem: editPresenteForm.de_quem, valor,
+        data_recebimento: editPresenteForm.data_recebimento || null, observacao: editPresenteForm.observacao || null,
+      } as any).eq("id", editPresente.id);
+      if (error) throw error;
+    },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["eventos-presentes"] }); toast.success("Presente atualizado"); setEditPresente(null); },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  const deletePresente = useMutation({
+    mutationFn: async (id: string) => { const { error } = await supabase.from("eventos_presentes" as any).delete().eq("id", id); if (error) throw error; },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["eventos-presentes"] }); toast.success("Presente excluído"); },
+    onError: () => toast.error("Erro ao excluir"),
+  });
     const deps = (todasDespesas ?? []).filter(d => d.evento_id === eventoId);
     const total = deps.reduce((s, d) => s + (d.valor_original ?? 0), 0);
     const pago = deps.reduce((s, d) => s + (d.valor_pago_total ?? 0), 0);
