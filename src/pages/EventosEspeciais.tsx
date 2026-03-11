@@ -467,6 +467,7 @@ export default function EventosEspeciais() {
           </DialogContent>
         </Dialog>
 
+        <Dialog open={showNovaDespesa} onOpenChange={setShowNovaDespesa}>
           <DialogContent className="bg-card border-border">
             <DialogHeader><DialogTitle className="text-foreground">Novo Item do Evento</DialogTitle></DialogHeader>
             <div className="space-y-4">
