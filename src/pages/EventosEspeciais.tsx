@@ -91,6 +91,16 @@ export default function EventosEspeciais() {
     },
   });
 
+  const { data: presentesEvento } = useQuery({
+    queryKey: ["eventos-presentes", selectedEvento?.id],
+    enabled: !!selectedEvento,
+    queryFn: async () => {
+      const { data, error } = await supabase.from("eventos_presentes" as any).select("*").eq("evento_id", selectedEvento!.id).order("criado_em");
+      if (error) throw error;
+      return data as any[];
+    },
+  });
+
   const criarEvento = useMutation({
     mutationFn: async () => {
       if (!eventoForm.nome) throw new Error("Nome obrigatório");
