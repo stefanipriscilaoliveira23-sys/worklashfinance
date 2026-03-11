@@ -232,6 +232,8 @@ export default function EventosEspeciais() {
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["eventos-presentes"] }); toast.success("Presente excluído"); },
     onError: () => toast.error("Erro ao excluir"),
   });
+
+  const getEventTotals = (eventoId: string) => {
     const deps = (todasDespesas ?? []).filter(d => d.evento_id === eventoId);
     const total = deps.reduce((s, d) => s + (d.valor_original ?? 0), 0);
     const pago = deps.reduce((s, d) => s + (d.valor_pago_total ?? 0), 0);
