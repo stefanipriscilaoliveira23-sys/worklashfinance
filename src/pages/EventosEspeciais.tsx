@@ -290,7 +290,8 @@ export default function EventosEspeciais() {
                       </DropdownMenu>
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>
