@@ -748,6 +748,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      atualizar_despesas_atrasadas: { Args: never; Returns: undefined }
       atualizar_parcelas_atrasadas: { Args: never; Returns: undefined }
       has_role: {
         Args: {
