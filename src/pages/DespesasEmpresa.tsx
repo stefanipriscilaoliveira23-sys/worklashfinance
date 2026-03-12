@@ -63,6 +63,7 @@ export default function DespesasEmpresa() {
   const { data: despesas, isLoading } = useQuery({
     queryKey: ["despesas-empresa"],
     queryFn: async () => {
+      await supabase.rpc("atualizar_despesas_atrasadas");
       const { data, error } = await supabase.from("despesas_empresa").select("*").order("data_vencimento", { ascending: true });
       if (error) throw error;
       return data;

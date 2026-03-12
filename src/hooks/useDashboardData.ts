@@ -37,6 +37,7 @@ export function useDashboardData(periodStart?: string, periodEnd?: string) {
   const despesasEmpresa = useQuery({
     queryKey: ["despesas-empresa-mes", mesInicio, mesFim],
     queryFn: async () => {
+      await supabase.rpc("atualizar_despesas_atrasadas");
       const { data } = await supabase.from("despesas_empresa").select("*").gte("data_vencimento", mesInicio).lte("data_vencimento", mesFim);
       return data ?? [];
     },
