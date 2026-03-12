@@ -119,7 +119,10 @@ export function useDashboardData(periodStart?: string, periodEnd?: string) {
   );
 
   const allParcelas = allParcelasDet;
-  const parcelasAtraso = allParcelas.filter(p => p.status === "Atraso" || (p.data_vencimento < today && p.status === "Pendente"));
+  const parcelasAtraso = allParcelas.filter(p => 
+    p.data_vencimento >= mesInicio && p.data_vencimento <= mesFim &&
+    (p.status === "Atraso" || (p.data_vencimento < today && p.status === "Pendente"))
+  );
   const alunosInadimplentes = new Set(parcelasAtraso.map(p => {
     const pm = p.parcelas_mentoria as any;
     return pm?.cliente_email || pm?.cliente_nome;

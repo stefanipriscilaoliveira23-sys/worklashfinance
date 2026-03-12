@@ -50,18 +50,6 @@ export default function DashboardOperacional() {
     },
   });
 
-  // All overdue parcelas (not just this month)
-  const { data: allAtrasadas } = useQuery({
-    queryKey: ["op-parcelas-atraso"],
-    queryFn: async () => {
-      const { data } = await supabase
-        .from("parcelas_mentoria_detalhe")
-        .select("*, parcelas_mentoria(*)")
-        .or(`status.eq.Atraso,and(status.eq.Pendente,data_vencimento.lt.${today})`);
-      return data ?? [];
-    },
-  });
-
   if (loadingParcelas) {
     return <div className="flex items-center justify-center h-64"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
   }
@@ -83,7 +71,7 @@ export default function DashboardOperacional() {
     p.data_vencimento >= today && p.data_vencimento <= in7str && p.status !== "Quitado"
   );
 
-  const atrasadas = allAtrasadas ?? [];
+  const atrasadas = emAtraso;
 
   return (
     <div className="space-y-6 animate-fade-in">
