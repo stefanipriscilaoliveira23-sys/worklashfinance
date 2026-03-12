@@ -50,17 +50,10 @@ export default function DashboardOperacional() {
     },
   });
 
-  // All overdue parcelas (not just this month)
-  const { data: allAtrasadas } = useQuery({
-    queryKey: ["op-parcelas-atraso"],
-    queryFn: async () => {
-      const { data } = await supabase
-        .from("parcelas_mentoria_detalhe")
-        .select("*, parcelas_mentoria(*)")
-        .or(`status.eq.Atraso,and(status.eq.Pendente,data_vencimento.lt.${today})`);
-      return data ?? [];
-    },
-  });
+  // Overdue parcelas within selected month only
+  const atrasadas = detalhesMes?.filter((p: any) =>
+    p.status === "Atraso" || (p.data_vencimento < today && p.status === "Pendente")
+  ) ?? [];
 
   if (loadingParcelas) {
     return <div className="flex items-center justify-center h-64"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
