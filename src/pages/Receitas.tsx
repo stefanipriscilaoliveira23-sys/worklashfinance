@@ -282,7 +282,8 @@ export default function Receitas() {
         <DropdownMenuTrigger asChild><button className="p-1.5 rounded hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors"><MoreHorizontal className="h-4 w-4" /></button></DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="bg-card border-border">
           {!isParcela && <DropdownMenuItem onClick={() => setEditReceita(r)} className="gap-2"><Pencil className="h-3.5 w-3.5" /> Editar</DropdownMenuItem>}
-          {!isParcela && <DropdownMenuItem onClick={() => { if (confirm("Excluir esta receita?")) deleteMutation.mutate(r.id); }} className="gap-2 text-destructive"><Trash2 className="h-3.5 w-3.5" /> Excluir</DropdownMenuItem>}
+          {!isParcela && <DropdownMenuItem onClick={() => { if (confirm("Excluir esta receita e suas parcelas vinculadas?")) deleteMutation.mutate(r.id); }} className="gap-2 text-destructive"><Trash2 className="h-3.5 w-3.5" /> Excluir</DropdownMenuItem>}
+          {isParcela && <DropdownMenuItem onClick={() => { if (confirm("Excluir esta parcela?")) { const realId = r.id.replace("parcela-", ""); deleteParcelaMutation.mutate(realId); } }} className="gap-2 text-destructive"><Trash2 className="h-3.5 w-3.5" /> Excluir Parcela</DropdownMenuItem>}
         </DropdownMenuContent>
       </DropdownMenu>
     );
