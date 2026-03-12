@@ -94,28 +94,76 @@ export default function Receitas() {
 
       if (parcelas && parcelas.length > 0) {
         const pmIds = parcelas.map((p) => p.id);
-        // 2. Delete parcelas_mentoria_detalhe for those contracts
+        // 2. Delete pagamentos parciais for detalhe records
+        const { data: detalhes } = await supabase
+          .from("parcelas_mentoria_detalhe")
+          .select("id")
+          .in("parcela_mentoria_id", pmIds);
+        if (detalhes && detalhes.length > 0) {
+          await supabase
+            .from("pagamentos_parciais")
+            .delete()
+            .eq("referencia_tipo", "parcela_mentoria_detalhe")
+            .in("referencia_id", detalhes.map(d => d.id));
+        }
+        // 3. Delete parcelas_mentoria_detalhe for those contracts
         await supabase
           .from("parcelas_mentoria_detalhe")
           .delete()
           .in("parcela_mentoria_id", pmIds);
-        // 3. Delete the parcelas_mentoria contracts themselves
+        // 4. Delete the parcelas_mentoria contracts themselves
         await supabase
           .from("parcelas_mentoria")
           .delete()
           .in("id", pmIds);
       }
 
-      // 4. Delete the receita
+      // 5. Delete the receita
       const { error } = await supabase.from("receitas").delete().eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["receitas-all"] });
       queryClient.invalidateQueries({ queryKey: ["parcelas"] });
+      queryClient.invalidateQueries({ queryKey: ["parcelas-quitadas"] });
       toast.success("Receita e parcelas relacionadas excluídas");
     },
     onError: () => toast.error("Erro ao excluir receita"),
+  });
+
+  // Delete a single parcela detalhe (from Parcelas tab)
+  const deleteParcelaMutation = useMutation({
+    mutationFn: async (parcelaDetalheId: string) => {
+      // 1. Delete pagamentos parciais
+      await supabase
+        .from("pagamentos_parciais")
+        .delete()
+        .eq("referencia_tipo", "parcela_mentoria_detalhe")
+        .eq("referencia_id", parcelaDetalheId);
+
+      // 2. Delete the receita linked to this parcela if exists
+      const { data: receitas } = await supabase
+        .from("receitas")
+        .select("id")
+        .eq("produto_entrada_id", parcelaDetalheId);
+      if (receitas && receitas.length > 0) {
+        await supabase.from("receitas").delete().in("id", receitas.map(r => r.id));
+      }
+
+      // 3. Delete the parcela detalhe
+      const { error } = await supabase
+        .from("parcelas_mentoria_detalhe")
+        .delete()
+        .eq("id", parcelaDetalheId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["receitas-all"] });
+      queryClient.invalidateQueries({ queryKey: ["parcelas"] });
+      queryClient.invalidateQueries({ queryKey: ["parcelas-quitadas"] });
+      toast.success("Parcela excluída com sucesso");
+    },
+    onError: () => toast.error("Erro ao excluir parcela"),
   });
 
   const allReceitas = receitas ?? [];
