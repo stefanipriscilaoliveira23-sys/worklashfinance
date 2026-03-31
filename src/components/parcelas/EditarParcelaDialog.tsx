@@ -35,6 +35,39 @@ export default function EditarParcelaDialog({ parcela, onClose }: Props) {
     setObservacao(p.observacao ?? "");
   };
 
+  const recalcSaldos = async (parcelaMentoriaId: string) => {
+    const { data: parent } = await supabase
+      .from("parcelas_mentoria")
+      .select("valor_total, entrada_valor")
+      .eq("id", parcelaMentoriaId)
+      .single();
+    if (!parent) return;
+
+    const { data: allDet } = await supabase
+      .from("parcelas_mentoria_detalhe")
+      .select("*")
+      .eq("parcela_mentoria_id", parcelaMentoriaId)
+      .order("numero_parcela");
+    if (!allDet) return;
+
+    const entrada = parent.entrada_valor ?? 0;
+    const somaParcelas = allDet.reduce((acc, d) => acc + (d.valor_real ?? d.valor_sugerido ?? 0), 0);
+    const valorTotalEfetivo = Math.max(parent.valor_total ?? 0, entrada + somaParcelas);
+
+    let acumuladoPago = entrada;
+    for (const det of allDet) {
+      const valorDet = det.valor_real ?? det.valor_sugerido ?? 0;
+      const pagoDet = det.valor_pago_parcial ?? 0;
+      const contribuicao = Math.max(0, Math.min(valorDet, pagoDet));
+      acumuladoPago += contribuicao;
+      const saldoRestante = Math.max(0, valorTotalEfetivo - acumuladoPago);
+      await supabase
+        .from("parcelas_mentoria_detalhe")
+        .update({ saldo_parcela: saldoRestante })
+        .eq("id", det.id);
+    }
+  };
+
   const updateMutation = useMutation({
     mutationFn: async () => {
       if (!parcela) return;
@@ -50,6 +83,9 @@ export default function EditarParcelaDialog({ parcela, onClose }: Props) {
         })
         .eq("id", parcela.id);
       if (error) throw error;
+
+      // Recalculate saldo_parcela for all installments in this contract
+      await recalcSaldos(parcela.parcela_mentoria_id);
     },
     onSuccess: () => {
       toast.success("Parcela atualizada");
