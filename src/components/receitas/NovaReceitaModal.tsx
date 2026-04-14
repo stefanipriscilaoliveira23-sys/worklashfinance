@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { AlertTriangle, Loader2, ArrowRight, ArrowLeft } from "lucide-react";
+import { AlertTriangle, Loader2, ArrowRight, ArrowLeft, Plus, Trash2 } from "lucide-react";
 import { format, addDays } from "date-fns";
 import { ClienteAutocomplete } from "@/components/receitas/ClienteAutocomplete";
 import { formatCurrency } from "@/lib/format";
@@ -23,10 +23,17 @@ const PLATAFORMAS: PlataformaOrigem[] = ["Hotmart", "Kiwify", "Eduzz", "Direto P
 const CATEGORIAS: ProdutoCategoria[] = ["Mentorias", "Renovações", "Digitais", "Físicos"];
 const MENTORIA_CATS: ProdutoCategoria[] = ["Mentorias", "Renovações"];
 
+const FORMAS_PAGAMENTO = ["Pix", "Cartão", "Kiwify", "Hotmart", "Transferência", "Boleto", "Outro"];
+
 interface ParcelaRow {
   numero: number;
   data: string;
   valor: number;
+}
+
+interface EntradaLinha {
+  valor: number;
+  forma: string;
 }
 
 export function NovaReceitaModal({ open, onClose }: { open: boolean; onClose: () => void }) {
@@ -51,8 +58,9 @@ export function NovaReceitaModal({ open, onClose }: { open: boolean; onClose: ()
 
   // === DADOS DO PAGAMENTO ===
   const [valorContrato, setValorContrato] = useState(0);
-  const [entradaValor, setEntradaValor] = useState(0);
-  const [entradaFormaPagamento, setEntradaFormaPagamento] = useState("");
+  const [tipoPagamento, setTipoPagamento] = useState<"avista" | "entrada_parcelas" | "">(""); // mentoria only
+  const [entradaLinhas, setEntradaLinhas] = useState<EntradaLinha[]>([{ valor: 0, forma: "Pix" }]);
+  const [entradaFormaPagamento, setEntradaFormaPagamento] = useState(""); // non-mentoria
   const [plataforma, setPlataforma] = useState<PlataformaOrigem>("Direto Pix");
   const [taxaPercent, setTaxaPercent] = useState(0);
   const [taxaValor, setTaxaValor] = useState(0);
@@ -60,8 +68,7 @@ export function NovaReceitaModal({ open, onClose }: { open: boolean; onClose: ()
   const [moeda, setMoeda] = useState("BRL");
   const [taxaCambio, setTaxaCambio] = useState(1);
   const [valorBrl, setValorBrl] = useState(0);
-  const [recebeuTudo, setRecebeuTudo] = useState(false);
-  const [formaPagamentoResto, setFormaPagamentoResto] = useState("");
+  const [formaPagamentoResto, setFormaPagamentoResto] = useState("Pix");
 
   // === PARCELAMENTO (Step 2) ===
   const [periodicidade, setPeriodicidade] = useState<Periodicidade>("Semanal");
@@ -87,27 +94,41 @@ export function NovaReceitaModal({ open, onClose }: { open: boolean; onClose: ()
   });
 
   const isMentoria = MENTORIA_CATS.includes(categoria);
-  const saldoRestante = valorContrato - entradaValor;
-  const temSaldoParcelar = saldoRestante > 0 && !recebeuTudo;
+
+  // Derived values for mentoria
+  const entradaValorTotal = entradaLinhas.reduce((sum, l) => sum + (l.valor || 0), 0);
+  const entradaFormaConcat = entradaLinhas
+    .filter(l => l.valor > 0)
+    .map(l => `${l.forma}: R$${l.valor.toFixed(2).replace('.', ',')}`)
+    .join(" + ");
+
+  const isAvista = tipoPagamento === "avista";
+  const saldoRestante = isAvista ? 0 : valorContrato - entradaValorTotal;
+  const temSaldoParcelar = saldoRestante > 0 && tipoPagamento === "entrada_parcelas";
   const showStep2 = isMentoria && temSaldoParcelar;
 
-  // Auto-calc taxa sobre entrada
+  // For à vista, the "entrada" is the full contract value
+  const valorRecebido = isMentoria
+    ? (isAvista ? valorContrato : entradaValorTotal)
+    : valorContrato;
+
+  // Auto-calc taxa
   useEffect(() => {
-    const base = isMentoria ? entradaValor : valorContrato;
+    const base = valorRecebido;
     const tv = base * (taxaPercent / 100);
     setTaxaValor(tv);
     setValorLiquido(base - tv);
-  }, [entradaValor, valorContrato, taxaPercent, isMentoria]);
+  }, [valorRecebido, taxaPercent]);
 
   // Auto-calc cambio
   useEffect(() => {
-    const base = isMentoria ? entradaValor : valorContrato;
+    const base = valorRecebido;
     if (moeda !== "BRL" && taxaCambio > 0) {
       setValorBrl(base * taxaCambio);
     } else {
       setValorBrl(base);
     }
-  }, [entradaValor, valorContrato, taxaCambio, moeda, isMentoria]);
+  }, [valorRecebido, taxaCambio, moeda]);
 
   // Auto-calc parcelas
   useEffect(() => {
@@ -136,17 +157,45 @@ export function NovaReceitaModal({ open, onClose }: { open: boolean; onClose: ()
     }
   };
 
+  // Entrada lines management
+  const addEntradaLinha = () => {
+    setEntradaLinhas([...entradaLinhas, { valor: 0, forma: "Pix" }]);
+  };
+  const removeEntradaLinha = (idx: number) => {
+    if (entradaLinhas.length <= 1) return;
+    setEntradaLinhas(entradaLinhas.filter((_, i) => i !== idx));
+  };
+  const updateEntradaLinha = (idx: number, field: keyof EntradaLinha, value: any) => {
+    const updated = [...entradaLinhas];
+    updated[idx] = { ...updated[idx], [field]: value };
+    setEntradaLinhas(updated);
+  };
+
   const insertMutation = useMutation({
     mutationFn: async () => {
-      // Para mentorias: valor_bruto = entrada (o que realmente recebeu)
-      // Para digitais/físicos: valor_bruto = valor total da venda
-      const valorBrutoReal = isMentoria ? entradaValor : valorContrato;
-      const taxaValorReal = valorBrutoReal * (taxaPercent / 100);
-      const valorLiquidoReal = valorBrutoReal - taxaValorReal;
+      const valorBrutoFinal = valorRecebido;
+      const taxaValorFinal = valorBrutoFinal * (taxaPercent / 100);
+      const valorLiquidoFinal = valorBrutoFinal - taxaValorFinal;
 
-      // Se mentoria recebeu tudo (entrada = contrato inteiro ou marcou "já recebeu")
-      const valorBrutoFinal = isMentoria && recebeuTudo ? valorContrato : valorBrutoReal;
-      const valorLiquidoFinal = isMentoria && recebeuTudo ? valorContrato - (valorContrato * (taxaPercent / 100)) : valorLiquidoReal;
+      // Build forma_pagamento string
+      let formaPagamentoFinal: string | null = null;
+      if (isMentoria) {
+        if (isAvista) {
+          // For à vista, use the first entrada line's forma or concat
+          formaPagamentoFinal = entradaFormaConcat || entradaLinhas[0]?.forma || null;
+        } else {
+          formaPagamentoFinal = entradaFormaConcat || null;
+        }
+      } else {
+        formaPagamentoFinal = entradaFormaPagamento || null;
+      }
+
+      // Build observacao with payment details
+      let obsCompleta = observacao;
+      if (isMentoria && tipoPagamento === "entrada_parcelas" && entradaLinhas.length > 0) {
+        const detalhes = `Entrada: ${entradaFormaConcat}. Restante (${formatCurrency(saldoRestante)}): ${formaPagamentoResto} em ${quantParcelas}x.`;
+        obsCompleta = obsCompleta ? `${obsCompleta}\n${detalhes}` : detalhes;
+      }
 
       const { data: receita, error } = await supabase.from("receitas").insert({
         data,
@@ -156,18 +205,18 @@ export function NovaReceitaModal({ open, onClose }: { open: boolean; onClose: ()
         plataforma,
         valor_bruto: valorBrutoFinal,
         taxa_plataforma_percentual: taxaPercent,
-        taxa_plataforma_valor: valorBrutoFinal * (taxaPercent / 100),
+        taxa_plataforma_valor: taxaValorFinal,
         valor_liquido: valorLiquidoFinal,
         moeda_original: moeda,
         taxa_cambio: taxaCambio,
         valor_em_brl: moeda !== "BRL" ? valorBrutoFinal * taxaCambio : valorBrutoFinal,
         cliente_nome: clienteNome,
         cliente_email: clienteEmail,
-        forma_pagamento: entradaFormaPagamento || formaPagamentoResto || null,
+        forma_pagamento: formaPagamentoFinal,
         origens_venda: origensVenda,
         produto_entrada_id: produtoEntradaId,
         is_ascensao: origensVenda.includes("Ascensão"),
-        observacao,
+        observacao: obsCompleta,
         lancado_por: user?.id,
         valor_contrato: isMentoria ? valorContrato : null,
         data_inicio_mentoria: dataInicioMentoria || null,
@@ -183,8 +232,8 @@ export function NovaReceitaModal({ open, onClose }: { open: boolean; onClose: ()
           tipo_mentoria: categoria,
           produto_id: produtoId,
           valor_total: valorContrato,
-          entrada_valor: entradaValor,
-          entrada_data: entradaValor > 0 ? data : null,
+          entrada_valor: entradaValorTotal,
+          entrada_data: entradaValorTotal > 0 ? data : null,
           quant_parcelas: quantParcelas,
           periodicidade,
           data_inicio: data,
@@ -199,19 +248,48 @@ export function NovaReceitaModal({ open, onClose }: { open: boolean; onClose: ()
         if (!pmErr) {
           const { data: pm } = await supabase.from("parcelas_mentoria").select("id").eq("receita_id", receita.id).single();
           if (pm) {
+            // Calculate saldo_parcela correctly in chain
+            let acumulado = entradaValorTotal;
+            const valorTotalEfetivo = Math.max(valorContrato, entradaValorTotal + parcelas.reduce((s, p) => s + p.valor, 0));
+
             await supabase.from("parcelas_mentoria_detalhe").insert(
-              parcelas.map((p) => ({
-                parcela_mentoria_id: pm.id,
-                numero_parcela: p.numero,
-                data_vencimento: p.data,
-                valor_sugerido: p.valor,
-                valor_real: p.valor,
-                saldo_parcela: p.valor,
-                status: "Pendente" as const,
-              }))
+              parcelas.map((p) => {
+                acumulado += p.valor;
+                const saldo = Math.max(0, valorTotalEfetivo - acumulado);
+                return {
+                  parcela_mentoria_id: pm.id,
+                  numero_parcela: p.numero,
+                  data_vencimento: p.data,
+                  valor_sugerido: p.valor,
+                  valor_real: p.valor,
+                  saldo_parcela: saldo,
+                  status: "Pendente" as const,
+                };
+              })
             );
           }
         }
+      }
+
+      // If mentoria à vista, create contract with status Quitado (no installments needed)
+      if (isMentoria && isAvista && receita) {
+        await supabase.from("parcelas_mentoria").insert({
+          cliente_nome: clienteNome,
+          cliente_email: clienteEmail,
+          tipo_mentoria: categoria,
+          produto_id: produtoId,
+          valor_total: valorContrato,
+          entrada_valor: valorContrato,
+          entrada_data: data,
+          quant_parcelas: 0,
+          periodicidade: "Mensal",
+          data_inicio: data,
+          is_renovacao: categoria === "Renovações",
+          data_termino_mentoria_anterior: dataTerminoAnterior || null,
+          data_ultimo_acesso_anterior: dataUltimoAcesso || null,
+          receita_id: receita.id,
+          status_geral: "Quitado",
+        });
       }
     },
     onSuccess: () => {
@@ -238,6 +316,18 @@ export function NovaReceitaModal({ open, onClose }: { open: boolean; onClose: ()
       toast.error("Informe o valor da venda");
       return;
     }
+    if (isMentoria && !tipoPagamento) {
+      toast.error("Selecione o tipo de pagamento");
+      return;
+    }
+    if (isMentoria && tipoPagamento === "entrada_parcelas" && entradaValorTotal <= 0) {
+      toast.error("Informe ao menos um valor de entrada");
+      return;
+    }
+    if (isMentoria && tipoPagamento === "entrada_parcelas" && entradaValorTotal >= valorContrato) {
+      toast.error("O valor da entrada é igual ou maior que o contrato. Use 'À vista' nesse caso.");
+      return;
+    }
     if (categoria === "Renovações" && (!dataTerminoAnterior || !dataUltimoAcesso)) {
       toast.error("Preencha as datas da mentoria anterior");
       return;
@@ -256,6 +346,14 @@ export function NovaReceitaModal({ open, onClose }: { open: boolean; onClose: ()
     }
     if (valorContrato <= 0) {
       toast.error("Informe o valor da venda");
+      return false;
+    }
+    if (tipoPagamento === "entrada_parcelas" && entradaValorTotal <= 0) {
+      toast.error("Informe ao menos um valor de entrada");
+      return false;
+    }
+    if (tipoPagamento === "entrada_parcelas" && entradaValorTotal >= valorContrato) {
+      toast.error("O valor da entrada é igual ou maior que o contrato. Use 'À vista' nesse caso.");
       return false;
     }
     return true;
@@ -395,54 +493,156 @@ export function NovaReceitaModal({ open, onClose }: { open: boolean; onClose: ()
                 <Input type="number" step="0.01" value={valorContrato || ""} onChange={(e) => setValorContrato(Number(e.target.value))} className="bg-secondary/50 border-border" />
               </div>
 
-              {isMentoria && (
-                <>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-1.5">
-                      <Label className="text-foreground/80">Valor da entrada (recebido na venda)</Label>
-                      <Input type="number" step="0.01" value={entradaValor || ""} onChange={(e) => setEntradaValor(Number(e.target.value))} className="bg-secondary/50 border-border" placeholder="0 se não houve entrada" />
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label className="text-foreground/80">Forma de pagamento da entrada</Label>
-                      <Input value={entradaFormaPagamento} onChange={(e) => setEntradaFormaPagamento(e.target.value)} placeholder="Ex: Pix, Cartão..." className="bg-secondary/50 border-border" />
-                    </div>
+              {/* === MENTORIA: TIPO DE PAGAMENTO === */}
+              {isMentoria && valorContrato > 0 && (
+                <div className="space-y-3">
+                  <Label className="text-foreground/80">Como foi o pagamento?</Label>
+                  <div className="grid grid-cols-2 gap-3">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setTipoPagamento("avista");
+                        setEntradaLinhas([{ valor: valorContrato, forma: "Pix" }]);
+                      }}
+                      className={`p-3 rounded-lg border text-sm text-left transition-colors ${
+                        tipoPagamento === "avista"
+                          ? "border-primary bg-primary/10 text-foreground"
+                          : "border-border text-muted-foreground hover:border-primary/50"
+                      }`}
+                    >
+                      <strong className="block">💰 À Vista</strong>
+                      <p className="text-xs mt-0.5 opacity-70">Pagou o valor total de uma vez</p>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setTipoPagamento("entrada_parcelas");
+                        setEntradaLinhas([{ valor: 0, forma: "Pix" }]);
+                      }}
+                      className={`p-3 rounded-lg border text-sm text-left transition-colors ${
+                        tipoPagamento === "entrada_parcelas"
+                          ? "border-primary bg-primary/10 text-foreground"
+                          : "border-border text-muted-foreground hover:border-primary/50"
+                      }`}
+                    >
+                      <strong className="block">📋 Entrada + Parcelas</strong>
+                      <p className="text-xs mt-0.5 opacity-70">Deu uma entrada e vai parcelar o resto</p>
+                    </button>
                   </div>
 
-                  {saldoRestante > 0 && (
+                  {/* === À VISTA: como pagou === */}
+                  {tipoPagamento === "avista" && (
                     <div className="p-3 rounded-lg bg-primary/5 border border-primary/20 space-y-3">
+                      <Label className="text-foreground/80 text-sm">Como foi pago?</Label>
+                      {entradaLinhas.map((linha, idx) => (
+                        <div key={idx} className="flex gap-2 items-end">
+                          <div className="flex-1 space-y-1">
+                            {idx === 0 && <Label className="text-xs text-muted-foreground">Valor</Label>}
+                            <Input
+                              type="number"
+                              step="0.01"
+                              value={linha.valor || ""}
+                              onChange={(e) => updateEntradaLinha(idx, "valor", Number(e.target.value))}
+                              className="bg-secondary/50 border-border"
+                              placeholder="0,00"
+                            />
+                          </div>
+                          <div className="flex-1 space-y-1">
+                            {idx === 0 && <Label className="text-xs text-muted-foreground">Forma</Label>}
+                            <Select value={linha.forma} onValueChange={(v) => updateEntradaLinha(idx, "forma", v)}>
+                              <SelectTrigger className="bg-secondary/50 border-border"><SelectValue /></SelectTrigger>
+                              <SelectContent>
+                                {FORMAS_PAGAMENTO.map(f => <SelectItem key={f} value={f}>{f}</SelectItem>)}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          {entradaLinhas.length > 1 && (
+                            <Button variant="ghost" size="icon" className="h-9 w-9 text-destructive shrink-0" onClick={() => removeEntradaLinha(idx)}>
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </div>
+                      ))}
                       <div className="flex items-center justify-between">
-                        <span className="text-sm text-foreground">Saldo restante: <strong className="text-primary">{formatCurrency(saldoRestante)}</strong></span>
+                        <Button type="button" variant="ghost" size="sm" onClick={addEntradaLinha} className="text-xs text-primary">
+                          <Plus className="h-3 w-3 mr-1" /> Adicionar forma de pagamento
+                        </Button>
+                        {entradaLinhas.length > 1 && (
+                          <span className="text-xs text-muted-foreground">
+                            Total: <strong className="text-foreground">{formatCurrency(entradaValorTotal)}</strong>
+                            {Math.abs(entradaValorTotal - valorContrato) > 0.01 && (
+                              <span className="text-destructive ml-1">(diferença: {formatCurrency(valorContrato - entradaValorTotal)})</span>
+                            )}
+                          </span>
+                        )}
                       </div>
-                      <div className="flex gap-3">
-                        <button
-                          type="button"
-                          onClick={() => setRecebeuTudo(true)}
-                          className={`flex-1 p-3 rounded-lg border text-sm text-left transition-colors ${recebeuTudo ? "border-primary bg-primary/10 text-foreground" : "border-border text-muted-foreground hover:border-primary/50"}`}
-                        >
-                          <strong>Já recebeu tudo</strong>
-                          <p className="text-xs mt-0.5">O restante foi pago por outra forma (Pix, transferência, etc)</p>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setRecebeuTudo(false)}
-                          className={`flex-1 p-3 rounded-lg border text-sm text-left transition-colors ${!recebeuTudo ? "border-primary bg-primary/10 text-foreground" : "border-border text-muted-foreground hover:border-primary/50"}`}
-                        >
-                          <strong>Vai parcelar</strong>
-                          <p className="text-xs mt-0.5">O restante será pago em parcelas (Pix parcelado, etc)</p>
-                        </button>
+                    </div>
+                  )}
+
+                  {/* === ENTRADA + PARCELAS === */}
+                  {tipoPagamento === "entrada_parcelas" && (
+                    <div className="p-3 rounded-lg bg-primary/5 border border-primary/20 space-y-3">
+                      <Label className="text-foreground/80 text-sm">Detalhe da entrada</Label>
+                      {entradaLinhas.map((linha, idx) => (
+                        <div key={idx} className="flex gap-2 items-end">
+                          <div className="flex-1 space-y-1">
+                            {idx === 0 && <Label className="text-xs text-muted-foreground">Valor</Label>}
+                            <Input
+                              type="number"
+                              step="0.01"
+                              value={linha.valor || ""}
+                              onChange={(e) => updateEntradaLinha(idx, "valor", Number(e.target.value))}
+                              className="bg-secondary/50 border-border"
+                              placeholder="0,00"
+                            />
+                          </div>
+                          <div className="flex-1 space-y-1">
+                            {idx === 0 && <Label className="text-xs text-muted-foreground">Forma</Label>}
+                            <Select value={linha.forma} onValueChange={(v) => updateEntradaLinha(idx, "forma", v)}>
+                              <SelectTrigger className="bg-secondary/50 border-border"><SelectValue /></SelectTrigger>
+                              <SelectContent>
+                                {FORMAS_PAGAMENTO.map(f => <SelectItem key={f} value={f}>{f}</SelectItem>)}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          {entradaLinhas.length > 1 && (
+                            <Button variant="ghost" size="icon" className="h-9 w-9 text-destructive shrink-0" onClick={() => removeEntradaLinha(idx)}>
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </div>
+                      ))}
+                      <div className="flex items-center justify-between">
+                        <Button type="button" variant="ghost" size="sm" onClick={addEntradaLinha} className="text-xs text-primary">
+                          <Plus className="h-3 w-3 mr-1" /> Adicionar forma de pagamento
+                        </Button>
+                        <span className="text-xs text-muted-foreground">
+                          Entrada: <strong className="text-foreground">{formatCurrency(entradaValorTotal)}</strong>
+                        </span>
                       </div>
 
-                      {recebeuTudo && (
-                        <div className="space-y-1.5">
-                          <Label className="text-foreground/80">Forma de pagamento do restante</Label>
-                          <Input value={formaPagamentoResto} onChange={(e) => setFormaPagamentoResto(e.target.value)} placeholder="Ex: Pix, Transferência..." className="bg-secondary/50 border-border" />
+                      {saldoRestante > 0 && (
+                        <div className="pt-2 border-t border-border/50 space-y-2">
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm text-foreground">Saldo restante: <strong className="text-primary">{formatCurrency(saldoRestante)}</strong></span>
+                          </div>
+                          <div className="space-y-1.5">
+                            <Label className="text-xs text-muted-foreground">Como será pago o restante?</Label>
+                            <Select value={formaPagamentoResto} onValueChange={setFormaPagamentoResto}>
+                              <SelectTrigger className="bg-secondary/50 border-border"><SelectValue /></SelectTrigger>
+                              <SelectContent>
+                                {FORMAS_PAGAMENTO.map(f => <SelectItem key={f} value={f}>{f}</SelectItem>)}
+                              </SelectContent>
+                            </Select>
+                          </div>
                         </div>
                       )}
                     </div>
                   )}
-                </>
+                </div>
               )}
 
+              {/* Non-mentoria payment */}
               {!isMentoria && (
                 <div className="space-y-1.5">
                   <Label className="text-foreground/80">Forma de pagamento</Label>
@@ -456,8 +656,8 @@ export function NovaReceitaModal({ open, onClose }: { open: boolean; onClose: ()
                 </div>
               )}
 
-              {/* Taxa / Moeda — only show when there's actual money received */}
-              {((isMentoria && entradaValor > 0) || !isMentoria) && (
+              {/* Taxa / Moeda */}
+              {valorRecebido > 0 && (
                 <div className="grid grid-cols-3 gap-4">
                   <div className="space-y-1.5">
                     <Label className="text-foreground/80">Taxa plataforma %</Label>
@@ -529,7 +729,7 @@ export function NovaReceitaModal({ open, onClose }: { open: boolean; onClose: ()
               <div className="flex items-center justify-between">
                 <h3 className="text-sm font-medium text-foreground">Parcelamento — {formatCurrency(saldoRestante)}</h3>
                 <span className="text-xs text-muted-foreground">
-                  {entradaValor > 0 ? `Entrada: ${formatCurrency(entradaValor)}` : "Sem entrada"}
+                  Entrada: {formatCurrency(entradaValorTotal)} · Restante via {formaPagamentoResto}
                 </span>
               </div>
 
