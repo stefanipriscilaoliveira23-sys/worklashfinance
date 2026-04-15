@@ -1,10 +1,10 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { Pencil, Plus } from "lucide-react";
+import { Pencil, Plus, AlertTriangle } from "lucide-react";
 import { statusBadge } from "@/pages/ParcelasMentoria";
 import EditarParcelaDialog from "@/components/parcelas/EditarParcelaDialog";
 import AdicionarParcelaDialog from "@/components/parcelas/AdicionarParcelaDialog";
@@ -53,6 +53,16 @@ export default function ParcelaDetalheSheet({ selectedAluna, onClose, onRegistra
     },
   });
 
+  // Count overdue installments from previous months for this contract
+  const primeiroDiaMes = (() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
+  })();
+
+  const atrasadasCount = (detalhes ?? []).filter(
+    d => d.status === "Atraso" && d.data_vencimento < primeiroDiaMes
+  ).length;
+
   const { data: historicoPagamentos } = useQuery({
     queryKey: ["pagamentos-parciais-mentoria", selectedAluna?.id],
     enabled: !!selectedAluna && !!detalhes,
@@ -96,6 +106,15 @@ export default function ParcelaDetalheSheet({ selectedAluna, onClose, onRegistra
                 </Button>
               </div>
             </SheetHeader>
+
+            {atrasadasCount > 0 && (
+              <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 flex items-center gap-2">
+                <AlertTriangle className="h-4 w-4 text-destructive shrink-0" />
+                <p className="text-xs text-destructive font-medium">
+                  ⚠️ Atenção: esta aluna possui {atrasadasCount} parcela(s) em atraso de meses anteriores
+                </p>
+              </div>
+            )}
 
             {/* Summary */}
             <div className="grid grid-cols-2 gap-3">
