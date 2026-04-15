@@ -309,7 +309,15 @@ export default function ParcelasMentoria() {
                         if (p) setSelectedAluna(p);
                       }}
                     >
-                      <td className="p-3 font-medium">{parent.cliente_nome}</td>
+                      <td className="p-3 font-medium">
+                        <div>{parent.cliente_nome}</div>
+                        {(atrasadasPorContrato.get(parent.id) ?? 0) > 0 && (
+                          <div className="text-[10px] text-destructive mt-0.5 flex items-center gap-1">
+                            <AlertTriangle className="h-3 w-3" />
+                            {atrasadasPorContrato.get(parent.id)} parcela(s) em atraso de meses anteriores
+                          </div>
+                        )}
+                      </td>
                       <td className="p-3 text-muted-foreground text-xs">{getProdutoNome(parent)}</td>
                       <td className="p-3 text-xs">
                         <span className="text-primary font-medium">{d.numero_parcela}</span>
