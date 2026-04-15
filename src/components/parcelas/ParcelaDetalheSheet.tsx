@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { Pencil, Plus } from "lucide-react";
+import { Pencil, Plus, AlertTriangle } from "lucide-react";
 import { statusBadge } from "@/pages/ParcelasMentoria";
 import EditarParcelaDialog from "@/components/parcelas/EditarParcelaDialog";
 import AdicionarParcelaDialog from "@/components/parcelas/AdicionarParcelaDialog";
@@ -106,6 +106,15 @@ export default function ParcelaDetalheSheet({ selectedAluna, onClose, onRegistra
                 </Button>
               </div>
             </SheetHeader>
+
+            {atrasadasCount > 0 && (
+              <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 flex items-center gap-2">
+                <AlertTriangle className="h-4 w-4 text-destructive shrink-0" />
+                <p className="text-xs text-destructive font-medium">
+                  ⚠️ Atenção: esta aluna possui {atrasadasCount} parcela(s) em atraso de meses anteriores
+                </p>
+              </div>
+            )}
 
             {/* Summary */}
             <div className="grid grid-cols-2 gap-3">
