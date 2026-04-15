@@ -60,7 +60,8 @@ export default function PLDiario() {
   const { data: despesasEmpFixas } = useQuery({
     queryKey: ["pl-desp-emp-fixas", start, end],
     queryFn: async () => {
-      const { data } = await supabase.from("despesas_empresa").select("*").eq("tipo_despesa", "Fixa").gte("data_vencimento", start).lte("data_vencimento", end);
+      // Exclude parcelado parent expenses (they have total_parcelas set)
+      const { data } = await supabase.from("despesas_empresa").select("*").eq("tipo_despesa", "Fixa").is("total_parcelas" as any, null).gte("data_vencimento", start).lte("data_vencimento", end);
       return data ?? [];
     },
   });
@@ -68,8 +69,18 @@ export default function PLDiario() {
   const { data: despesasEmpVar } = useQuery({
     queryKey: ["pl-desp-emp-var", start, end],
     queryFn: async () => {
-      const { data } = await supabase.from("despesas_empresa").select("*").eq("tipo_despesa", "Variável").gte("data_vencimento", start).lte("data_vencimento", end);
+      // Exclude parcelado parent expenses
+      const { data } = await supabase.from("despesas_empresa").select("*").eq("tipo_despesa", "Variável").is("total_parcelas" as any, null).gte("data_vencimento", start).lte("data_vencimento", end);
       return data ?? [];
+    },
+  });
+
+  // Despesas parceladas - each parcela enters the P&L in its own month
+  const { data: despesasParcelasPL } = useQuery({
+    queryKey: ["pl-desp-parcelas", start, end],
+    queryFn: async () => {
+      const { data } = await supabase.from("despesas_parcelas" as any).select("*").gte("data_vencimento", start).lte("data_vencimento", end);
+      return (data ?? []) as any[];
     },
   });
 
@@ -79,6 +90,7 @@ export default function PLDiario() {
   const allParcelas = parcelasDetalhe ?? [];
   const allFixas = despesasEmpFixas ?? [];
   const allVariaveis = despesasEmpVar ?? [];
+  const allDespParcelas = despesasParcelasPL ?? [];
 
   // Fixed expenses rationed daily - pro-labore from configuracoes
   const fixosMap = useMemo(() => {
