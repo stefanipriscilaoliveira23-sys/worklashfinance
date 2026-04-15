@@ -41,7 +41,7 @@ export default function DespesasEmpresa() {
   const [showNova, setShowNova] = useState(false);
   const [novaForm, setNovaForm] = useState({
     descricao: "", categoria: "" as any, tipo_despesa: "Fixa" as "Fixa" | "Variável",
-    valor_original: "", data_vencimento: "", forma_pagamento: "", observacao: "",
+    valor_original: "", data_vencimento: new Date().toISOString().split("T")[0], forma_pagamento: "", observacao: "",
     prioridade: "Média" as "Alta" | "Média" | "Baixa",
     // CMV fields
     cmv_produto: "", cmv_quantidade: "", cmv_data_compra: "",
@@ -107,10 +107,10 @@ export default function DespesasEmpresa() {
           if (d.getMonth() !== m) d.setDate(0); // last day of prev month if overflowed
           records.push({ ...baseRecord, data_vencimento: d.toISOString().split("T")[0] });
         }
-        const { error } = await supabase.from("despesas_empresa").insert(records);
+        const { error } = await supabase.from("despesas_empresa").insert(records).throwOnError();
         if (error) throw error;
       } else {
-        const { error } = await supabase.from("despesas_empresa").insert(baseRecord);
+        const { error } = await supabase.from("despesas_empresa").insert(baseRecord).throwOnError();
         if (error) throw error;
       }
 
@@ -132,7 +132,7 @@ export default function DespesasEmpresa() {
       queryClient.invalidateQueries({ queryKey: ["estoque-cmv"] });
       toast.success("Despesa criada");
       setShowNova(false);
-      setNovaForm({ descricao: "", categoria: "" as any, tipo_despesa: "Fixa", valor_original: "", data_vencimento: "", forma_pagamento: "", observacao: "", prioridade: "Média", cmv_produto: "", cmv_quantidade: "", cmv_data_compra: "" });
+      setNovaForm({ descricao: "", categoria: "" as any, tipo_despesa: "Fixa", valor_original: "", data_vencimento: new Date().toISOString().split("T")[0], forma_pagamento: "", observacao: "", prioridade: "Média", cmv_produto: "", cmv_quantidade: "", cmv_data_compra: "" });
     },
     onError: (e: any) => toast.error(e.message),
   });
@@ -210,7 +210,7 @@ export default function DespesasEmpresa() {
           .gte("data_vencimento", editItem.data_vencimento ?? "");
         for (const f of (futuras ?? [])) {
           const saldo = valor - (f.valor_pago_total ?? 0);
-          const { error } = await supabase.from("despesas_empresa").update({ ...baseData, saldo_pendente: Math.max(0, saldo) }).eq("id", f.id);
+          const { error } = await supabase.from("despesas_empresa").update({ ...baseData, saldo_pendente: Math.max(0, saldo) }).eq("id", f.id).throwOnError();
           if (error) throw error;
         }
       } else {
@@ -219,7 +219,7 @@ export default function DespesasEmpresa() {
         const { error } = await supabase.from("despesas_empresa").update({
           ...baseData, saldo_pendente: Math.max(0, novoSaldo),
           data_vencimento: editForm.data_vencimento || null,
-        }).eq("id", editItem.id);
+        }).eq("id", editItem.id).throwOnError();
         if (error) throw error;
       }
     },
@@ -237,7 +237,8 @@ export default function DespesasEmpresa() {
     if (tab !== "cmv" && d.tipo_despesa !== tipoFiltro) return false;
     if (filtroCategoria !== "all" && d.categoria !== filtroCategoria) return false;
     if (filtroStatus !== "all" && d.status !== filtroStatus) return false;
-    if (!filterByDate(d.data_vencimento, dateFilter)) return false;
+    // Show items without date OR items matching the date filter
+    if (d.data_vencimento && !filterByDate(d.data_vencimento, dateFilter)) return false;
     if (search) {
       return d.descricao.toLowerCase().includes(search.toLowerCase());
     }
