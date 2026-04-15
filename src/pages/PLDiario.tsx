@@ -123,12 +123,19 @@ export default function PLDiario() {
       else if (d.categoria === "Variável") map[dia].outros += (d.valor_pago_total ?? d.valor_original ?? 0);
       else map[dia].outros += (d.valor_pago_total ?? d.valor_original ?? 0);
     });
+    // Add parcelado expenses by their vencimento date
+    allDespParcelas.forEach((p: any) => {
+      const dia = p.data_pagamento ?? p.data_vencimento;
+      if (!dia || dia < start || dia > end) return;
+      if (!map[dia]) map[dia] = { impostos: 0, comissoes: 0, trafego: 0, taxas: 0, outros: 0 };
+      map[dia].outros += (p.valor ?? 0);
+    });
     allReceitas.forEach(r => {
       if (!map[r.data]) map[r.data] = { impostos: 0, comissoes: 0, trafego: 0, taxas: 0, outros: 0 };
       map[r.data].taxas += (r.taxa_plataforma_valor ?? 0);
     });
     return map;
-  }, [allVariaveis, allReceitas, start, end]);
+  }, [allVariaveis, allDespParcelas, allReceitas, start, end]);
 
   // Build rows
   const rows = useMemo(() => {
