@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { toast } from "sonner";
-import { Plus, Search, Loader2, DollarSign, MoreHorizontal, Pencil, Trash2, Download } from "lucide-react";
+import { Plus, Search, Loader2, DollarSign, MoreHorizontal, Pencil, Trash2, Download, ChevronDown, ChevronRight, AlertTriangle } from "lucide-react";
 import { exportCsv } from "@/lib/exportCsv";
 import MonthNavigator, { getCurrentMonthKey, type DateFilter, filterByDate, getDateRange } from "@/components/MonthNavigator";
 import { Button } from "@/components/ui/button";
@@ -28,6 +28,15 @@ const STATUS_STYLE: Record<string, string> = {
   "Parcialmente Pago": "bg-orange-500/10 text-orange-400 border-orange-500/20",
 };
 
+type TipoPagamento = "unico" | "fixo" | "variavel" | "parcelado";
+
+const TIPO_PAGAMENTO_LABELS: Record<TipoPagamento, string> = {
+  unico: "Único",
+  fixo: "Fixo (Recorrente)",
+  variavel: "Variável",
+  parcelado: "Parcelado",
+};
+
 export default function DespesasEmpresa() {
   const { role } = useAuth();
   const queryClient = useQueryClient();
@@ -37,18 +46,22 @@ export default function DespesasEmpresa() {
   const [filtroStatus, setFiltroStatus] = useState("all");
   const [dateFilter, setDateFilter] = useState<DateFilter>({ type: "month", key: getCurrentMonthKey() });
 
+  // Expanded parcelado groups
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
+
   // New expense modal
   const [showNova, setShowNova] = useState(false);
   const [novaForm, setNovaForm] = useState({
-    descricao: "", categoria: "" as any, tipo_despesa: "Fixa" as "Fixa" | "Variável",
+    descricao: "", categoria: "" as any, tipo_pagamento: "unico" as TipoPagamento,
     valor_original: "", data_vencimento: new Date().toISOString().split("T")[0], forma_pagamento: "", observacao: "",
     prioridade: "Média" as "Alta" | "Média" | "Baixa",
-    // CMV fields
     cmv_produto: "", cmv_quantidade: "", cmv_data_compra: "",
+    total_parcelas: "2",
   });
 
   // Payment modal
   const [showPagamento, setShowPagamento] = useState<Tables<"despesas_empresa"> | null>(null);
+  const [showPagamentoParcela, setShowPagamentoParcela] = useState<any | null>(null);
   const [pgValor, setPgValor] = useState("");
   const [pgData, setPgData] = useState(new Date().toISOString().split("T")[0]);
   const [pgObs, setPgObs] = useState("");
@@ -70,6 +83,15 @@ export default function DespesasEmpresa() {
     },
   });
 
+  const { data: despesasParcelas } = useQuery({
+    queryKey: ["despesas-parcelas"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("despesas_parcelas" as any).select("*").order("numero_parcela", { ascending: true });
+      if (error) throw error;
+      return (data ?? []) as any[];
+    },
+  });
+
   const { data: estoque } = useQuery({
     queryKey: ["estoque-cmv"],
     queryFn: async () => {
@@ -79,24 +101,61 @@ export default function DespesasEmpresa() {
     },
   });
 
+  const getTipoDespesaFromTipoPagamento = (tp: TipoPagamento): "Fixa" | "Variável" => {
+    if (tp === "fixo") return "Fixa";
+    return "Variável";
+  };
+
   const criarDespesa = useMutation({
     mutationFn: async () => {
       const valor = parseFloat(novaForm.valor_original);
       if (!novaForm.descricao || !novaForm.categoria || isNaN(valor)) throw new Error("Preencha todos os campos obrigatórios");
 
-      const baseRecord = {
-        descricao: novaForm.descricao,
-        categoria: novaForm.categoria,
-        tipo_despesa: novaForm.tipo_despesa,
-        valor_original: valor,
-        saldo_pendente: valor,
-        data_vencimento: novaForm.data_vencimento || null,
-        forma_pagamento: novaForm.forma_pagamento || null,
-        observacao: novaForm.observacao || null,
-        prioridade: novaForm.prioridade as any,
-      };
+      const tipoDespesa = getTipoDespesaFromTipoPagamento(novaForm.tipo_pagamento);
 
-      if (novaForm.tipo_despesa === "Fixa" && novaForm.data_vencimento) {
+      if (novaForm.tipo_pagamento === "parcelado") {
+        const numParcelas = parseInt(novaForm.total_parcelas);
+        if (isNaN(numParcelas) || numParcelas < 2) throw new Error("Número de parcelas deve ser no mínimo 2");
+
+        // Create parent expense
+        const { data: pai, error: errPai } = await supabase.from("despesas_empresa").insert({
+          descricao: novaForm.descricao,
+          categoria: novaForm.categoria,
+          tipo_despesa: "Variável" as any,
+          valor_original: valor,
+          saldo_pendente: valor,
+          data_vencimento: novaForm.data_vencimento || null,
+          forma_pagamento: novaForm.forma_pagamento || null,
+          observacao: `Parcelado em ${numParcelas}x. ${novaForm.observacao || ""}`.trim(),
+          prioridade: novaForm.prioridade as any,
+          total_parcelas: numParcelas,
+        } as any).select("id").single().throwOnError();
+        if (errPai) throw errPai;
+
+        // Generate parcelas
+        const valorParcela = Math.floor((valor / numParcelas) * 100) / 100;
+        const parcelas: any[] = [];
+        const baseDate = new Date(novaForm.data_vencimento + "T12:00:00");
+
+        for (let i = 0; i < numParcelas; i++) {
+          const dt = new Date(baseDate.getFullYear(), baseDate.getMonth() + i, baseDate.getDate());
+          if (dt.getDate() !== baseDate.getDate()) dt.setDate(0);
+          const isLast = i === numParcelas - 1;
+          const vp = isLast ? Math.round((valor - valorParcela * (numParcelas - 1)) * 100) / 100 : valorParcela;
+
+          parcelas.push({
+            despesa_id: (pai as any).id,
+            numero_parcela: i + 1,
+            total_parcelas: numParcelas,
+            data_vencimento: dt.toISOString().split("T")[0],
+            valor: vp,
+            status: dt < new Date() ? "Em Atraso" : "A Vencer",
+          });
+        }
+
+        const { error: errParc } = await supabase.from("despesas_parcelas" as any).insert(parcelas).throwOnError();
+        if (errParc) throw errParc;
+      } else if (novaForm.tipo_pagamento === "fixo" && novaForm.data_vencimento) {
         const baseDate = new Date(novaForm.data_vencimento + "T12:00:00");
         const day = baseDate.getDate();
         const baseMonth = baseDate.getMonth();
@@ -104,13 +163,25 @@ export default function DespesasEmpresa() {
         const records = [];
         for (let m = baseMonth; m <= 11; m++) {
           const d = new Date(baseYear, m, day);
-          if (d.getMonth() !== m) d.setDate(0); // last day of prev month if overflowed
-          records.push({ ...baseRecord, data_vencimento: d.toISOString().split("T")[0] });
+          if (d.getMonth() !== m) d.setDate(0);
+          records.push({
+            descricao: novaForm.descricao, categoria: novaForm.categoria, tipo_despesa: "Fixa" as any,
+            valor_original: valor, saldo_pendente: valor,
+            data_vencimento: d.toISOString().split("T")[0],
+            forma_pagamento: novaForm.forma_pagamento || null,
+            observacao: novaForm.observacao || null, prioridade: novaForm.prioridade as any,
+          });
         }
         const { error } = await supabase.from("despesas_empresa").insert(records).throwOnError();
         if (error) throw error;
       } else {
-        const { error } = await supabase.from("despesas_empresa").insert(baseRecord).throwOnError();
+        const { error } = await supabase.from("despesas_empresa").insert({
+          descricao: novaForm.descricao, categoria: novaForm.categoria, tipo_despesa: tipoDespesa,
+          valor_original: valor, saldo_pendente: valor,
+          data_vencimento: novaForm.data_vencimento || null,
+          forma_pagamento: novaForm.forma_pagamento || null,
+          observacao: novaForm.observacao || null, prioridade: novaForm.prioridade as any,
+        }).throwOnError();
         if (error) throw error;
       }
 
@@ -120,19 +191,17 @@ export default function DespesasEmpresa() {
         await supabase.from("estoque_cmv").insert({
           produto_descricao: novaForm.cmv_produto,
           data_compra: novaForm.cmv_data_compra || novaForm.data_vencimento || new Date().toISOString().split("T")[0],
-          valor_total: valor,
-          quantidade: qty,
-          custo_unitario: valor / qty,
-          valor_restante: valor,
+          valor_total: valor, quantidade: qty, custo_unitario: valor / qty, valor_restante: valor,
         });
       }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["despesas-empresa"] });
+      queryClient.invalidateQueries({ queryKey: ["despesas-parcelas"] });
       queryClient.invalidateQueries({ queryKey: ["estoque-cmv"] });
       toast.success("Despesa criada");
       setShowNova(false);
-      setNovaForm({ descricao: "", categoria: "" as any, tipo_despesa: "Fixa", valor_original: "", data_vencimento: new Date().toISOString().split("T")[0], forma_pagamento: "", observacao: "", prioridade: "Média", cmv_produto: "", cmv_quantidade: "", cmv_data_compra: "" });
+      setNovaForm({ descricao: "", categoria: "" as any, tipo_pagamento: "unico", valor_original: "", data_vencimento: new Date().toISOString().split("T")[0], forma_pagamento: "", observacao: "", prioridade: "Média", cmv_produto: "", cmv_quantidade: "", cmv_data_compra: "", total_parcelas: "2" });
     },
     onError: (e: any) => toast.error(e.message),
   });
@@ -144,11 +213,8 @@ export default function DespesasEmpresa() {
       if (isNaN(valor) || valor <= 0) throw new Error("Valor inválido");
 
       await supabase.from("pagamentos_parciais").insert({
-        referencia_id: showPagamento.id,
-        referencia_tipo: "despesa_empresa",
-        valor_pago: valor,
-        data_pagamento: pgData,
-        observacao: pgObs || null,
+        referencia_id: showPagamento.id, referencia_tipo: "despesa_empresa",
+        valor_pago: valor, data_pagamento: pgData, observacao: pgObs || null,
       });
 
       const novoPago = (showPagamento.valor_pago_total ?? 0) + valor;
@@ -156,18 +222,52 @@ export default function DespesasEmpresa() {
       const novoStatus = novoSaldo <= 0 ? "Pago" : "Parcialmente Pago";
 
       await supabase.from("despesas_empresa").update({
-        valor_pago_total: novoPago,
-        saldo_pendente: novoSaldo,
-        status: novoStatus as any,
+        valor_pago_total: novoPago, saldo_pendente: novoSaldo, status: novoStatus as any,
         data_pagamento: novoSaldo <= 0 ? pgData : showPagamento.data_pagamento,
       }).eq("id", showPagamento.id);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["despesas-empresa"] });
       toast.success("Pagamento registrado");
-      setShowPagamento(null);
-      setPgValor("");
-      setPgObs("");
+      setShowPagamento(null); setPgValor(""); setPgObs("");
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  const registrarPagamentoParcela = useMutation({
+    mutationFn: async () => {
+      if (!showPagamentoParcela) return;
+      const valor = parseFloat(pgValor);
+      if (isNaN(valor) || valor <= 0) throw new Error("Valor inválido");
+
+      const parcelaValor = showPagamentoParcela.valor ?? 0;
+      const novoStatus = valor >= parcelaValor ? "Pago" : "Parcialmente Pago";
+
+      await supabase.from("despesas_parcelas" as any).update({
+        status: novoStatus,
+        data_pagamento: pgData,
+      } as any).eq("id", showPagamentoParcela.id).throwOnError();
+
+      // Update parent expense totals
+      const despesaId = showPagamentoParcela.despesa_id;
+      const { data: allParc } = await supabase.from("despesas_parcelas" as any).select("*").eq("despesa_id", despesaId);
+      const parcsList = (allParc ?? []) as any[];
+      const totalPago = parcsList.filter(p => p.status === "Pago").reduce((s: number, p: any) => s + (p.valor ?? 0), 0);
+      const { data: parentData } = await supabase.from("despesas_empresa").select("valor_original").eq("id", despesaId).single();
+      const parentValor = parentData?.valor_original ?? 0;
+      const allPaid = parcsList.every(p => p.status === "Pago");
+
+      await supabase.from("despesas_empresa").update({
+        valor_pago_total: totalPago,
+        saldo_pendente: Math.max(0, parentValor - totalPago),
+        status: allPaid ? "Pago" as any : totalPago > 0 ? "Parcialmente Pago" as any : "A Vencer" as any,
+      }).eq("id", despesaId);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["despesas-empresa"] });
+      queryClient.invalidateQueries({ queryKey: ["despesas-parcelas"] });
+      toast.success("Parcela paga");
+      setShowPagamentoParcela(null); setPgValor(""); setPgObs("");
     },
     onError: (e: any) => toast.error(e.message),
   });
@@ -175,7 +275,6 @@ export default function DespesasEmpresa() {
   const deleteMutation = useMutation({
     mutationFn: async ({ id, mode }: { id: string; mode: "single" | "future" }) => {
       if (mode === "future" && deleteTarget) {
-        // Delete this + all future with same description
         const { error } = await supabase.from("despesas_empresa").delete()
           .eq("descricao", deleteTarget.descricao)
           .gte("data_vencimento", deleteTarget.data_vencimento ?? "");
@@ -187,6 +286,7 @@ export default function DespesasEmpresa() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["despesas-empresa"] });
+      queryClient.invalidateQueries({ queryKey: ["despesas-parcelas"] });
       toast.success("Despesa(s) excluída(s)");
       setDeleteTarget(null);
     },
@@ -204,23 +304,18 @@ export default function DespesasEmpresa() {
         prioridade: editForm.prioridade as any,
       };
       if (mode === "future") {
-        // No modo futuras, NÃO altera data_vencimento — só valor, categoria, etc.
         const { data: futuras } = await supabase.from("despesas_empresa").select("id, valor_pago_total")
           .eq("descricao", editItem.descricao)
           .gte("data_vencimento", editItem.data_vencimento ?? "");
         for (const f of (futuras ?? [])) {
           const saldo = valor - (f.valor_pago_total ?? 0);
-          const { error } = await supabase.from("despesas_empresa").update({ ...baseData, saldo_pendente: Math.max(0, saldo) }).eq("id", f.id).throwOnError();
-          if (error) throw error;
+          await supabase.from("despesas_empresa").update({ ...baseData, saldo_pendente: Math.max(0, saldo) }).eq("id", f.id).throwOnError();
         }
       } else {
-        // No modo single, altera tudo incluindo data_vencimento
         const novoSaldo = valor - (editItem.valor_pago_total ?? 0);
-        const { error } = await supabase.from("despesas_empresa").update({
-          ...baseData, saldo_pendente: Math.max(0, novoSaldo),
-          data_vencimento: editForm.data_vencimento || null,
+        await supabase.from("despesas_empresa").update({
+          ...baseData, saldo_pendente: Math.max(0, novoSaldo), data_vencimento: editForm.data_vencimento || null,
         }).eq("id", editItem.id).throwOnError();
-        if (error) throw error;
       }
     },
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["despesas-empresa"] }); toast.success("Despesa(s) atualizada(s)"); setEditItem(null); },
@@ -232,25 +327,41 @@ export default function DespesasEmpresa() {
     setEditItem(d);
   };
 
+  // Filter logic
+  const isParceladoTab = tab === "parcelado";
   const tipoFiltro = tab === "fixas" ? "Fixa" : "Variável";
+
+  // For parcelado tab, show parent expenses that have total_parcelas
+  const parceladoPais = (despesas ?? []).filter(d => (d as any).total_parcelas != null && (d as any).total_parcelas > 0);
+
   const filtered = (despesas ?? []).filter(d => {
+    if (isParceladoTab) return false; // handled separately
     if (tab !== "cmv" && d.tipo_despesa !== tipoFiltro) return false;
+    // Exclude parcelado parent expenses from fixas/variaveis tabs
+    if ((d as any).total_parcelas != null && (d as any).total_parcelas > 0) return false;
     if (filtroCategoria !== "all" && d.categoria !== filtroCategoria) return false;
     if (filtroStatus !== "all" && d.status !== filtroStatus) return false;
-    // Show items without date OR items matching the date filter
     if (d.data_vencimento && !filterByDate(d.data_vencimento, dateFilter)) return false;
-    if (search) {
-      return d.descricao.toLowerCase().includes(search.toLowerCase());
-    }
+    if (search) return d.descricao.toLowerCase().includes(search.toLowerCase());
     return true;
   });
 
   const { start: mesStart, end: mesEnd } = getDateRange(dateFilter);
-  const mesAtual = (despesas ?? []).filter(d => d.data_vencimento && d.data_vencimento >= mesStart && d.data_vencimento <= mesEnd);
-  const totalMes = mesAtual.reduce((s, d) => s + (d.valor_original ?? 0), 0);
-  const pagoMes = mesAtual.reduce((s, d) => s + (d.valor_pago_total ?? 0), 0);
-  const emAtraso = mesAtual.filter(d => d.status === "Em Atraso").reduce((s, d) => s + (d.saldo_pendente ?? 0), 0);
-  const pendenteMes = mesAtual.filter(d => d.status === "A Vencer").reduce((s, d) => s + (d.saldo_pendente ?? 0), 0);
+  const mesAtual = (despesas ?? []).filter(d => d.data_vencimento && d.data_vencimento >= mesStart && d.data_vencimento <= mesEnd && !((d as any).total_parcelas > 0));
+  // Include parcelas from despesas_parcelas in the period for summary
+  const parcelasNoPeriodo = (despesasParcelas ?? []).filter((p: any) => p.data_vencimento >= mesStart && p.data_vencimento <= mesEnd);
+  const totalMes = mesAtual.reduce((s, d) => s + (d.valor_original ?? 0), 0) + parcelasNoPeriodo.reduce((s: number, p: any) => s + (p.valor ?? 0), 0);
+  const pagoMes = mesAtual.reduce((s, d) => s + (d.valor_pago_total ?? 0), 0) + parcelasNoPeriodo.filter((p: any) => p.status === "Pago").reduce((s: number, p: any) => s + (p.valor ?? 0), 0);
+  const emAtraso = mesAtual.filter(d => d.status === "Em Atraso").reduce((s, d) => s + (d.saldo_pendente ?? 0), 0) + parcelasNoPeriodo.filter((p: any) => p.status === "Em Atraso").reduce((s: number, p: any) => s + (p.valor ?? 0), 0);
+  const pendenteMes = mesAtual.filter(d => d.status === "A Vencer").reduce((s, d) => s + (d.saldo_pendente ?? 0), 0) + parcelasNoPeriodo.filter((p: any) => p.status === "A Vencer").reduce((s: number, p: any) => s + (p.valor ?? 0), 0);
+
+  const toggleGroup = (id: string) => {
+    setExpandedGroups(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
 
   const renderTable = (items: typeof filtered) => (
     <div className="rounded-xl border border-border bg-card overflow-hidden">
@@ -306,6 +417,118 @@ export default function DespesasEmpresa() {
     </div>
   );
 
+  const renderParceladoTab = () => {
+    const allParcelas = despesasParcelas ?? [];
+
+    // Filter parcelado parents that have at least one parcela in this period
+    const paisComParcelasNoPeriodo = parceladoPais.filter(pai => {
+      const parcs = allParcelas.filter((p: any) => p.despesa_id === pai.id);
+      if (search && !pai.descricao.toLowerCase().includes(search.toLowerCase())) return false;
+      if (filtroCategoria !== "all" && pai.categoria !== filtroCategoria) return false;
+      // Show group if ANY parcela is in period, or no date filter
+      return parcs.some((p: any) => filterByDate(p.data_vencimento, dateFilter));
+    });
+
+    // Check for parcelas em atraso de meses anteriores
+    const hoje = new Date();
+    const primeiroDiaMes = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, "0")}-01`;
+
+    return (
+      <div className="space-y-3">
+        {paisComParcelasNoPeriodo.length === 0 && (
+          <div className="rounded-xl border border-border bg-card p-12 text-center text-muted-foreground">Nenhuma despesa parcelada encontrada</div>
+        )}
+        {paisComParcelasNoPeriodo.map(pai => {
+          const parcs = allParcelas.filter((p: any) => p.despesa_id === pai.id).sort((a: any, b: any) => a.numero_parcela - b.numero_parcela);
+          const pagas = parcs.filter((p: any) => p.status === "Pago").length;
+          const atrasadas = parcs.filter((p: any) => p.status === "Em Atraso").length;
+          const atrasadasAntigas = parcs.filter((p: any) => p.status === "Em Atraso" && p.data_vencimento < primeiroDiaMes).length;
+          const isExpanded = expandedGroups.has(pai.id);
+
+          return (
+            <div key={pai.id} className="rounded-xl border border-border bg-card overflow-hidden">
+              {/* Group header */}
+              <button
+                onClick={() => toggleGroup(pai.id)}
+                className="w-full flex items-center justify-between p-4 hover:bg-surface-hover transition-colors text-left"
+              >
+                <div className="flex items-center gap-3">
+                  {isExpanded ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
+                  <div>
+                    <p className="font-medium text-foreground">{pai.descricao}</p>
+                    <p className="text-xs text-muted-foreground">{pai.categoria} • {formatCurrency(pai.valor_original)} total</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  {atrasadasAntigas > 0 && (
+                    <span className="flex items-center gap-1 text-xs text-destructive">
+                      <AlertTriangle className="h-3.5 w-3.5" /> {atrasadasAntigas} em atraso
+                    </span>
+                  )}
+                  <Badge variant="outline" className={atrasadas > 0 ? STATUS_STYLE["Em Atraso"] : pagas === parcs.length ? STATUS_STYLE["Pago"] : STATUS_STYLE["A Vencer"]}>
+                    {pagas}/{parcs.length} pagas
+                  </Badge>
+                </div>
+              </button>
+
+              {atrasadasAntigas > 0 && !isExpanded && (
+                <div className="px-4 pb-3 -mt-1">
+                  <p className="text-xs text-destructive flex items-center gap-1">
+                    <AlertTriangle className="h-3 w-3" /> ⚠️ Atenção: {atrasadasAntigas} parcela(s) em atraso de meses anteriores
+                  </p>
+                </div>
+              )}
+
+              {/* Expanded parcelas */}
+              {isExpanded && (
+                <div className="border-t border-border">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="bg-secondary/20">
+                        {["Parcela", "Vencimento", "Valor", "Status", "Pagamento", "Ações"].map(h => (
+                          <th key={h} className={`p-2.5 text-xs font-medium text-muted-foreground ${h === "Valor" ? "text-right" : "text-left"}`}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {parcs.map((p: any) => (
+                        <tr key={p.id} className="border-t border-border/30 hover:bg-surface-hover transition-colors">
+                          <td className="p-2.5 text-xs font-medium">P{p.numero_parcela}/{p.total_parcelas}</td>
+                          <td className="p-2.5 text-xs text-muted-foreground">{formatDate(p.data_vencimento)}</td>
+                          <td className="p-2.5 text-xs text-right">{formatCurrency(p.valor)}</td>
+                          <td className="p-2.5">
+                            <Badge variant="outline" className={`text-[10px] ${STATUS_STYLE[p.status ?? "A Vencer"]}`}>{p.status}</Badge>
+                          </td>
+                          <td className="p-2.5 text-xs text-muted-foreground">{formatDate(p.data_pagamento)}</td>
+                          <td className="p-2.5">
+                            {p.status !== "Pago" && (
+                              <Button
+                                size="sm" variant="ghost"
+                                className="h-7 text-xs text-muted-foreground hover:text-foreground"
+                                onClick={() => { setShowPagamentoParcela(p); setPgValor(String(p.valor ?? 0)); setPgData(new Date().toISOString().split("T")[0]); }}
+                              >
+                                <DollarSign className="h-3 w-3 mr-1" /> Pagar
+                              </Button>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
+
+  // Valor por parcela preview
+  const valorTotal = parseFloat(novaForm.valor_original) || 0;
+  const numParcelas = parseInt(novaForm.total_parcelas) || 2;
+  const valorParcela = numParcelas > 0 ? valorTotal / numParcelas : 0;
+
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -350,6 +573,7 @@ export default function DespesasEmpresa() {
         <TabsList className="bg-secondary/50 border border-border">
           <TabsTrigger value="fixas">Fixas</TabsTrigger>
           <TabsTrigger value="variaveis">Variáveis</TabsTrigger>
+          <TabsTrigger value="parcelado">Parcelado</TabsTrigger>
           <TabsTrigger value="cmv">CMV</TabsTrigger>
         </TabsList>
 
@@ -377,6 +601,7 @@ export default function DespesasEmpresa() {
 
         <TabsContent value="fixas">{isLoading ? <div className="flex justify-center p-16"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div> : renderTable(filtered)}</TabsContent>
         <TabsContent value="variaveis">{isLoading ? <div className="flex justify-center p-16"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div> : renderTable(filtered)}</TabsContent>
+        <TabsContent value="parcelado">{isLoading ? <div className="flex justify-center p-16"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div> : renderParceladoTab()}</TabsContent>
         <TabsContent value="cmv">
           <div className="rounded-xl border border-border bg-card overflow-hidden">
             <div className="overflow-x-auto">
@@ -430,12 +655,13 @@ export default function DespesasEmpresa() {
                 </Select>
               </div>
               <div>
-                <Label className="text-muted-foreground">Tipo</Label>
-                <Select value={novaForm.tipo_despesa} onValueChange={v => setNovaForm(f => ({ ...f, tipo_despesa: v as any }))}>
+                <Label className="text-muted-foreground">Tipo de Pagamento</Label>
+                <Select value={novaForm.tipo_pagamento} onValueChange={v => setNovaForm(f => ({ ...f, tipo_pagamento: v as TipoPagamento }))}>
                   <SelectTrigger className="bg-secondary/50 border-border"><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="Fixa">Fixa</SelectItem>
-                    <SelectItem value="Variável">Variável</SelectItem>
+                    {(Object.entries(TIPO_PAGAMENTO_LABELS) as [TipoPagamento, string][]).map(([k, v]) => (
+                      <SelectItem key={k} value={k}>{v}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -453,14 +679,35 @@ export default function DespesasEmpresa() {
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <Label className="text-muted-foreground">Valor *</Label>
+                <Label className="text-muted-foreground">{novaForm.tipo_pagamento === "parcelado" ? "Valor Total *" : "Valor *"}</Label>
                 <Input type="number" value={novaForm.valor_original} onChange={e => setNovaForm(f => ({ ...f, valor_original: e.target.value }))} className="bg-secondary/50 border-border" />
               </div>
               <div>
-                <Label className="text-muted-foreground">Data Vencimento</Label>
+                <Label className="text-muted-foreground">{novaForm.tipo_pagamento === "parcelado" ? "Data 1ª Parcela" : "Data Vencimento"}</Label>
                 <Input type="date" value={novaForm.data_vencimento} onChange={e => setNovaForm(f => ({ ...f, data_vencimento: e.target.value }))} className="bg-secondary/50 border-border" />
               </div>
             </div>
+
+            {novaForm.tipo_pagamento === "parcelado" && (
+              <div className="rounded-lg border border-primary/20 bg-primary/5 p-3 space-y-3">
+                <p className="text-xs font-medium text-primary">Detalhes do Parcelamento</p>
+                <div>
+                  <Label className="text-muted-foreground">Número de parcelas *</Label>
+                  <Input type="number" min={2} value={novaForm.total_parcelas} onChange={e => setNovaForm(f => ({ ...f, total_parcelas: e.target.value }))} className="bg-secondary/50 border-border" />
+                </div>
+                {valorTotal > 0 && numParcelas >= 2 && (
+                  <div className="bg-secondary/50 rounded-lg p-3">
+                    <p className="text-xs text-muted-foreground">
+                      {numParcelas}x de <span className="text-foreground font-medium">{formatCurrency(valorParcela)}</span>
+                    </p>
+                    <p className="text-[10px] text-muted-foreground mt-1">
+                      Parcelas mensais a partir de {novaForm.data_vencimento ? formatDate(novaForm.data_vencimento) : "—"}
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+
             <div>
               <Label className="text-muted-foreground">Forma de Pagamento</Label>
               <Input value={novaForm.forma_pagamento} onChange={e => setNovaForm(f => ({ ...f, forma_pagamento: e.target.value }))} className="bg-secondary/50 border-border" />
@@ -498,28 +745,44 @@ export default function DespesasEmpresa() {
         </DialogContent>
       </Dialog>
 
-      {/* Payment modal */}
+      {/* Payment modal - regular expenses */}
       <Dialog open={!!showPagamento} onOpenChange={() => setShowPagamento(null)}>
         <DialogContent className="bg-card border-border">
           <DialogHeader><DialogTitle className="text-foreground">Registrar Pagamento</DialogTitle></DialogHeader>
           <div className="space-y-4">
-            <div>
-              <Label className="text-muted-foreground">Valor</Label>
-              <Input type="number" value={pgValor} onChange={e => setPgValor(e.target.value)} className="bg-secondary/50 border-border" />
-            </div>
-            <div>
-              <Label className="text-muted-foreground">Data</Label>
-              <Input type="date" value={pgData} onChange={e => setPgData(e.target.value)} className="bg-secondary/50 border-border" />
-            </div>
-            <div>
-              <Label className="text-muted-foreground">Observação</Label>
-              <Textarea value={pgObs} onChange={e => setPgObs(e.target.value)} className="bg-secondary/50 border-border" rows={2} />
-            </div>
+            <div><Label className="text-muted-foreground">Valor</Label><Input type="number" value={pgValor} onChange={e => setPgValor(e.target.value)} className="bg-secondary/50 border-border" /></div>
+            <div><Label className="text-muted-foreground">Data</Label><Input type="date" value={pgData} onChange={e => setPgData(e.target.value)} className="bg-secondary/50 border-border" /></div>
+            <div><Label className="text-muted-foreground">Observação</Label><Textarea value={pgObs} onChange={e => setPgObs(e.target.value)} className="bg-secondary/50 border-border" rows={2} /></div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowPagamento(null)} className="border-border">Cancelar</Button>
             <Button onClick={() => registrarPagamento.mutate()} disabled={registrarPagamento.isPending} className="gold-gradient text-primary-foreground">
               {registrarPagamento.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Confirmar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Payment modal - parcela de despesa */}
+      <Dialog open={!!showPagamentoParcela} onOpenChange={() => setShowPagamentoParcela(null)}>
+        <DialogContent className="bg-card border-border">
+          <DialogHeader>
+            <DialogTitle className="text-foreground">
+              Pagar Parcela {showPagamentoParcela?.numero_parcela}/{showPagamentoParcela?.total_parcelas}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="bg-secondary/50 rounded-lg p-3">
+              <p className="text-xs text-muted-foreground">Valor da parcela: <span className="text-foreground font-medium">{formatCurrency(showPagamentoParcela?.valor ?? 0)}</span></p>
+              <p className="text-xs text-muted-foreground">Vencimento: {formatDate(showPagamentoParcela?.data_vencimento)}</p>
+            </div>
+            <div><Label className="text-muted-foreground">Valor pago</Label><Input type="number" value={pgValor} onChange={e => setPgValor(e.target.value)} className="bg-secondary/50 border-border" /></div>
+            <div><Label className="text-muted-foreground">Data pagamento</Label><Input type="date" value={pgData} onChange={e => setPgData(e.target.value)} className="bg-secondary/50 border-border" /></div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowPagamentoParcela(null)} className="border-border">Cancelar</Button>
+            <Button onClick={() => registrarPagamentoParcela.mutate()} disabled={registrarPagamentoParcela.isPending} className="gold-gradient text-primary-foreground">
+              {registrarPagamentoParcela.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Confirmar Pagamento"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -583,20 +846,14 @@ export default function DespesasEmpresa() {
             Como deseja excluir <strong className="text-foreground">"{deleteTarget?.descricao}"</strong>?
           </p>
           <div className="flex flex-col gap-2 mt-2">
-            <Button
-              variant="outline"
-              className="border-border justify-start"
+            <Button variant="outline" className="border-border justify-start"
               onClick={() => deleteTarget && deleteMutation.mutate({ id: deleteTarget.id, mode: "single" })}
-              disabled={deleteMutation.isPending}
-            >
+              disabled={deleteMutation.isPending}>
               Excluir somente esta
             </Button>
-            <Button
-              variant="destructive"
-              className="justify-start"
+            <Button variant="destructive" className="justify-start"
               onClick={() => deleteTarget && deleteMutation.mutate({ id: deleteTarget.id, mode: "future" })}
-              disabled={deleteMutation.isPending}
-            >
+              disabled={deleteMutation.isPending}>
               Excluir esta e todas futuras com mesmo nome
             </Button>
           </div>
