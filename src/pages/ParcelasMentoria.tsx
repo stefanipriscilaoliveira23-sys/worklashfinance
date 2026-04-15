@@ -87,6 +87,35 @@ export default function ParcelasMentoria() {
     },
   });
 
+  // Fetch overdue installments from previous months
+  const primeiroDiaMes = useMemo(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
+  }, []);
+
+  const { data: atrasadasAnteriores } = useQuery({
+    queryKey: ["parcelas-atrasadas-anteriores", primeiroDiaMes],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("parcelas_mentoria_detalhe")
+        .select("*, parcelas_mentoria!inner(cliente_nome, id)")
+        .eq("status", "Atraso")
+        .lt("data_vencimento", primeiroDiaMes);
+      if (error) throw error;
+      return data as any[];
+    },
+  });
+
+  // Group overdue by parent contract id
+  const atrasadasPorContrato = useMemo(() => {
+    const map = new Map<string, number>();
+    (atrasadasAnteriores ?? []).forEach((d: any) => {
+      const parentId = d.parcelas_mentoria.id;
+      map.set(parentId, (map.get(parentId) ?? 0) + 1);
+    });
+    return map;
+  }, [atrasadasAnteriores]);
+
   // Metrics for selected month
   const metrics = useMemo(() => {
     if (!allDetalhes) return { total: 0, aReceber: 0, recebido: 0, qtdAReceber: 0, qtdRecebido: 0, clientes: 0, valorAtrasado: 0 };
