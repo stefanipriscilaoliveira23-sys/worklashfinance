@@ -99,13 +99,16 @@ export type Database = {
           data_pagamento: string | null
           data_vencimento: string | null
           descricao: string
+          despesa_pai_id: string | null
           forma_pagamento: string | null
           id: string
+          numero_parcela_atual: number | null
           observacao: string | null
           prioridade: Database["public"]["Enums"]["prioridade_despesa"]
           saldo_pendente: number | null
           status: Database["public"]["Enums"]["status_despesa"] | null
           tipo_despesa: Database["public"]["Enums"]["tipo_despesa"]
+          total_parcelas: number | null
           valor_original: number
           valor_pago_total: number | null
         }
@@ -115,13 +118,16 @@ export type Database = {
           data_pagamento?: string | null
           data_vencimento?: string | null
           descricao: string
+          despesa_pai_id?: string | null
           forma_pagamento?: string | null
           id?: string
+          numero_parcela_atual?: number | null
           observacao?: string | null
           prioridade?: Database["public"]["Enums"]["prioridade_despesa"]
           saldo_pendente?: number | null
           status?: Database["public"]["Enums"]["status_despesa"] | null
           tipo_despesa?: Database["public"]["Enums"]["tipo_despesa"]
+          total_parcelas?: number | null
           valor_original?: number
           valor_pago_total?: number | null
         }
@@ -131,17 +137,75 @@ export type Database = {
           data_pagamento?: string | null
           data_vencimento?: string | null
           descricao?: string
+          despesa_pai_id?: string | null
           forma_pagamento?: string | null
           id?: string
+          numero_parcela_atual?: number | null
           observacao?: string | null
           prioridade?: Database["public"]["Enums"]["prioridade_despesa"]
           saldo_pendente?: number | null
           status?: Database["public"]["Enums"]["status_despesa"] | null
           tipo_despesa?: Database["public"]["Enums"]["tipo_despesa"]
+          total_parcelas?: number | null
           valor_original?: number
           valor_pago_total?: number | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "despesas_empresa_despesa_pai_id_fkey"
+            columns: ["despesa_pai_id"]
+            isOneToOne: false
+            referencedRelation: "despesas_empresa"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      despesas_parcelas: {
+        Row: {
+          criado_em: string
+          data_pagamento: string | null
+          data_vencimento: string
+          despesa_id: string
+          id: string
+          numero_parcela: number
+          observacao: string | null
+          status: Database["public"]["Enums"]["status_despesa"] | null
+          total_parcelas: number
+          valor: number
+        }
+        Insert: {
+          criado_em?: string
+          data_pagamento?: string | null
+          data_vencimento: string
+          despesa_id: string
+          id?: string
+          numero_parcela: number
+          observacao?: string | null
+          status?: Database["public"]["Enums"]["status_despesa"] | null
+          total_parcelas: number
+          valor?: number
+        }
+        Update: {
+          criado_em?: string
+          data_pagamento?: string | null
+          data_vencimento?: string
+          despesa_id?: string
+          id?: string
+          numero_parcela?: number
+          observacao?: string | null
+          status?: Database["public"]["Enums"]["status_despesa"] | null
+          total_parcelas?: number
+          valor?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "despesas_parcelas_despesa_id_fkey"
+            columns: ["despesa_id"]
+            isOneToOne: false
+            referencedRelation: "despesas_empresa"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       despesas_pessoal: {
         Row: {
