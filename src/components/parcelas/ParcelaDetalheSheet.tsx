@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { formatCurrency, formatDate } from "@/lib/format";
@@ -52,6 +52,16 @@ export default function ParcelaDetalheSheet({ selectedAluna, onClose, onRegistra
       return data;
     },
   });
+
+  // Count overdue installments from previous months for this contract
+  const primeiroDiaMes = (() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
+  })();
+
+  const atrasadasCount = (detalhes ?? []).filter(
+    d => d.status === "Atraso" && d.data_vencimento < primeiroDiaMes
+  ).length;
 
   const { data: historicoPagamentos } = useQuery({
     queryKey: ["pagamentos-parciais-mentoria", selectedAluna?.id],
