@@ -2,8 +2,9 @@ import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { formatCurrency, formatDate } from "@/lib/format";
+import { computeParcela } from "@/lib/parcelaCalc";
 import { toast } from "sonner";
-import { Search, Loader2, AlertTriangle, ChevronRight, Users, DollarSign, Clock, CheckCircle2, Plus, Download } from "lucide-react";
+import { Search, Loader2, AlertTriangle, ChevronRight, Users, DollarSign, Clock, CheckCircle2, Plus, Download, MessageSquare } from "lucide-react";
 import { exportCsv } from "@/lib/exportCsv";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,8 +14,11 @@ import { Card, CardContent } from "@/components/ui/card";
 import ParcelaDetalheSheet from "@/components/parcelas/ParcelaDetalheSheet";
 import PagamentoDialog from "@/components/parcelas/PagamentoDialog";
 import NovoContratoDialog from "@/components/parcelas/NovoContratoDialog";
+import MensagensDialog from "@/components/parcelas/MensagensDialog";
+import ComprovanteDialog from "@/components/parcelas/ComprovanteDialog";
 import MonthNavigator, { getCurrentMonthKey, type DateFilter, getDateRange } from "@/components/MonthNavigator";
 import type { Tables } from "@/integrations/supabase/types";
+import type { TemplateContext } from "@/lib/mensagensTemplates";
 
 const TIPOS_MENTORIA = ["Mentorias", "Renovações"] as const;
 
@@ -40,6 +44,27 @@ export default function ParcelasMentoria() {
   const [selectedAluna, setSelectedAluna] = useState<Tables<"parcelas_mentoria"> | null>(null);
   const [showPagamento, setShowPagamento] = useState<Tables<"parcelas_mentoria_detalhe"> | null>(null);
   const [showNovoContrato, setShowNovoContrato] = useState(false);
+  const [mensagensCtx, setMensagensCtx] = useState<TemplateContext | null>(null);
+  const [comprovanteCtx, setComprovanteCtx] = useState<TemplateContext | null>(null);
+
+  const buildCtx = (d: any, valorPago?: number, dataPagamento?: string, statusPagamento?: "Parcial" | "Total"): TemplateContext => {
+    const parent = d.parcelas_mentoria ?? d.parent ?? selectedAluna;
+    return {
+      cliente_nome: parent?.cliente_nome ?? "",
+      produto: parent?.tipo_mentoria ?? "",
+      num_contrato: parent?.numero_contrato ?? "",
+      total_parcelas: parent?.quant_parcelas ?? 0,
+      saldo_contrato: Math.max(0, (parent?.valor_total ?? 0) - (parent?.entrada_valor ?? 0)),
+      parcela_atual: d.numero_parcela,
+      data_vencimento: d.data_vencimento,
+      valor_parcela: d.valor_real ?? d.valor_sugerido ?? 0,
+      saldo_restante: d.saldo_parcela ?? 0,
+      status: d.status,
+      valor_pago: valorPago,
+      data_pagamento: dataPagamento,
+      status_pagamento: statusPagamento,
+    };
+  };
 
   // Fetch produtos_catalogo for product name display
   const { data: produtosCatalogo } = useQuery({
@@ -288,14 +313,14 @@ export default function ParcelasMentoria() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border bg-secondary/30">
-                  {["Nome", "Produto", "Parcela", "Valor Parcela", "Vencimento", "Saldo Restante", "Status", "Obs.", ""].map(h => (
+                  {["Nome", "Produto", "Parcela", "Valor Parcela", "Vencimento", "Saldo Restante", "Status", "Obs.", "Msg", ""].map(h => (
                     <th key={h} className={`p-3 text-xs font-medium text-muted-foreground ${["Valor Parcela", "Saldo Contrato"].includes(h) ? "text-right" : "text-left"}`}>{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {tableRows.length === 0 && (
-                  <tr><td colSpan={9} className="p-12 text-center text-muted-foreground">Nenhuma parcela encontrada neste mês</td></tr>
+                  <tr><td colSpan={10} className="p-12 text-center text-muted-foreground">Nenhuma parcela encontrada neste mês</td></tr>
                 )}
                 {tableRows.map((d: any) => {
                   const parent = d.parcelas_mentoria;
@@ -328,6 +353,17 @@ export default function ParcelasMentoria() {
                       <td className="p-3 text-right text-primary">{formatCurrency(d.saldo_parcela ?? 0)}</td>
                       <td className="p-3">{statusBadge(d.status)}</td>
                       <td className="p-3 text-muted-foreground text-xs truncate max-w-[100px]">{d.observacao || "—"}</td>
+                      <td className="p-3" onClick={(e) => e.stopPropagation()}>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 w-7 p-0 text-muted-foreground hover:text-primary"
+                          title="Mensagens"
+                          onClick={() => setMensagensCtx(buildCtx(d))}
+                        >
+                          <MessageSquare className="h-3.5 w-3.5" />
+                        </Button>
+                      </td>
                       <td className="p-3"><ChevronRight className="h-4 w-4 text-muted-foreground" /></td>
                     </tr>
                   );
@@ -349,10 +385,25 @@ export default function ParcelasMentoria() {
       <PagamentoDialog
         showPagamento={showPagamento}
         onClose={() => setShowPagamento(null)}
-        onSuccess={() => {
+        onSuccess={(info) => {
           queryClient.invalidateQueries({ queryKey: ["parcelas-mentoria"] });
           queryClient.invalidateQueries({ queryKey: ["parcelas-detalhe-all"] });
+          if (showPagamento) {
+            setComprovanteCtx(buildCtx(showPagamento, info.valorPago, info.dataPagamento, info.statusPagamento));
+          }
         }}
+      />
+
+      <MensagensDialog
+        open={!!mensagensCtx}
+        onClose={() => setMensagensCtx(null)}
+        context={mensagensCtx ?? {}}
+      />
+
+      <ComprovanteDialog
+        open={!!comprovanteCtx}
+        onClose={() => setComprovanteCtx(null)}
+        context={comprovanteCtx ?? {}}
       />
 
       <NovoContratoDialog
