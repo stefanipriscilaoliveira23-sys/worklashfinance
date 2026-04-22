@@ -224,10 +224,8 @@ Qualquer coisa, tô aqui 💙`,
 export function renderTemplate(key: TemplateKey, ctx: TemplateContext): string {
   const tpl = TEMPLATES[key];
   const vars = buildVars(ctx);
-  return tpl.replace(/\{(\w+)\}/g, (_, varName: string) => {
-    const v = (vars as Record<string, string>)[varName];
-    return v ?? "";
-  });
+  const lookup = vars as unknown as Record<string, string>;
+  return tpl.replace(/\{(\w+)\}/g, (_, varName: string) => lookup[varName] ?? "");
 }
 
 export async function copyToClipboard(text: string): Promise<boolean> {
