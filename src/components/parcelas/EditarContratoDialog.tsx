@@ -85,6 +85,58 @@ export default function EditarContratoDialog({ contrato, onClose }: Props) {
     onError: (e) => toast.error("Erro: " + e.message),
   });
 
+  const cancelMutation = useMutation({
+    mutationFn: async () => {
+      if (!contrato) return;
+      // Fetch all installments for this contract
+      const { data: detalhes, error: fetchErr } = await supabase
+        .from("parcelas_mentoria_detalhe")
+        .select("id, status")
+        .eq("parcela_mentoria_id", contrato.id);
+      if (fetchErr) throw fetchErr;
+
+      // Identify installments to cancel: only those NOT paid (Pendente or Atraso)
+      const idsParaCancelar = (detalhes ?? [])
+        .filter(d => d.status === "Pendente" || d.status === "Atraso")
+        .map(d => d.id);
+
+      if (idsParaCancelar.length > 0) {
+        const { error: delErr } = await supabase
+          .from("parcelas_mentoria_detalhe")
+          .delete()
+          .in("id", idsParaCancelar);
+        if (delErr) throw delErr;
+      }
+
+      // Count remaining (paid/partial) installments to update quant_parcelas
+      const restantes = (detalhes ?? []).length - idsParaCancelar.length;
+
+      // Update parent contract: mark as cancelado in observacao, adjust quant_parcelas, recalculate valor_total
+      const obsAtual = (contrato as any).observacao ?? "";
+      const novaObs = obsAtual.includes("[CANCELADO]")
+        ? obsAtual
+        : `[CANCELADO em ${new Date().toLocaleDateString("pt-BR")}] ${obsAtual}`.trim();
+
+      const { error: updErr } = await supabase
+        .from("parcelas_mentoria")
+        .update({
+          quant_parcelas: Math.max(restantes, 1),
+          status_geral: "Quitado" as any,
+        } as any)
+        .eq("id", contrato.id);
+      if (updErr) throw updErr;
+    },
+    onSuccess: () => {
+      toast.success("Contrato cancelado. Parcelas pagas foram preservadas.");
+      queryClient.invalidateQueries({ queryKey: ["parcelas-mentoria"] });
+      queryClient.invalidateQueries({ queryKey: ["parcelas-detalhe-all"] });
+      queryClient.invalidateQueries({ queryKey: ["parcelas-mentoria-all"] });
+      queryClient.invalidateQueries({ queryKey: ["parcelas-atrasadas-anteriores"] });
+      onClose();
+    },
+    onError: (e: any) => toast.error("Erro ao cancelar: " + e.message),
+  });
+
   const deleteMutation = useMutation({
     mutationFn: async () => {
       if (!contrato) return;
@@ -183,17 +235,28 @@ export default function EditarContratoDialog({ contrato, onClose }: Props) {
             </div>
           </div>
         )}
-        <DialogFooter className="flex justify-between">
-          <Button
-            variant="destructive"
-            size="sm"
-            onClick={() => { if (confirm("Excluir este contrato e todas as parcelas?")) deleteMutation.mutate(); }}
-            disabled={deleteMutation.isPending}
-          >
-            Excluir Contrato
-          </Button>
+        <DialogFooter className="flex justify-between gap-2 flex-wrap">
           <div className="flex gap-2">
-            <Button variant="outline" onClick={onClose}>Cancelar</Button>
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={() => { if (confirm("Excluir este contrato e TODAS as parcelas (inclusive pagas)?")) deleteMutation.mutate(); }}
+              disabled={deleteMutation.isPending}
+            >
+              Excluir Contrato
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="border-warning/40 text-warning hover:bg-warning/10"
+              onClick={() => { if (confirm("Cancelar contrato? As parcelas pagas serão preservadas e apenas as parcelas pendentes/atrasadas serão removidas.")) cancelMutation.mutate(); }}
+              disabled={cancelMutation.isPending}
+            >
+              Cancelar Contrato
+            </Button>
+          </div>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={onClose}>Fechar</Button>
             <Button onClick={() => updateMutation.mutate()} disabled={updateMutation.isPending}>Salvar</Button>
           </div>
         </DialogFooter>
