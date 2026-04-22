@@ -313,14 +313,14 @@ export default function ParcelasMentoria() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border bg-secondary/30">
-                  {["Nome", "Produto", "Parcela", "Valor Parcela", "Vencimento", "Saldo Restante", "Status", "Obs.", ""].map(h => (
+                  {["Nome", "Produto", "Parcela", "Valor Parcela", "Vencimento", "Saldo Restante", "Status", "Obs.", "Msg", ""].map(h => (
                     <th key={h} className={`p-3 text-xs font-medium text-muted-foreground ${["Valor Parcela", "Saldo Contrato"].includes(h) ? "text-right" : "text-left"}`}>{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {tableRows.length === 0 && (
-                  <tr><td colSpan={9} className="p-12 text-center text-muted-foreground">Nenhuma parcela encontrada neste mês</td></tr>
+                  <tr><td colSpan={10} className="p-12 text-center text-muted-foreground">Nenhuma parcela encontrada neste mês</td></tr>
                 )}
                 {tableRows.map((d: any) => {
                   const parent = d.parcelas_mentoria;
@@ -353,6 +353,17 @@ export default function ParcelasMentoria() {
                       <td className="p-3 text-right text-primary">{formatCurrency(d.saldo_parcela ?? 0)}</td>
                       <td className="p-3">{statusBadge(d.status)}</td>
                       <td className="p-3 text-muted-foreground text-xs truncate max-w-[100px]">{d.observacao || "—"}</td>
+                      <td className="p-3" onClick={(e) => e.stopPropagation()}>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 w-7 p-0 text-muted-foreground hover:text-primary"
+                          title="Mensagens"
+                          onClick={() => setMensagensCtx(buildCtx(d))}
+                        >
+                          <MessageSquare className="h-3.5 w-3.5" />
+                        </Button>
+                      </td>
                       <td className="p-3"><ChevronRight className="h-4 w-4 text-muted-foreground" /></td>
                     </tr>
                   );
@@ -374,10 +385,25 @@ export default function ParcelasMentoria() {
       <PagamentoDialog
         showPagamento={showPagamento}
         onClose={() => setShowPagamento(null)}
-        onSuccess={() => {
+        onSuccess={(info) => {
           queryClient.invalidateQueries({ queryKey: ["parcelas-mentoria"] });
           queryClient.invalidateQueries({ queryKey: ["parcelas-detalhe-all"] });
+          if (showPagamento) {
+            setComprovanteCtx(buildCtx(showPagamento, info.valorPago, info.dataPagamento, info.statusPagamento));
+          }
         }}
+      />
+
+      <MensagensDialog
+        open={!!mensagensCtx}
+        onClose={() => setMensagensCtx(null)}
+        context={mensagensCtx ?? {}}
+      />
+
+      <ComprovanteDialog
+        open={!!comprovanteCtx}
+        onClose={() => setComprovanteCtx(null)}
+        context={comprovanteCtx ?? {}}
       />
 
       <NovoContratoDialog
