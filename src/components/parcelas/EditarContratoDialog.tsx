@@ -235,17 +235,28 @@ export default function EditarContratoDialog({ contrato, onClose }: Props) {
             </div>
           </div>
         )}
-        <DialogFooter className="flex justify-between">
-          <Button
-            variant="destructive"
-            size="sm"
-            onClick={() => { if (confirm("Excluir este contrato e todas as parcelas?")) deleteMutation.mutate(); }}
-            disabled={deleteMutation.isPending}
-          >
-            Excluir Contrato
-          </Button>
+        <DialogFooter className="flex justify-between gap-2 flex-wrap">
           <div className="flex gap-2">
-            <Button variant="outline" onClick={onClose}>Cancelar</Button>
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={() => { if (confirm("Excluir este contrato e TODAS as parcelas (inclusive pagas)?")) deleteMutation.mutate(); }}
+              disabled={deleteMutation.isPending}
+            >
+              Excluir Contrato
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="border-orange-500/40 text-orange-400 hover:bg-orange-500/10"
+              onClick={() => { if (confirm("Cancelar contrato? As parcelas pagas serão preservadas e apenas as parcelas pendentes/atrasadas serão removidas.")) cancelMutation.mutate(); }}
+              disabled={cancelMutation.isPending}
+            >
+              Cancelar Contrato
+            </Button>
+          </div>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={onClose}>Fechar</Button>
             <Button onClick={() => updateMutation.mutate()} disabled={updateMutation.isPending}>Salvar</Button>
           </div>
         </DialogFooter>
