@@ -13,7 +13,7 @@ import type { Tables } from "@/integrations/supabase/types";
 interface Props {
   showPagamento: Tables<"parcelas_mentoria_detalhe"> | null;
   onClose: () => void;
-  onSuccess: () => void;
+  onSuccess: (info: { detalheId: string; valorPago: number; dataPagamento: string; statusPagamento: "Parcial" | "Total" }) => void;
 }
 
 const parseMoneyInput = (value: string) => {
@@ -144,8 +144,20 @@ export default function PagamentoDialog({ showPagamento, onClose, onSuccess }: P
         if (parentStatusError) throw parentStatusError;
       }
     },
-    onSuccess: () => {
-      onSuccess();
+    onSuccess: (_data, _vars, _ctx) => {
+      const valor = parseMoneyInput(pgValor);
+      if (showPagamento) {
+        const valorParcela = getInstallmentValue(showPagamento);
+        const jaPago = showPagamento.valor_pago_parcial ?? 0;
+        const novoPago = jaPago + valor;
+        const status: "Parcial" | "Total" = novoPago >= valorParcela ? "Total" : "Parcial";
+        onSuccess({
+          detalheId: showPagamento.id,
+          valorPago: valor,
+          dataPagamento: pgData,
+          statusPagamento: status,
+        });
+      }
       toast.success("Pagamento registrado");
       onClose();
       setPgValor("");
