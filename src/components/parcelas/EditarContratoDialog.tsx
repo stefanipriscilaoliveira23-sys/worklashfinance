@@ -248,7 +248,7 @@ export default function EditarContratoDialog({ contrato, onClose }: Props) {
             <Button
               variant="outline"
               size="sm"
-              className="border-orange-500/40 text-orange-400 hover:bg-orange-500/10"
+              className="border-warning/40 text-warning hover:bg-warning/10"
               onClick={() => { if (confirm("Cancelar contrato? As parcelas pagas serão preservadas e apenas as parcelas pendentes/atrasadas serão removidas.")) cancelMutation.mutate(); }}
               disabled={cancelMutation.isPending}
             >
