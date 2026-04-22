@@ -495,6 +495,7 @@ export type Database = {
           entrada_valor: number | null
           id: string
           is_renovacao: boolean | null
+          numero_contrato: string | null
           periodicidade: Database["public"]["Enums"]["periodicidade"]
           produto_id: string | null
           quant_parcelas: number
@@ -516,6 +517,7 @@ export type Database = {
           entrada_valor?: number | null
           id?: string
           is_renovacao?: boolean | null
+          numero_contrato?: string | null
           periodicidade?: Database["public"]["Enums"]["periodicidade"]
           produto_id?: string | null
           quant_parcelas?: number
@@ -537,6 +539,7 @@ export type Database = {
           entrada_valor?: number | null
           id?: string
           is_renovacao?: boolean | null
+          numero_contrato?: string | null
           periodicidade?: Database["public"]["Enums"]["periodicidade"]
           produto_id?: string | null
           quant_parcelas?: number
