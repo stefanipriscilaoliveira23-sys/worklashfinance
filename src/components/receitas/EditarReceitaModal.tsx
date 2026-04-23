@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useTaxaCalculator } from "@/hooks/useTaxaCalculator";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -133,14 +134,20 @@ export function EditarReceitaModal({ receita, open, onClose }: EditarReceitaModa
   const valorRestante = isMentoria ? Math.max(0, valorContrato - valorBruto) : 0;
   const showStep2 = isMentoria && restanteForma === "parcelas" && !contratoExistente;
 
-  // Auto-calc taxa — only recalculate when user changes percent, not on load
+  // Calculadora bidirecional taxa
+  const [taxaActiveField, setTaxaActiveField] = useState<"percent" | "valor" | "liquido" | null>(null);
   const [taxaManual, setTaxaManual] = useState(false);
-  useEffect(() => {
-    if (!taxaManual) return;
-    const tv = valorBruto * (taxaPercent / 100);
-    setTaxaValor(tv);
-    setValorLiquido(valorBruto - tv);
-  }, [valorBruto, taxaPercent, taxaManual]);
+  useTaxaCalculator({
+    valorVenda: valorBruto,
+    taxaPercent,
+    taxaValor,
+    valorLiquido,
+    setTaxaPercent,
+    setTaxaValor,
+    setValorLiquido,
+    activeField: taxaActiveField,
+    enabled: taxaManual,
+  });
 
   useEffect(() => {
     if (moeda !== "BRL" && taxaCambio > 0) {
@@ -342,15 +349,39 @@ export function EditarReceitaModal({ receita, open, onClose }: EditarReceitaModa
             <div className="grid grid-cols-3 gap-4">
               <div className="space-y-1.5">
                 <Label className="text-foreground/80">Taxa %</Label>
-                <Input type="number" step="0.1" value={taxaPercent || ""} onChange={(e) => { setTaxaPercent(Number(e.target.value)); setTaxaManual(true); }} className="bg-secondary/50 border-border" />
+                <Input
+                  type="number"
+                  step="0.01"
+                  value={taxaActiveField === "percent" ? (taxaPercent || "") : (taxaPercent ? taxaPercent : "")}
+                  onFocus={() => { setTaxaActiveField("percent"); setTaxaManual(true); }}
+                  onBlur={() => setTaxaActiveField(null)}
+                  onChange={(e) => { setTaxaPercent(Number(e.target.value)); setTaxaManual(true); }}
+                  className="bg-secondary/50 border-border"
+                />
               </div>
               <div className="space-y-1.5">
                 <Label className="text-foreground/80">Valor taxa</Label>
-                <Input type="number" step="0.01" value={taxaValor || ""} readOnly className="bg-secondary/50 border-border" />
+                <Input
+                  type="number"
+                  step="0.01"
+                  value={taxaActiveField === "valor" ? (taxaValor || "") : (taxaValor ? taxaValor.toFixed(2) : "")}
+                  onFocus={() => { setTaxaActiveField("valor"); setTaxaManual(true); }}
+                  onBlur={() => setTaxaActiveField(null)}
+                  onChange={(e) => { setTaxaValor(Number(e.target.value)); setTaxaManual(true); }}
+                  className="bg-secondary/50 border-border"
+                />
               </div>
               <div className="space-y-1.5">
                 <Label className="text-foreground/80">Valor líquido</Label>
-                <Input type="number" step="0.01" value={valorLiquido || ""} className="bg-secondary/50 border-border" readOnly />
+                <Input
+                  type="number"
+                  step="0.01"
+                  value={taxaActiveField === "liquido" ? (valorLiquido || "") : (valorLiquido ? valorLiquido.toFixed(2) : "")}
+                  onFocus={() => { setTaxaActiveField("liquido"); setTaxaManual(true); }}
+                  onBlur={() => setTaxaActiveField(null)}
+                  onChange={(e) => { setValorLiquido(Number(e.target.value)); setTaxaManual(true); }}
+                  className="bg-secondary/50 border-border"
+                />
               </div>
             </div>
 
