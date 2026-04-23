@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import { useTaxaCalculator } from "@/hooks/useTaxaCalculator";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -112,13 +113,18 @@ export function NovaReceitaModal({ open, onClose }: { open: boolean; onClose: ()
     ? (isAvista ? valorContrato : entradaValorTotal)
     : valorContrato;
 
-  // Auto-calc taxa
-  useEffect(() => {
-    const base = valorRecebido;
-    const tv = base * (taxaPercent / 100);
-    setTaxaValor(tv);
-    setValorLiquido(base - tv);
-  }, [valorRecebido, taxaPercent]);
+  // Calculadora bidirecional taxa
+  const [taxaActiveField, setTaxaActiveField] = useState<"percent" | "valor" | "liquido" | null>(null);
+  useTaxaCalculator({
+    valorVenda: valorRecebido,
+    taxaPercent,
+    taxaValor,
+    valorLiquido,
+    setTaxaPercent,
+    setTaxaValor,
+    setValorLiquido,
+    activeField: taxaActiveField,
+  });
 
   // Auto-calc cambio
   useEffect(() => {
@@ -661,15 +667,39 @@ export function NovaReceitaModal({ open, onClose }: { open: boolean; onClose: ()
                 <div className="grid grid-cols-3 gap-4">
                   <div className="space-y-1.5">
                     <Label className="text-foreground/80">Taxa plataforma %</Label>
-                    <Input type="number" step="0.1" value={taxaPercent || ""} onChange={(e) => setTaxaPercent(Number(e.target.value))} className="bg-secondary/50 border-border" />
+                    <Input
+                      type="number"
+                      step="0.01"
+                      value={taxaPercent || ""}
+                      onFocus={() => setTaxaActiveField("percent")}
+                      onBlur={() => setTaxaActiveField(null)}
+                      onChange={(e) => setTaxaPercent(Number(e.target.value))}
+                      className="bg-secondary/50 border-border"
+                    />
                   </div>
                   <div className="space-y-1.5">
                     <Label className="text-foreground/80">Valor taxa</Label>
-                    <Input type="number" step="0.01" value={taxaValor.toFixed(2)} disabled className="bg-secondary/50 border-border opacity-60" />
+                    <Input
+                      type="number"
+                      step="0.01"
+                      value={taxaActiveField === "valor" ? (taxaValor || "") : taxaValor.toFixed(2)}
+                      onFocus={() => setTaxaActiveField("valor")}
+                      onBlur={() => setTaxaActiveField(null)}
+                      onChange={(e) => setTaxaValor(Number(e.target.value))}
+                      className="bg-secondary/50 border-border"
+                    />
                   </div>
                   <div className="space-y-1.5">
                     <Label className="text-foreground/80">Valor líquido</Label>
-                    <Input type="number" step="0.01" value={valorLiquido.toFixed(2)} disabled className="bg-secondary/50 border-border opacity-60" />
+                    <Input
+                      type="number"
+                      step="0.01"
+                      value={taxaActiveField === "liquido" ? (valorLiquido || "") : valorLiquido.toFixed(2)}
+                      onFocus={() => setTaxaActiveField("liquido")}
+                      onBlur={() => setTaxaActiveField(null)}
+                      onChange={(e) => setValorLiquido(Number(e.target.value))}
+                      className="bg-secondary/50 border-border"
+                    />
                   </div>
                 </div>
               )}
