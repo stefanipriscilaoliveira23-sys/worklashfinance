@@ -117,7 +117,7 @@ Passando pra te lembrar que amanhã vence sua parcela:
 
 📦 Produto: {produto}
 🔢 Contrato: {num_contrato}
-🔢 Parcela: {parcela_atual}/{total_parcelas}
+🔢 Parcela: {parcela_atual}ª parcela da sua mentoria
 📆 Vencimento: {data_vencimento}
 💵 Valor: R$ {valor_parcela}
 
@@ -130,11 +130,9 @@ Passando pra confirmar a parcela que vence hoje:
 
 📦 Produto: {produto}
 🔢 Contrato: {num_contrato}
-🔢 Parcela: {parcela_atual}/{total_parcelas}
+🔢 Parcela: {parcela_atual}ª parcela da sua mentoria
 📆 Vencimento: {data_vencimento} (hoje)
 💵 Valor: R$ {valor_parcela}
-
-📊 Faltam {parcelas_restantes} parcelas pra quitar (saldo R$ {saldo_restante})
 
 Qual opção fica melhor: pix ou link no cartão? ☺️`,
 
@@ -144,7 +142,7 @@ Notei aqui que sua parcela ainda está em aberto. Entendo que a correria atrapal
 
 📦 Produto: {produto}
 🔢 Contrato: {num_contrato}
-🔢 Parcela: {parcela_atual}/{total_parcelas}
+🔢 Parcela: {parcela_atual}ª parcela da sua mentoria
 📆 Vencimento: {data_vencimento}
 ⏱️ Dias em atraso: {dias_atraso}
 💵 Valor original: R$ {valor_parcela}
@@ -158,7 +156,7 @@ Consegue me retornar pra gente resolver? Pix ou link no cartão? 💙`,
 
 📦 Produto: {produto}
 🔢 Contrato: {num_contrato}
-🔢 Parcela: {parcela_atual}/{total_parcelas}
+🔢 Parcela: {parcela_atual}ª parcela da sua mentoria
 📆 Vencimento: {data_vencimento}
 ⏱️ Dias em atraso: {dias_atraso}
 💵 Valor original: R$ {valor_parcela}
@@ -176,13 +174,12 @@ Sua situação atual:
 
 📦 Produto: {produto}
 🔢 Contrato: {num_contrato}
-🔢 Parcela: {parcela_atual}/{total_parcelas}
+🔢 Parcela: {parcela_atual}ª parcela da sua mentoria
 📆 Vencimento: {data_vencimento}
 ⏱️ Dias em atraso: {dias_atraso}
 💵 Valor original: R$ {valor_parcela}
 💲 Multa + juros: R$ {multa_juros}
 💰 Total desta parcela: R$ {valor_total}
-⚠️ Saldo restante do contrato: R$ {saldo_contrato}
 
 Antes de escalar, quero muito resolver com você. Me chama aqui — pode ser hoje?`,
 
@@ -192,7 +189,7 @@ A Eduzz nos comunicou que não foi possível processar sua parcela no cartão:
 
 📦 Produto: {produto}
 🔢 Contrato: {num_contrato}
-🔢 Parcela: {parcela_atual}/{total_parcelas}
+🔢 Parcela: {parcela_atual}ª parcela da sua mentoria
 📆 Vencimento: {data_vencimento}
 💵 Valor: R$ {valor_parcela}
 
@@ -204,7 +201,7 @@ Quer que eu te envie um novo link de pagamento por aqui? 😊`,
 
 📦 Produto: {produto}
 🔢 Contrato: {num_contrato}
-🔢 Parcela: {parcela_atual}/{total_parcelas}
+🔢 Parcela: {parcela_atual}ª parcela da sua mentoria
 📆 Vencimento: {data_vencimento}
 📆 Data do pagamento: {data_pagamento}
 ⏱️ Dias em atraso: {dias_atraso}
@@ -215,7 +212,6 @@ Quer que eu te envie um novo link de pagamento por aqui? 😊`,
 💰 Valor total: R$ {valor_total}
 ✅ Valor pago: R$ {valor_pago}
 📊 Status: {status_pagamento}
-💙 Saldo restante do contrato: R$ {saldo_restante}
 
 🧾 Guarde esta mensagem — ela serve como comprovante do pagamento.
 Qualquer coisa, tô aqui 💙`,
