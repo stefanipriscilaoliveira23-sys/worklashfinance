@@ -233,6 +233,12 @@ export default function DespesasPessoal() {
   const emAtraso = mesAtual.filter(d => d.status === "Em Atraso").reduce((s, d) => s + (d.saldo_pendente ?? 0), 0);
   const pendenteMes = mesAtual.filter(d => d.status === "A Vencer").reduce((s, d) => s + (d.saldo_pendente ?? 0), 0);
 
+  // Vencendo essa semana (não pagas)
+  const { start: semStart, end: semEnd } = getWeekRange();
+  const vencendoSemana = (despesas ?? [])
+    .filter(d => d.data_vencimento && d.data_vencimento >= semStart && d.data_vencimento <= semEnd && d.status !== "Pago")
+    .reduce((s, d) => s + (d.saldo_pendente ?? d.valor_original ?? 0), 0);
+
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -258,16 +264,17 @@ export default function DespesasPessoal() {
 
       <MonthNavigator filter={dateFilter} onChange={setDateFilter} />
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
         {[
           { label: "Total do período", value: formatCurrency(totalMes) },
           { label: "Pago", value: formatCurrency(pagoMes) },
           { label: "Em atraso", value: formatCurrency(emAtraso), alert: emAtraso > 0 },
           { label: "Pendente", value: formatCurrency(pendenteMes) },
-        ].map(c => (
-          <div key={c.label} className={`rounded-xl border p-4 ${c.alert ? "border-destructive/30 bg-destructive/5" : "border-border bg-card"}`}>
+          { label: "Vencendo essa semana", value: formatCurrency(vencendoSemana), highlight: vencendoSemana > 0 },
+        ].map((c: any) => (
+          <div key={c.label} className={`rounded-xl border p-4 ${c.alert ? "border-destructive/30 bg-destructive/5" : c.highlight ? "border-primary/40 bg-primary/5" : "border-border bg-card"}`}>
             <p className="text-xs text-muted-foreground uppercase tracking-wider">{c.label}</p>
-            <p className={`text-lg font-bold mt-1 ${c.alert ? "text-destructive" : "text-foreground"}`}>{c.value}</p>
+            <p className={`text-lg font-bold mt-1 ${c.alert ? "text-destructive" : c.highlight ? "text-primary" : "text-foreground"}`}>{c.value}</p>
           </div>
         ))}
       </div>
