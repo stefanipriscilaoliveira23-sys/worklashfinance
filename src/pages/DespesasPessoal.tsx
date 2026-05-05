@@ -177,12 +177,24 @@ export default function DespesasPessoal() {
         prioridade: editForm.prioridade as any,
       };
       if (mode === "future") {
-        const { data: futuras } = await supabase.from("despesas_pessoal").select("id, valor_pago_total")
+        let deltaDays = 0;
+        if (editForm.data_vencimento && editItem.data_vencimento && editForm.data_vencimento !== editItem.data_vencimento) {
+          const oldD = new Date(editItem.data_vencimento + "T00:00:00").getTime();
+          const newD = new Date(editForm.data_vencimento + "T00:00:00").getTime();
+          deltaDays = Math.round((newD - oldD) / 86400000);
+        }
+        const { data: futuras } = await supabase.from("despesas_pessoal").select("id, valor_pago_total, data_vencimento")
           .eq("descricao", editItem.descricao)
           .gte("data_vencimento", editItem.data_vencimento ?? "");
         for (const f of (futuras ?? [])) {
           const saldo = valor - (f.valor_pago_total ?? 0);
-          const { error } = await supabase.from("despesas_pessoal").update({ ...baseData, saldo_pendente: Math.max(0, saldo) }).eq("id", f.id);
+          const upd: any = { ...baseData, saldo_pendente: Math.max(0, saldo) };
+          if (deltaDays !== 0 && f.data_vencimento) {
+            const d = new Date(f.data_vencimento + "T00:00:00");
+            d.setDate(d.getDate() + deltaDays);
+            upd.data_vencimento = d.toISOString().split("T")[0];
+          }
+          const { error } = await supabase.from("despesas_pessoal").update(upd).eq("id", f.id);
           if (error) throw error;
         }
       } else {

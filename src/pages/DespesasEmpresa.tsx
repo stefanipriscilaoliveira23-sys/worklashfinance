@@ -304,12 +304,25 @@ export default function DespesasEmpresa() {
         prioridade: editForm.prioridade as any,
       };
       if (mode === "future") {
-        const { data: futuras } = await supabase.from("despesas_empresa").select("id, valor_pago_total")
+        // Calcula delta de dias entre data antiga e nova para deslocar todas futuras
+        let deltaDays = 0;
+        if (editForm.data_vencimento && editItem.data_vencimento && editForm.data_vencimento !== editItem.data_vencimento) {
+          const oldD = new Date(editItem.data_vencimento + "T00:00:00").getTime();
+          const newD = new Date(editForm.data_vencimento + "T00:00:00").getTime();
+          deltaDays = Math.round((newD - oldD) / 86400000);
+        }
+        const { data: futuras } = await supabase.from("despesas_empresa").select("id, valor_pago_total, data_vencimento")
           .eq("descricao", editItem.descricao)
           .gte("data_vencimento", editItem.data_vencimento ?? "");
         for (const f of (futuras ?? [])) {
           const saldo = valor - (f.valor_pago_total ?? 0);
-          await supabase.from("despesas_empresa").update({ ...baseData, saldo_pendente: Math.max(0, saldo) }).eq("id", f.id).throwOnError();
+          const upd: any = { ...baseData, saldo_pendente: Math.max(0, saldo) };
+          if (deltaDays !== 0 && f.data_vencimento) {
+            const d = new Date(f.data_vencimento + "T00:00:00");
+            d.setDate(d.getDate() + deltaDays);
+            upd.data_vencimento = d.toISOString().split("T")[0];
+          }
+          await supabase.from("despesas_empresa").update(upd).eq("id", f.id).throwOnError();
         }
       } else {
         const novoSaldo = valor - (editItem.valor_pago_total ?? 0);
