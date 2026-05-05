@@ -1,6 +1,6 @@
 import {
   LayoutDashboard, DollarSign, CalendarCheck, Building2, User, Users, PartyPopper,
-  Package, TrendingUp, BarChart3, Settings, LogOut, TrendingUp as Logo, FileSpreadsheet, PiggyBank
+  Package, TrendingUp, BarChart3, Settings, LogOut, TrendingUp as Logo, FileSpreadsheet, PiggyBank, Home
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useAuth, isAdmin } from "@/contexts/AuthContext";
@@ -10,7 +10,8 @@ import {
 } from "@/components/ui/sidebar";
 
 const allMenuItems = [
-  { title: "Dashboard", url: "/", icon: LayoutDashboard, adminOnly: false },
+  { title: "Início", url: "/", icon: Home, adminOnly: false },
+  { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard, adminOnly: false },
   { title: "Receitas", url: "/receitas", icon: DollarSign, adminOnly: false },
   { title: "Parcelas de Mentoria", url: "/parcelas", icon: CalendarCheck, adminOnly: false },
   { title: "Clientes", url: "/clientes", icon: Users, adminOnly: false },
