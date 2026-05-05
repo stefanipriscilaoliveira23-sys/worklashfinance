@@ -8,6 +8,7 @@ import AppLayout from "@/components/layout/AppLayout";
 import AdminRoute from "@/components/layout/AdminRoute";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
+import Inicio from "./pages/Inicio";
 import Receitas from "./pages/Receitas";
 import ParcelasMentoria from "./pages/ParcelasMentoria";
 import DespesasEmpresa from "./pages/DespesasEmpresa";
@@ -34,7 +35,8 @@ const App = () => (
           <Routes>
             <Route path="/auth" element={<Auth />} />
             <Route element={<AppLayout />}>
-              <Route path="/" element={<Dashboard />} />
+              <Route path="/" element={<Inicio />} />
+              <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/receitas" element={<Receitas />} />
               <Route path="/parcelas" element={<ParcelasMentoria />} />
               <Route path="/clientes" element={<Clientes />} />
