@@ -25,12 +25,19 @@ const CATEGORIAS = Constants.public.Enums.despesa_categoria_pessoal;
 
 const STATUS_STYLE: Record<string, string> = {
   "A Vencer": "bg-yellow-500/10 text-yellow-400 border-yellow-500/20",
+  "Vencendo Hoje": "bg-primary/10 text-primary border-primary/20",
   "Pago": "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
   "Em Atraso": "bg-destructive/10 text-destructive border-destructive/20",
   "Parcialmente Pago": "bg-orange-500/10 text-orange-400 border-orange-500/20",
 };
 
 export default function DespesasPessoal() {
+
+function getDisplayStatus(status: string | null, dataVencimento: string | null) {
+  const today = new Date().toISOString().split("T")[0];
+  if (status === "A Vencer" && dataVencimento === today) return "Vencendo Hoje";
+  return status ?? "A Vencer";
+}
   const { role } = useAuth();
   const queryClient = useQueryClient();
   const [tab, setTab] = useState("fixas");
@@ -333,7 +340,7 @@ export default function DespesasPessoal() {
                         <td className="p-3 text-muted-foreground">{formatDate(d.data_vencimento)}</td>
                         <td className="p-3 text-muted-foreground">{formatDate(d.data_pagamento)}</td>
                         <td className="p-3">
-                          <Badge variant="outline" className={STATUS_STYLE[d.status ?? "A Vencer"] ?? STATUS_STYLE["A Vencer"]}>{d.status}</Badge>
+                          <Badge variant="outline" className={STATUS_STYLE[getDisplayStatus(d.status, d.data_vencimento)]}>{getDisplayStatus(d.status, d.data_vencimento)}</Badge>
                         </td>
                         <td className="p-3">
                           <DropdownMenu>
@@ -380,7 +387,7 @@ export default function DespesasPessoal() {
                         <td className="p-3 text-muted-foreground">{formatDate(d.data_vencimento)}</td>
                         <td className="p-3 text-muted-foreground">{formatDate(d.data_pagamento)}</td>
                         <td className="p-3">
-                          <Badge variant="outline" className={STATUS_STYLE[d.status ?? "A Vencer"] ?? STATUS_STYLE["A Vencer"]}>{d.status}</Badge>
+                          <Badge variant="outline" className={STATUS_STYLE[getDisplayStatus(d.status, d.data_vencimento)]}>{getDisplayStatus(d.status, d.data_vencimento)}</Badge>
                         </td>
                         <td className="p-3">
                           <DropdownMenu>
