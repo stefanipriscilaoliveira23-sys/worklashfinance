@@ -24,12 +24,19 @@ const CATEGORIAS = Constants.public.Enums.despesa_categoria_empresa;
 
 const STATUS_STYLE: Record<string, string> = {
   "A Vencer": "bg-yellow-500/10 text-yellow-400 border-yellow-500/20",
+  "Vencendo Hoje": "bg-primary/10 text-primary border-primary/20",
   "Pago": "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
   "Em Atraso": "bg-destructive/10 text-destructive border-destructive/20",
   "Parcialmente Pago": "bg-orange-500/10 text-orange-400 border-orange-500/20",
 };
 
 type TipoPagamento = "unico" | "fixo" | "variavel" | "parcelado";
+
+function getDisplayStatus(status: string | null, dataVencimento: string | null) {
+  const today = new Date().toISOString().split("T")[0];
+  if (status === "A Vencer" && dataVencimento === today) return "Vencendo Hoje";
+  return status ?? "A Vencer";
+}
 
 const TIPO_PAGAMENTO_LABELS: Record<TipoPagamento, string> = {
   unico: "Único",
@@ -412,7 +419,7 @@ export default function DespesasEmpresa() {
                 <td className="p-3 text-muted-foreground">{formatDate(d.data_vencimento)}</td>
                 <td className="p-3 text-muted-foreground">{formatDate(d.data_pagamento)}</td>
                 <td className="p-3">
-                  <Badge variant="outline" className={STATUS_STYLE[d.status ?? "A Vencer"] ?? STATUS_STYLE["A Vencer"]}>{d.status}</Badge>
+                  <Badge variant="outline" className={STATUS_STYLE[getDisplayStatus(d.status, d.data_vencimento)]}>{getDisplayStatus(d.status, d.data_vencimento)}</Badge>
                 </td>
                 <td className="p-3">
                   <DropdownMenu>
@@ -520,7 +527,7 @@ export default function DespesasEmpresa() {
                           <td className="p-2.5 text-xs text-muted-foreground">{formatDate(p.data_vencimento)}</td>
                           <td className="p-2.5 text-xs text-right">{formatCurrency(p.valor)}</td>
                           <td className="p-2.5">
-                            <Badge variant="outline" className={`text-[10px] ${STATUS_STYLE[p.status ?? "A Vencer"]}`}>{p.status}</Badge>
+                            <Badge variant="outline" className={`text-[10px] ${STATUS_STYLE[getDisplayStatus(p.status, p.data_vencimento)]}`}>{getDisplayStatus(p.status, p.data_vencimento)}</Badge>
                           </td>
                           <td className="p-2.5 text-xs text-muted-foreground">{formatDate(p.data_pagamento)}</td>
                           <td className="p-2.5">
