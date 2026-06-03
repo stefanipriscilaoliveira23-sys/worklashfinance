@@ -253,6 +253,18 @@ export default function Receitas() {
   const totalLiquido = tabData.reduce((s, r) => s + ((r as any).valor_liquido ?? 0), 0);
   const totalUSD = tabData.filter(r => (r as any).moeda_original === "USD").reduce((s, r) => s + (r.valor_bruto ?? 0), 0);
 
+  // Valor vendido = valor total do contrato (para vendas com parcelamento), independente do que já entrou
+  // Valor faturado = dinheiro que efetivamente entrou (entradas + parcelas quitadas)
+  const valorVendido = tabData.reduce((s, r: any) => {
+    if (r.is_parcela) return s; // parcelas não são vendas novas
+    const pm = allParcelas.find(p => p.receita_id === r.id);
+    const valorContrato = pm && Number(pm.valor_total) > 0
+      ? Number(pm.valor_total)
+      : (r.valor_contrato && r.valor_contrato > 0 ? r.valor_contrato : (r.valor_bruto ?? 0));
+    return s + valorContrato;
+  }, 0);
+  const valorFaturado = totalBruto;
+
   // Helper to find parcela info for a receita or parcela-type entry
   const getParcelaInfo = (entry: any) => {
     // For parcela-type entries, use the embedded parent data
@@ -498,17 +510,20 @@ export default function Receitas() {
       <MonthNavigator filter={dateFilter} onChange={setDateFilter} />
 
       {/* Cards de resumo */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-7 gap-3">
         {[
+          { label: "Valor Vendido", value: formatCurrency(valorVendido), highlight: true, sub: "Total contratado" },
+          { label: "Valor Faturado", value: formatCurrency(valorFaturado), highlight: true, sub: "Dinheiro que entrou" },
           { label: "Total Bruto", value: formatCurrency(totalBruto) },
           { label: "Total Taxas", value: formatCurrency(totalTaxas) },
           { label: "Total Líquido", value: formatCurrency(totalLiquido) },
           { label: "Qtd vendas", value: String(tabData.length) },
           { label: "Total em USD", value: formatCurrency(totalUSD, "USD") },
         ].map(c => (
-          <div key={c.label} className="rounded-xl border border-border bg-card p-4">
+          <div key={c.label} className={`rounded-xl border p-4 ${c.highlight ? "border-primary/40 bg-primary/5" : "border-border bg-card"}`}>
             <p className="text-xs text-muted-foreground uppercase tracking-wider">{c.label}</p>
-            <p className="text-lg font-bold text-foreground mt-1">{c.value}</p>
+            <p className={`text-lg font-bold mt-1 ${c.highlight ? "text-primary" : "text-foreground"}`}>{c.value}</p>
+            {c.sub && <p className="text-[10px] text-muted-foreground mt-0.5">{c.sub}</p>}
           </div>
         ))}
       </div>
