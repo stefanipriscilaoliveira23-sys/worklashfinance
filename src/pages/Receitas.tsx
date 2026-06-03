@@ -510,17 +510,20 @@ export default function Receitas() {
       <MonthNavigator filter={dateFilter} onChange={setDateFilter} />
 
       {/* Cards de resumo */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-7 gap-3">
         {[
+          { label: "Valor Vendido", value: formatCurrency(valorVendido), highlight: true, sub: "Total contratado" },
+          { label: "Valor Faturado", value: formatCurrency(valorFaturado), highlight: true, sub: "Dinheiro que entrou" },
           { label: "Total Bruto", value: formatCurrency(totalBruto) },
           { label: "Total Taxas", value: formatCurrency(totalTaxas) },
           { label: "Total Líquido", value: formatCurrency(totalLiquido) },
           { label: "Qtd vendas", value: String(tabData.length) },
           { label: "Total em USD", value: formatCurrency(totalUSD, "USD") },
         ].map(c => (
-          <div key={c.label} className="rounded-xl border border-border bg-card p-4">
+          <div key={c.label} className={`rounded-xl border p-4 ${c.highlight ? "border-primary/40 bg-primary/5" : "border-border bg-card"}`}>
             <p className="text-xs text-muted-foreground uppercase tracking-wider">{c.label}</p>
-            <p className="text-lg font-bold text-foreground mt-1">{c.value}</p>
+            <p className={`text-lg font-bold mt-1 ${c.highlight ? "text-primary" : "text-foreground"}`}>{c.value}</p>
+            {c.sub && <p className="text-[10px] text-muted-foreground mt-0.5">{c.sub}</p>}
           </div>
         ))}
       </div>
