@@ -253,6 +253,18 @@ export default function Receitas() {
   const totalLiquido = tabData.reduce((s, r) => s + ((r as any).valor_liquido ?? 0), 0);
   const totalUSD = tabData.filter(r => (r as any).moeda_original === "USD").reduce((s, r) => s + (r.valor_bruto ?? 0), 0);
 
+  // Valor vendido = valor total do contrato (para vendas com parcelamento), independente do que já entrou
+  // Valor faturado = dinheiro que efetivamente entrou (entradas + parcelas quitadas)
+  const valorVendido = tabData.reduce((s, r: any) => {
+    if (r.is_parcela) return s; // parcelas não são vendas novas
+    const pm = allParcelas.find(p => p.receita_id === r.id);
+    const valorContrato = pm && Number(pm.valor_total) > 0
+      ? Number(pm.valor_total)
+      : (r.valor_contrato && r.valor_contrato > 0 ? r.valor_contrato : (r.valor_bruto ?? 0));
+    return s + valorContrato;
+  }, 0);
+  const valorFaturado = totalBruto;
+
   // Helper to find parcela info for a receita or parcela-type entry
   const getParcelaInfo = (entry: any) => {
     // For parcela-type entries, use the embedded parent data
