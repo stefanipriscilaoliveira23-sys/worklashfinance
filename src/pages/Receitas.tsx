@@ -264,6 +264,13 @@ export default function Receitas() {
     return s + valorContrato;
   }, 0);
   const valorFaturado = totalBruto;
+  // Breakdown do Faturado: quanto veio de vendas novas do período vs parcelas de contratos antigos
+  const faturadoVendasNovas = tabData
+    .filter((r: any) => !r.is_parcela)
+    .reduce((s, r: any) => s + (r.valor_bruto ?? 0), 0);
+  const faturadoParcelasAntigas = tabData
+    .filter((r: any) => r.is_parcela)
+    .reduce((s, r: any) => s + (r.valor_bruto ?? 0), 0);
 
   // Helper to find parcela info for a receita or parcela-type entry
   const getParcelaInfo = (entry: any) => {
@@ -513,7 +520,12 @@ export default function Receitas() {
       <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-7 gap-3">
         {[
           { label: "Valor Vendido", value: formatCurrency(valorVendido), highlight: true, sub: "Total contratado" },
-          { label: "Valor Faturado", value: formatCurrency(valorFaturado), highlight: true, sub: "Dinheiro que entrou" },
+          {
+            label: "Valor Faturado",
+            value: formatCurrency(valorFaturado),
+            highlight: true,
+            sub: `${formatCurrency(faturadoVendasNovas)} vendas novas + ${formatCurrency(faturadoParcelasAntigas)} parcelas antigas`,
+          },
           { label: "Total Bruto", value: formatCurrency(totalBruto) },
           { label: "Total Taxas", value: formatCurrency(totalTaxas) },
           { label: "Total Líquido", value: formatCurrency(totalLiquido) },
