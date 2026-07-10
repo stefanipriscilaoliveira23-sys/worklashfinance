@@ -520,7 +520,12 @@ export default function Receitas() {
       <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-7 gap-3">
         {[
           { label: "Valor Vendido", value: formatCurrency(valorVendido), highlight: true, sub: "Total contratado" },
-          { label: "Valor Faturado", value: formatCurrency(valorFaturado), highlight: true, sub: "Dinheiro que entrou" },
+          {
+            label: "Valor Faturado",
+            value: formatCurrency(valorFaturado),
+            highlight: true,
+            sub: `${formatCurrency(faturadoVendasNovas)} vendas novas + ${formatCurrency(faturadoParcelasAntigas)} parcelas antigas`,
+          },
           { label: "Total Bruto", value: formatCurrency(totalBruto) },
           { label: "Total Taxas", value: formatCurrency(totalTaxas) },
           { label: "Total Líquido", value: formatCurrency(totalLiquido) },
