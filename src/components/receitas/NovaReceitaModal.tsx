@@ -451,7 +451,7 @@ export function NovaReceitaModal({ open, onClose }: { open: boolean; onClose: ()
               {/* Origens venda */}
               <div className="space-y-1.5">
                 <Label className="text-foreground/80">Origens da venda (opcional)</Label>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap gap-2 items-center">
                   {(origensOpcoes ?? []).map((o) => (
                     <button
                       key={o.id}
@@ -470,6 +470,32 @@ export function NovaReceitaModal({ open, onClose }: { open: boolean; onClose: ()
                       {o.label}
                     </button>
                   ))}
+                  {!novaOrigemAtiva ? (
+                    <button
+                      type="button"
+                      onClick={() => setNovaOrigemAtiva(true)}
+                      className="px-3 py-1.5 text-xs rounded-full border border-dashed border-primary/50 text-primary hover:bg-primary/10 transition-colors flex items-center gap-1"
+                    >
+                      <Plus className="h-3 w-3" /> Nova origem
+                    </button>
+                  ) : (
+                    <div className="flex items-center gap-1">
+                      <Input
+                        autoFocus
+                        value={novaOrigemLabel}
+                        onChange={(e) => setNovaOrigemLabel(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); criarOrigem.mutate(); } if (e.key === "Escape") { setNovaOrigemAtiva(false); setNovaOrigemLabel(""); } }}
+                        placeholder="Nome da origem"
+                        className="h-7 text-xs bg-secondary/50 border-border w-40"
+                      />
+                      <Button type="button" size="sm" onClick={() => criarOrigem.mutate()} disabled={criarOrigem.isPending || !novaOrigemLabel.trim()} className="h-7 px-2 gold-gradient text-primary-foreground text-xs">
+                        {criarOrigem.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : "Salvar"}
+                      </Button>
+                      <Button type="button" variant="ghost" size="sm" onClick={() => { setNovaOrigemAtiva(false); setNovaOrigemLabel(""); }} className="h-7 px-2 text-xs">
+                        ✕
+                      </Button>
+                    </div>
+                  )}
                 </div>
               </div>
 
