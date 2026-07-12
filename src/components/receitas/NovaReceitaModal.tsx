@@ -166,7 +166,7 @@ export function NovaReceitaModal({ open, onClose }: { open: boolean; onClose: ()
 
   // Entrada lines management
   const addEntradaLinha = () => {
-    setEntradaLinhas([...entradaLinhas, { valor: 0, forma: "Pix" }]);
+    setEntradaLinhas([...entradaLinhas, { valor: 0, forma: "Pix", taxaPercent: 0 }]);
   };
   const removeEntradaLinha = (idx: number) => {
     if (entradaLinhas.length <= 1) return;
