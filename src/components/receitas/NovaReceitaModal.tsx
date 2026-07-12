@@ -524,7 +524,7 @@ export function NovaReceitaModal({ open, onClose }: { open: boolean; onClose: ()
                       type="button"
                       onClick={() => {
                         setTipoPagamento("entrada_parcelas");
-                        setEntradaLinhas([{ valor: 0, forma: "Pix" }]);
+                        setEntradaLinhas([{ valor: 0, forma: "Pix", taxaPercent: 0 }]);
                       }}
                       className={`p-3 rounded-lg border text-sm text-left transition-colors ${
                         tipoPagamento === "entrada_parcelas"
