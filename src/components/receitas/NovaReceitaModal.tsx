@@ -101,7 +101,7 @@ export function NovaReceitaModal({ open, onClose }: { open: boolean; onClose: ()
   const entradaValorTotal = entradaLinhas.reduce((sum, l) => sum + (l.valor || 0), 0);
   const entradaFormaConcat = entradaLinhas
     .filter(l => l.valor > 0)
-    .map(l => `${l.forma}: R$${l.valor.toFixed(2).replace('.', ',')}`)
+    .map(l => `${l.forma}: R$${l.valor.toFixed(2).replace('.', ',')}${l.taxaPercent > 0 ? ` (${l.taxaPercent}%)` : ""}`)
     .join(" + ");
 
   const isAvista = tipoPagamento === "avista";
@@ -114,18 +114,17 @@ export function NovaReceitaModal({ open, onClose }: { open: boolean; onClose: ()
     ? (isAvista ? valorContrato : entradaValorTotal)
     : valorContrato;
 
-  // Calculadora bidirecional taxa
-  const [taxaActiveField, setTaxaActiveField] = useState<"percent" | "valor" | "liquido" | null>(null);
-  useTaxaCalculator({
-    valorVenda: valorRecebido,
-    taxaPercent,
-    taxaValor,
-    valorLiquido,
-    setTaxaPercent,
-    setTaxaValor,
-    setValorLiquido,
-    activeField: taxaActiveField,
-  });
+  // Taxa total: calculada a partir das linhas de forma de pagamento
+  const taxaValorLinhas = entradaLinhas.reduce((s, l) => s + ((l.valor || 0) * (l.taxaPercent || 0)) / 100, 0);
+  const taxaPercentEfetivo = valorRecebido > 0 ? (taxaValorLinhas / valorRecebido) * 100 : 0;
+  const valorLiquidoLinhas = valorRecebido - taxaValorLinhas;
+
+  // Sincroniza os campos globais com as linhas
+  useEffect(() => {
+    setTaxaValor(taxaValorLinhas);
+    setValorLiquido(valorLiquidoLinhas);
+    setTaxaPercent(taxaPercentEfetivo);
+  }, [taxaValorLinhas, valorLiquidoLinhas, taxaPercentEfetivo]);
 
   // Auto-calc cambio
   useEffect(() => {
