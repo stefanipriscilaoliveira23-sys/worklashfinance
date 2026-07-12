@@ -221,7 +221,7 @@ export function NovaReceitaModal({ open, onClose }: { open: boolean; onClose: ()
         produto_categoria: categoria,
         plataforma,
         valor_bruto: valorBrutoFinal,
-        taxa_plataforma_percentual: taxaPercent,
+        taxa_plataforma_percentual: taxaPercentEfetivo,
         taxa_plataforma_valor: taxaValorFinal,
         valor_liquido: valorLiquidoFinal,
         moeda_original: moeda,
