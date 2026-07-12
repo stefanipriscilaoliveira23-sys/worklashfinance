@@ -96,6 +96,19 @@ export default function Cofrinho() {
     },
   });
 
+  const zerarCofrinho = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase.from("cofrinho").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["cofrinho"] });
+      queryClient.invalidateQueries({ queryKey: ["cofrinho-all"] });
+      toast.success("Cofrinho zerado");
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
   const totalMes = (entries ?? []).reduce((s, e) => s + (e.valor ?? 0), 0);
   const saldoAtual = (allEntries ?? []).reduce((s, e) => s + (e.valor ?? 0), 0);
 
