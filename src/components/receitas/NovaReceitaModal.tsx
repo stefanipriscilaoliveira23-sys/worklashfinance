@@ -712,44 +712,20 @@ export function NovaReceitaModal({ open, onClose }: { open: boolean; onClose: ()
                 </div>
               )}
 
-              {/* Taxa / Moeda */}
+              {/* Resumo de Taxa / Líquido (calculado das linhas) */}
               {valorRecebido > 0 && (
-                <div className="grid grid-cols-3 gap-4">
-                  <div className="space-y-1.5">
-                    <Label className="text-foreground/80">Taxa plataforma %</Label>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      value={taxaPercent || ""}
-                      onFocus={() => setTaxaActiveField("percent")}
-                      onBlur={() => setTaxaActiveField(null)}
-                      onChange={(e) => setTaxaPercent(Number(e.target.value))}
-                      className="bg-secondary/50 border-border"
-                    />
+                <div className="grid grid-cols-3 gap-4 p-3 rounded-lg bg-secondary/30 border border-border">
+                  <div>
+                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Taxa efetiva</p>
+                    <p className="text-sm font-semibold text-foreground mt-1">{taxaPercentEfetivo.toFixed(2)}%</p>
                   </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-foreground/80">Valor taxa</Label>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      value={taxaActiveField === "valor" ? (taxaValor || "") : taxaValor.toFixed(2)}
-                      onFocus={() => setTaxaActiveField("valor")}
-                      onBlur={() => setTaxaActiveField(null)}
-                      onChange={(e) => setTaxaValor(Number(e.target.value))}
-                      className="bg-secondary/50 border-border"
-                    />
+                  <div>
+                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Total taxas</p>
+                    <p className="text-sm font-semibold text-destructive mt-1">{formatCurrency(taxaValorLinhas)}</p>
                   </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-foreground/80">Valor líquido</Label>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      value={taxaActiveField === "liquido" ? (valorLiquido || "") : valorLiquido.toFixed(2)}
-                      onFocus={() => setTaxaActiveField("liquido")}
-                      onBlur={() => setTaxaActiveField(null)}
-                      onChange={(e) => setValorLiquido(Number(e.target.value))}
-                      className="bg-secondary/50 border-border"
-                    />
+                  <div>
+                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Líquido total</p>
+                    <p className="text-sm font-semibold text-primary mt-1">{formatCurrency(valorLiquidoLinhas)}</p>
                   </div>
                 </div>
               )}
