@@ -35,6 +35,7 @@ interface ParcelaRow {
 interface EntradaLinha {
   valor: number;
   forma: string;
+  taxaPercent: number;
 }
 
 export function NovaReceitaModal({ open, onClose }: { open: boolean; onClose: () => void }) {
