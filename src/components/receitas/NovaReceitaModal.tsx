@@ -61,8 +61,8 @@ export function NovaReceitaModal({ open, onClose }: { open: boolean; onClose: ()
   // === DADOS DO PAGAMENTO ===
   const [valorContrato, setValorContrato] = useState(0);
   const [tipoPagamento, setTipoPagamento] = useState<"avista" | "entrada_parcelas" | "">(""); // mentoria only
-  const [entradaLinhas, setEntradaLinhas] = useState<EntradaLinha[]>([{ valor: 0, forma: "Pix" }]);
-  const [entradaFormaPagamento, setEntradaFormaPagamento] = useState(""); // non-mentoria
+  const [entradaLinhas, setEntradaLinhas] = useState<EntradaLinha[]>([{ valor: 0, forma: "Pix", taxaPercent: 0 }]);
+  const [entradaFormaPagamento, setEntradaFormaPagamento] = useState(""); // legado (não usado no UI novo)
   const [plataforma, setPlataforma] = useState<PlataformaOrigem>("Direto Pix");
   const [taxaPercent, setTaxaPercent] = useState(0);
   const [taxaValor, setTaxaValor] = useState(0);
