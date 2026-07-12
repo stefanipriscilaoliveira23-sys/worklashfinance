@@ -95,6 +95,27 @@ export function NovaReceitaModal({ open, onClose }: { open: boolean; onClose: ()
     },
   });
 
+  // Nova origem inline
+  const [novaOrigemAtiva, setNovaOrigemAtiva] = useState(false);
+  const [novaOrigemLabel, setNovaOrigemLabel] = useState("");
+  const criarOrigem = useMutation({
+    mutationFn: async () => {
+      const label = novaOrigemLabel.trim();
+      if (!label) throw new Error("Nome vazio");
+      const { data, error } = await supabase.from("origens_venda_opcoes").insert({ label, ativo: true }).select().single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (nova: any) => {
+      queryClient.invalidateQueries({ queryKey: ["origens-venda-opcoes"] });
+      setOrigensVenda((prev) => [...prev, nova.label]);
+      setNovaOrigemLabel("");
+      setNovaOrigemAtiva(false);
+      toast.success("Origem adicionada");
+    },
+    onError: (e: any) => toast.error("Erro ao criar origem: " + e.message),
+  });
+
   const isMentoria = MENTORIA_CATS.includes(categoria);
 
   // Derived values for mentoria
