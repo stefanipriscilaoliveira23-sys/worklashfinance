@@ -96,6 +96,19 @@ export default function Cofrinho() {
     },
   });
 
+  const zerarCofrinho = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase.from("cofrinho").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["cofrinho"] });
+      queryClient.invalidateQueries({ queryKey: ["cofrinho-all"] });
+      toast.success("Cofrinho zerado");
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
   const totalMes = (entries ?? []).reduce((s, e) => s + (e.valor ?? 0), 0);
   const saldoAtual = (allEntries ?? []).reduce((s, e) => s + (e.valor ?? 0), 0);
 
@@ -124,9 +137,19 @@ export default function Cofrinho() {
         <h1 className="text-xl font-bold text-foreground flex items-center gap-2">
           <PiggyBank className="h-5 w-5 text-primary" /> Cofrinho
         </h1>
-        <Button onClick={() => setShowAdd(true)} className="gold-gradient text-primary-foreground">
-          <Plus className="h-4 w-4 mr-2" /> Adicionar valor
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            onClick={() => { if (confirm("Zerar TODO o cofrinho? Isso apagará todas as entradas.")) zerarCofrinho.mutate(); }}
+            className="border-destructive/40 text-destructive hover:bg-destructive/10"
+            disabled={zerarCofrinho.isPending || (allEntries ?? []).length === 0}
+          >
+            {zerarCofrinho.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Trash2 className="h-4 w-4 mr-2" /> Zerar cofrinho</>}
+          </Button>
+          <Button onClick={() => setShowAdd(true)} className="gold-gradient text-primary-foreground">
+            <Plus className="h-4 w-4 mr-2" /> Adicionar valor
+          </Button>
+        </div>
       </div>
 
       <MonthNavigator filter={dateFilter} onChange={setDateFilter} />

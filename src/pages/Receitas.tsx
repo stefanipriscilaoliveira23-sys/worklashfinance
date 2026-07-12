@@ -325,7 +325,18 @@ export default function Receitas() {
             <tr key={r.id} className={`border-b border-border/50 hover:bg-surface-hover transition-colors ${isParcela ? "bg-primary/[0.02]" : ""}`}>
               <td className="p-3">{formatDate(r.data)}</td>
               <td className="p-3 truncate max-w-[200px]">{r.produto_nome}</td>
-              <td className="p-3 text-muted-foreground text-xs">{r.plataforma || "—"}</td>
+              <td className="p-3 text-muted-foreground text-xs max-w-[180px]">
+                {Array.isArray(r.origens_venda) && r.origens_venda.length > 0
+                  ? (
+                    <div className="flex flex-wrap gap-1">
+                      {r.origens_venda.slice(0, 2).map((o: string, i: number) => (
+                        <span key={i} className="px-1.5 py-0.5 rounded bg-primary/10 text-primary text-[10px] whitespace-nowrap">{o}</span>
+                      ))}
+                      {r.origens_venda.length > 2 && <span className="text-[10px]">+{r.origens_venda.length - 2}</span>}
+                    </div>
+                  )
+                  : "—"}
+              </td>
               <td className="p-3 truncate max-w-[120px]">{r.cliente_nome || "—"}</td>
               <td className="p-3 text-right">{formatCurrency(r.valor_bruto)}</td>
               <td className="p-3 text-right text-muted-foreground">{formatCurrency(r.taxa_plataforma_valor ?? 0)}</td>

@@ -35,6 +35,7 @@ interface ParcelaRow {
 interface EntradaLinha {
   valor: number;
   forma: string;
+  taxaPercent: number;
 }
 
 export function NovaReceitaModal({ open, onClose }: { open: boolean; onClose: () => void }) {
@@ -60,8 +61,8 @@ export function NovaReceitaModal({ open, onClose }: { open: boolean; onClose: ()
   // === DADOS DO PAGAMENTO ===
   const [valorContrato, setValorContrato] = useState(0);
   const [tipoPagamento, setTipoPagamento] = useState<"avista" | "entrada_parcelas" | "">(""); // mentoria only
-  const [entradaLinhas, setEntradaLinhas] = useState<EntradaLinha[]>([{ valor: 0, forma: "Pix" }]);
-  const [entradaFormaPagamento, setEntradaFormaPagamento] = useState(""); // non-mentoria
+  const [entradaLinhas, setEntradaLinhas] = useState<EntradaLinha[]>([{ valor: 0, forma: "Pix", taxaPercent: 0 }]);
+  const [entradaFormaPagamento, setEntradaFormaPagamento] = useState(""); // legado (não usado no UI novo)
   const [plataforma, setPlataforma] = useState<PlataformaOrigem>("Direto Pix");
   const [taxaPercent, setTaxaPercent] = useState(0);
   const [taxaValor, setTaxaValor] = useState(0);
@@ -94,13 +95,34 @@ export function NovaReceitaModal({ open, onClose }: { open: boolean; onClose: ()
     },
   });
 
+  // Nova origem inline
+  const [novaOrigemAtiva, setNovaOrigemAtiva] = useState(false);
+  const [novaOrigemLabel, setNovaOrigemLabel] = useState("");
+  const criarOrigem = useMutation({
+    mutationFn: async () => {
+      const label = novaOrigemLabel.trim();
+      if (!label) throw new Error("Nome vazio");
+      const { data, error } = await supabase.from("origens_venda_opcoes").insert({ label, ativo: true }).select().single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (nova: any) => {
+      queryClient.invalidateQueries({ queryKey: ["origens-venda-opcoes"] });
+      setOrigensVenda((prev) => [...prev, nova.label]);
+      setNovaOrigemLabel("");
+      setNovaOrigemAtiva(false);
+      toast.success("Origem adicionada");
+    },
+    onError: (e: any) => toast.error("Erro ao criar origem: " + e.message),
+  });
+
   const isMentoria = MENTORIA_CATS.includes(categoria);
 
   // Derived values for mentoria
   const entradaValorTotal = entradaLinhas.reduce((sum, l) => sum + (l.valor || 0), 0);
   const entradaFormaConcat = entradaLinhas
     .filter(l => l.valor > 0)
-    .map(l => `${l.forma}: R$${l.valor.toFixed(2).replace('.', ',')}`)
+    .map(l => `${l.forma}: R$${l.valor.toFixed(2).replace('.', ',')}${l.taxaPercent > 0 ? ` (${l.taxaPercent}%)` : ""}`)
     .join(" + ");
 
   const isAvista = tipoPagamento === "avista";
@@ -113,18 +135,17 @@ export function NovaReceitaModal({ open, onClose }: { open: boolean; onClose: ()
     ? (isAvista ? valorContrato : entradaValorTotal)
     : valorContrato;
 
-  // Calculadora bidirecional taxa
-  const [taxaActiveField, setTaxaActiveField] = useState<"percent" | "valor" | "liquido" | null>(null);
-  useTaxaCalculator({
-    valorVenda: valorRecebido,
-    taxaPercent,
-    taxaValor,
-    valorLiquido,
-    setTaxaPercent,
-    setTaxaValor,
-    setValorLiquido,
-    activeField: taxaActiveField,
-  });
+  // Taxa total: calculada a partir das linhas de forma de pagamento
+  const taxaValorLinhas = entradaLinhas.reduce((s, l) => s + ((l.valor || 0) * (l.taxaPercent || 0)) / 100, 0);
+  const taxaPercentEfetivo = valorRecebido > 0 ? (taxaValorLinhas / valorRecebido) * 100 : 0;
+  const valorLiquidoLinhas = valorRecebido - taxaValorLinhas;
+
+  // Sincroniza os campos globais com as linhas
+  useEffect(() => {
+    setTaxaValor(taxaValorLinhas);
+    setValorLiquido(valorLiquidoLinhas);
+    setTaxaPercent(taxaPercentEfetivo);
+  }, [taxaValorLinhas, valorLiquidoLinhas, taxaPercentEfetivo]);
 
   // Auto-calc cambio
   useEffect(() => {
@@ -165,7 +186,7 @@ export function NovaReceitaModal({ open, onClose }: { open: boolean; onClose: ()
 
   // Entrada lines management
   const addEntradaLinha = () => {
-    setEntradaLinhas([...entradaLinhas, { valor: 0, forma: "Pix" }]);
+    setEntradaLinhas([...entradaLinhas, { valor: 0, forma: "Pix", taxaPercent: 0 }]);
   };
   const removeEntradaLinha = (idx: number) => {
     if (entradaLinhas.length <= 1) return;
@@ -180,21 +201,11 @@ export function NovaReceitaModal({ open, onClose }: { open: boolean; onClose: ()
   const insertMutation = useMutation({
     mutationFn: async () => {
       const valorBrutoFinal = valorRecebido;
-      const taxaValorFinal = valorBrutoFinal * (taxaPercent / 100);
+      const taxaValorFinal = taxaValorLinhas;
       const valorLiquidoFinal = valorBrutoFinal - taxaValorFinal;
 
-      // Build forma_pagamento string
-      let formaPagamentoFinal: string | null = null;
-      if (isMentoria) {
-        if (isAvista) {
-          // For à vista, use the first entrada line's forma or concat
-          formaPagamentoFinal = entradaFormaConcat || entradaLinhas[0]?.forma || null;
-        } else {
-          formaPagamentoFinal = entradaFormaConcat || null;
-        }
-      } else {
-        formaPagamentoFinal = entradaFormaPagamento || null;
-      }
+      // forma_pagamento: sempre concatenar as linhas (com taxa quando > 0)
+      const formaPagamentoFinal = entradaFormaConcat || entradaLinhas[0]?.forma || null;
 
       // Build observacao with payment details
       let obsCompleta = observacao;
@@ -210,7 +221,7 @@ export function NovaReceitaModal({ open, onClose }: { open: boolean; onClose: ()
         produto_categoria: categoria,
         plataforma,
         valor_bruto: valorBrutoFinal,
-        taxa_plataforma_percentual: taxaPercent,
+        taxa_plataforma_percentual: taxaPercentEfetivo,
         taxa_plataforma_valor: taxaValorFinal,
         valor_liquido: valorLiquidoFinal,
         moeda_original: moeda,
@@ -451,7 +462,7 @@ export function NovaReceitaModal({ open, onClose }: { open: boolean; onClose: ()
               {/* Origens venda */}
               <div className="space-y-1.5">
                 <Label className="text-foreground/80">Origens da venda (opcional)</Label>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap gap-2 items-center">
                   {(origensOpcoes ?? []).map((o) => (
                     <button
                       key={o.id}
@@ -470,6 +481,32 @@ export function NovaReceitaModal({ open, onClose }: { open: boolean; onClose: ()
                       {o.label}
                     </button>
                   ))}
+                  {!novaOrigemAtiva ? (
+                    <button
+                      type="button"
+                      onClick={() => setNovaOrigemAtiva(true)}
+                      className="px-3 py-1.5 text-xs rounded-full border border-dashed border-primary/50 text-primary hover:bg-primary/10 transition-colors flex items-center gap-1"
+                    >
+                      <Plus className="h-3 w-3" /> Nova origem
+                    </button>
+                  ) : (
+                    <div className="flex items-center gap-1">
+                      <Input
+                        autoFocus
+                        value={novaOrigemLabel}
+                        onChange={(e) => setNovaOrigemLabel(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); criarOrigem.mutate(); } if (e.key === "Escape") { setNovaOrigemAtiva(false); setNovaOrigemLabel(""); } }}
+                        placeholder="Nome da origem"
+                        className="h-7 text-xs bg-secondary/50 border-border w-40"
+                      />
+                      <Button type="button" size="sm" onClick={() => criarOrigem.mutate()} disabled={criarOrigem.isPending || !novaOrigemLabel.trim()} className="h-7 px-2 gold-gradient text-primary-foreground text-xs">
+                        {criarOrigem.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : "Salvar"}
+                      </Button>
+                      <Button type="button" variant="ghost" size="sm" onClick={() => { setNovaOrigemAtiva(false); setNovaOrigemLabel(""); }} className="h-7 px-2 text-xs">
+                        ✕
+                      </Button>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -508,7 +545,7 @@ export function NovaReceitaModal({ open, onClose }: { open: boolean; onClose: ()
                       type="button"
                       onClick={() => {
                         setTipoPagamento("avista");
-                        setEntradaLinhas([{ valor: valorContrato, forma: "Pix" }]);
+                        setEntradaLinhas([{ valor: valorContrato, forma: "Pix", taxaPercent: 0 }]);
                       }}
                       className={`p-3 rounded-lg border text-sm text-left transition-colors ${
                         tipoPagamento === "avista"
@@ -523,7 +560,7 @@ export function NovaReceitaModal({ open, onClose }: { open: boolean; onClose: ()
                       type="button"
                       onClick={() => {
                         setTipoPagamento("entrada_parcelas");
-                        setEntradaLinhas([{ valor: 0, forma: "Pix" }]);
+                        setEntradaLinhas([{ valor: 0, forma: "Pix", taxaPercent: 0 }]);
                       }}
                       className={`p-3 rounded-lg border text-sm text-left transition-colors ${
                         tipoPagamento === "entrada_parcelas"
@@ -539,36 +576,41 @@ export function NovaReceitaModal({ open, onClose }: { open: boolean; onClose: ()
                   {/* === À VISTA: como pagou === */}
                   {tipoPagamento === "avista" && (
                     <div className="p-3 rounded-lg bg-primary/5 border border-primary/20 space-y-3">
-                      <Label className="text-foreground/80 text-sm">Como foi pago?</Label>
-                      {entradaLinhas.map((linha, idx) => (
-                        <div key={idx} className="flex gap-2 items-end">
-                          <div className="flex-1 space-y-1">
-                            {idx === 0 && <Label className="text-xs text-muted-foreground">Valor</Label>}
-                            <Input
-                              type="number"
-                              step="0.01"
-                              value={linha.valor || ""}
-                              onChange={(e) => updateEntradaLinha(idx, "valor", Number(e.target.value))}
-                              className="bg-secondary/50 border-border"
-                              placeholder="0,00"
-                            />
+                      <Label className="text-foreground/80 text-sm">Como foi pago? (Pix, Link de crédito, Hotmart, Kiwify...)</Label>
+                      {entradaLinhas.map((linha, idx) => {
+                        const liquidoLinha = linha.valor - (linha.valor * (linha.taxaPercent || 0)) / 100;
+                        return (
+                          <div key={idx} className="space-y-1">
+                            <div className="flex gap-2 items-end">
+                              <div className="flex-[1.2] space-y-1">
+                                {idx === 0 && <Label className="text-xs text-muted-foreground">Forma</Label>}
+                                <Select value={linha.forma} onValueChange={(v) => updateEntradaLinha(idx, "forma", v)}>
+                                  <SelectTrigger className="bg-secondary/50 border-border"><SelectValue /></SelectTrigger>
+                                  <SelectContent>
+                                    {FORMAS_PAGAMENTO.map(f => <SelectItem key={f} value={f}>{f}</SelectItem>)}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                              <div className="flex-1 space-y-1">
+                                {idx === 0 && <Label className="text-xs text-muted-foreground">Valor</Label>}
+                                <Input type="number" step="0.01" value={linha.valor || ""} onChange={(e) => updateEntradaLinha(idx, "valor", Number(e.target.value))} className="bg-secondary/50 border-border" placeholder="0,00" />
+                              </div>
+                              <div className="w-20 space-y-1">
+                                {idx === 0 && <Label className="text-xs text-muted-foreground">Taxa %</Label>}
+                                <Input type="number" step="0.01" value={linha.taxaPercent || ""} onChange={(e) => updateEntradaLinha(idx, "taxaPercent", Number(e.target.value))} className="bg-secondary/50 border-border" placeholder="0" />
+                              </div>
+                              {entradaLinhas.length > 1 && (
+                                <Button variant="ghost" size="icon" className="h-9 w-9 text-destructive shrink-0" onClick={() => removeEntradaLinha(idx)}>
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              )}
+                            </div>
+                            {(linha.valor > 0 && linha.taxaPercent > 0) && (
+                              <p className="text-[10px] text-muted-foreground ml-1">Líquido dessa forma: <strong className="text-primary">{formatCurrency(liquidoLinha)}</strong></p>
+                            )}
                           </div>
-                          <div className="flex-1 space-y-1">
-                            {idx === 0 && <Label className="text-xs text-muted-foreground">Forma</Label>}
-                            <Select value={linha.forma} onValueChange={(v) => updateEntradaLinha(idx, "forma", v)}>
-                              <SelectTrigger className="bg-secondary/50 border-border"><SelectValue /></SelectTrigger>
-                              <SelectContent>
-                                {FORMAS_PAGAMENTO.map(f => <SelectItem key={f} value={f}>{f}</SelectItem>)}
-                              </SelectContent>
-                            </Select>
-                          </div>
-                          {entradaLinhas.length > 1 && (
-                            <Button variant="ghost" size="icon" className="h-9 w-9 text-destructive shrink-0" onClick={() => removeEntradaLinha(idx)}>
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          )}
-                        </div>
-                      ))}
+                        );
+                      })}
                       <div className="flex items-center justify-between">
                         <Button type="button" variant="ghost" size="sm" onClick={addEntradaLinha} className="text-xs text-primary">
                           <Plus className="h-3 w-3 mr-1" /> Adicionar forma de pagamento
@@ -589,35 +631,40 @@ export function NovaReceitaModal({ open, onClose }: { open: boolean; onClose: ()
                   {tipoPagamento === "entrada_parcelas" && (
                     <div className="p-3 rounded-lg bg-primary/5 border border-primary/20 space-y-3">
                       <Label className="text-foreground/80 text-sm">Detalhe da entrada</Label>
-                      {entradaLinhas.map((linha, idx) => (
-                        <div key={idx} className="flex gap-2 items-end">
-                          <div className="flex-1 space-y-1">
-                            {idx === 0 && <Label className="text-xs text-muted-foreground">Valor</Label>}
-                            <Input
-                              type="number"
-                              step="0.01"
-                              value={linha.valor || ""}
-                              onChange={(e) => updateEntradaLinha(idx, "valor", Number(e.target.value))}
-                              className="bg-secondary/50 border-border"
-                              placeholder="0,00"
-                            />
+                      {entradaLinhas.map((linha, idx) => {
+                        const liquidoLinha = linha.valor - (linha.valor * (linha.taxaPercent || 0)) / 100;
+                        return (
+                          <div key={idx} className="space-y-1">
+                            <div className="flex gap-2 items-end">
+                              <div className="flex-[1.2] space-y-1">
+                                {idx === 0 && <Label className="text-xs text-muted-foreground">Forma</Label>}
+                                <Select value={linha.forma} onValueChange={(v) => updateEntradaLinha(idx, "forma", v)}>
+                                  <SelectTrigger className="bg-secondary/50 border-border"><SelectValue /></SelectTrigger>
+                                  <SelectContent>
+                                    {FORMAS_PAGAMENTO.map(f => <SelectItem key={f} value={f}>{f}</SelectItem>)}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                              <div className="flex-1 space-y-1">
+                                {idx === 0 && <Label className="text-xs text-muted-foreground">Valor</Label>}
+                                <Input type="number" step="0.01" value={linha.valor || ""} onChange={(e) => updateEntradaLinha(idx, "valor", Number(e.target.value))} className="bg-secondary/50 border-border" placeholder="0,00" />
+                              </div>
+                              <div className="w-20 space-y-1">
+                                {idx === 0 && <Label className="text-xs text-muted-foreground">Taxa %</Label>}
+                                <Input type="number" step="0.01" value={linha.taxaPercent || ""} onChange={(e) => updateEntradaLinha(idx, "taxaPercent", Number(e.target.value))} className="bg-secondary/50 border-border" placeholder="0" />
+                              </div>
+                              {entradaLinhas.length > 1 && (
+                                <Button variant="ghost" size="icon" className="h-9 w-9 text-destructive shrink-0" onClick={() => removeEntradaLinha(idx)}>
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              )}
+                            </div>
+                            {(linha.valor > 0 && linha.taxaPercent > 0) && (
+                              <p className="text-[10px] text-muted-foreground ml-1">Líquido dessa forma: <strong className="text-primary">{formatCurrency(liquidoLinha)}</strong></p>
+                            )}
                           </div>
-                          <div className="flex-1 space-y-1">
-                            {idx === 0 && <Label className="text-xs text-muted-foreground">Forma</Label>}
-                            <Select value={linha.forma} onValueChange={(v) => updateEntradaLinha(idx, "forma", v)}>
-                              <SelectTrigger className="bg-secondary/50 border-border"><SelectValue /></SelectTrigger>
-                              <SelectContent>
-                                {FORMAS_PAGAMENTO.map(f => <SelectItem key={f} value={f}>{f}</SelectItem>)}
-                              </SelectContent>
-                            </Select>
-                          </div>
-                          {entradaLinhas.length > 1 && (
-                            <Button variant="ghost" size="icon" className="h-9 w-9 text-destructive shrink-0" onClick={() => removeEntradaLinha(idx)}>
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          )}
-                        </div>
-                      ))}
+                        );
+                      })}
                       <div className="flex items-center justify-between">
                         <Button type="button" variant="ghost" size="sm" onClick={addEntradaLinha} className="text-xs text-primary">
                           <Plus className="h-3 w-3 mr-1" /> Adicionar forma de pagamento
@@ -648,58 +695,74 @@ export function NovaReceitaModal({ open, onClose }: { open: boolean; onClose: ()
                 </div>
               )}
 
-              {/* Non-mentoria payment */}
-              {!isMentoria && (
-                <div className="space-y-1.5">
-                  <Label className="text-foreground/80">Forma de pagamento</Label>
-                  <Input value={entradaFormaPagamento} onChange={(e) => setEntradaFormaPagamento(e.target.value)} placeholder="Ex: Pix, Cartão, Boleto" className="bg-secondary/50 border-border" />
-                  {entradaFormaPagamento.toLowerCase().includes("cartão") && (
-                    <div className="flex items-center gap-2 p-3 rounded-lg bg-yellow-500/10 border border-yellow-500/30 text-xs text-yellow-400">
-                      <AlertTriangle className="h-4 w-4 shrink-0" />
-                      Vendas por cartão geralmente entram via importação de planilha.
-                    </div>
-                  )}
+              {/* Non-mentoria payment — mesmas linhas multi-forma */}
+              {!isMentoria && valorContrato > 0 && (
+                <div className="p-3 rounded-lg bg-primary/5 border border-primary/20 space-y-3">
+                  <Label className="text-foreground/80 text-sm">Forma(s) de pagamento</Label>
+                  {entradaLinhas.map((linha, idx) => {
+                    const liquidoLinha = linha.valor - (linha.valor * (linha.taxaPercent || 0)) / 100;
+                    return (
+                      <div key={idx} className="space-y-1">
+                        <div className="flex gap-2 items-end">
+                          <div className="flex-[1.2] space-y-1">
+                            {idx === 0 && <Label className="text-xs text-muted-foreground">Forma</Label>}
+                            <Select value={linha.forma} onValueChange={(v) => updateEntradaLinha(idx, "forma", v)}>
+                              <SelectTrigger className="bg-secondary/50 border-border"><SelectValue /></SelectTrigger>
+                              <SelectContent>
+                                {FORMAS_PAGAMENTO.map(f => <SelectItem key={f} value={f}>{f}</SelectItem>)}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="flex-1 space-y-1">
+                            {idx === 0 && <Label className="text-xs text-muted-foreground">Valor</Label>}
+                            <Input type="number" step="0.01" value={linha.valor || ""} onChange={(e) => updateEntradaLinha(idx, "valor", Number(e.target.value))} className="bg-secondary/50 border-border" placeholder="0,00" />
+                          </div>
+                          <div className="w-20 space-y-1">
+                            {idx === 0 && <Label className="text-xs text-muted-foreground">Taxa %</Label>}
+                            <Input type="number" step="0.01" value={linha.taxaPercent || ""} onChange={(e) => updateEntradaLinha(idx, "taxaPercent", Number(e.target.value))} className="bg-secondary/50 border-border" placeholder="0" />
+                          </div>
+                          {entradaLinhas.length > 1 && (
+                            <Button variant="ghost" size="icon" className="h-9 w-9 text-destructive shrink-0" onClick={() => removeEntradaLinha(idx)}>
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </div>
+                        {(linha.valor > 0 && linha.taxaPercent > 0) && (
+                          <p className="text-[10px] text-muted-foreground ml-1">Líquido dessa forma: <strong className="text-primary">{formatCurrency(liquidoLinha)}</strong></p>
+                        )}
+                      </div>
+                    );
+                  })}
+                  <div className="flex items-center justify-between">
+                    <Button type="button" variant="ghost" size="sm" onClick={addEntradaLinha} className="text-xs text-primary">
+                      <Plus className="h-3 w-3 mr-1" /> Adicionar forma de pagamento
+                    </Button>
+                    {entradaLinhas.length > 1 && (
+                      <span className="text-xs text-muted-foreground">
+                        Total: <strong className="text-foreground">{formatCurrency(entradaValorTotal)}</strong>
+                        {Math.abs(entradaValorTotal - valorContrato) > 0.01 && (
+                          <span className="text-destructive ml-1">(diferença: {formatCurrency(valorContrato - entradaValorTotal)})</span>
+                        )}
+                      </span>
+                    )}
+                  </div>
                 </div>
               )}
 
-              {/* Taxa / Moeda */}
+              {/* Resumo de Taxa / Líquido (calculado das linhas) */}
               {valorRecebido > 0 && (
-                <div className="grid grid-cols-3 gap-4">
-                  <div className="space-y-1.5">
-                    <Label className="text-foreground/80">Taxa plataforma %</Label>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      value={taxaPercent || ""}
-                      onFocus={() => setTaxaActiveField("percent")}
-                      onBlur={() => setTaxaActiveField(null)}
-                      onChange={(e) => setTaxaPercent(Number(e.target.value))}
-                      className="bg-secondary/50 border-border"
-                    />
+                <div className="grid grid-cols-3 gap-4 p-3 rounded-lg bg-secondary/30 border border-border">
+                  <div>
+                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Taxa efetiva</p>
+                    <p className="text-sm font-semibold text-foreground mt-1">{taxaPercentEfetivo.toFixed(2)}%</p>
                   </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-foreground/80">Valor taxa</Label>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      value={taxaActiveField === "valor" ? (taxaValor || "") : taxaValor.toFixed(2)}
-                      onFocus={() => setTaxaActiveField("valor")}
-                      onBlur={() => setTaxaActiveField(null)}
-                      onChange={(e) => setTaxaValor(Number(e.target.value))}
-                      className="bg-secondary/50 border-border"
-                    />
+                  <div>
+                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Total taxas</p>
+                    <p className="text-sm font-semibold text-destructive mt-1">{formatCurrency(taxaValorLinhas)}</p>
                   </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-foreground/80">Valor líquido</Label>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      value={taxaActiveField === "liquido" ? (valorLiquido || "") : valorLiquido.toFixed(2)}
-                      onFocus={() => setTaxaActiveField("liquido")}
-                      onBlur={() => setTaxaActiveField(null)}
-                      onChange={(e) => setValorLiquido(Number(e.target.value))}
-                      className="bg-secondary/50 border-border"
-                    />
+                  <div>
+                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Líquido total</p>
+                    <p className="text-sm font-semibold text-primary mt-1">{formatCurrency(valorLiquidoLinhas)}</p>
                   </div>
                 </div>
               )}
