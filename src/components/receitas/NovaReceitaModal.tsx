@@ -509,7 +509,7 @@ export function NovaReceitaModal({ open, onClose }: { open: boolean; onClose: ()
                       type="button"
                       onClick={() => {
                         setTipoPagamento("avista");
-                        setEntradaLinhas([{ valor: valorContrato, forma: "Pix" }]);
+                        setEntradaLinhas([{ valor: valorContrato, forma: "Pix", taxaPercent: 0 }]);
                       }}
                       className={`p-3 rounded-lg border text-sm text-left transition-colors ${
                         tipoPagamento === "avista"
