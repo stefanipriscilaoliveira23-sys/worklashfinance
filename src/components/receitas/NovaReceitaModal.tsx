@@ -201,21 +201,11 @@ export function NovaReceitaModal({ open, onClose }: { open: boolean; onClose: ()
   const insertMutation = useMutation({
     mutationFn: async () => {
       const valorBrutoFinal = valorRecebido;
-      const taxaValorFinal = valorBrutoFinal * (taxaPercent / 100);
+      const taxaValorFinal = taxaValorLinhas;
       const valorLiquidoFinal = valorBrutoFinal - taxaValorFinal;
 
-      // Build forma_pagamento string
-      let formaPagamentoFinal: string | null = null;
-      if (isMentoria) {
-        if (isAvista) {
-          // For à vista, use the first entrada line's forma or concat
-          formaPagamentoFinal = entradaFormaConcat || entradaLinhas[0]?.forma || null;
-        } else {
-          formaPagamentoFinal = entradaFormaConcat || null;
-        }
-      } else {
-        formaPagamentoFinal = entradaFormaPagamento || null;
-      }
+      // forma_pagamento: sempre concatenar as linhas (com taxa quando > 0)
+      const formaPagamentoFinal = entradaFormaConcat || entradaLinhas[0]?.forma || null;
 
       // Build observacao with payment details
       let obsCompleta = observacao;
