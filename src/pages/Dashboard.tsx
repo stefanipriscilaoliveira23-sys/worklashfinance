@@ -104,6 +104,36 @@ function DashboardAdmin() {
   const detalhesMes = detalhes.filter(p => p.data_vencimento >= mesInicio && p.data_vencimento <= mesFim);
   const today = now.toISOString().split("T")[0];
 
+  // Entradas detalhadas do Faturado (mesma lógica do hook: parcelas quitadas pela data_pagamento)
+  const parcelasQuitadasNoPeriodo = detalhes.filter(p => {
+    if (p.status !== "Quitado") return false;
+    const dataRef = p.data_pagamento ?? p.data_vencimento;
+    return dataRef >= mesInicio && dataRef <= mesFim;
+  });
+  const entradasFaturado: FaturadoEntrada[] = [
+    ...receitasMes.map(r => ({
+      data: r.data,
+      tipo: "receita" as const,
+      cliente: r.cliente_nome,
+      produto: r.produto_nome,
+      valor: r.valor_bruto ?? 0,
+    })),
+    ...parcelasQuitadasNoPeriodo.map((p: any) => {
+      const pm = p.parcelas_mentoria as any;
+      return {
+        data: (p.data_pagamento ?? p.data_vencimento) as string,
+        tipo: "parcela" as const,
+        cliente: pm?.cliente_nome ?? null,
+        produto: pm?.tipo_mentoria ?? "Parcela mentoria",
+        valor: (p.valor_real ?? p.valor_sugerido ?? 0) as number,
+        parcela_label: `${p.numero_parcela}/${pm?.quant_parcelas ?? "?"}`,
+        data_vencimento: p.data_vencimento as string,
+        contrato: pm?.numero_contrato,
+      };
+    }),
+  ];
+
+
   // A) KPIs principais (receitas + parcelas quitadas)
   const qtdVendas = (d.qtdReceitasMes ?? 0) + (d.qtdParcelasQuitadasMes ?? 0);
   const ticketMedio = qtdVendas > 0 ? d.totalBruto / qtdVendas : 0;
