@@ -274,6 +274,37 @@ export default function Receitas() {
     .filter((r: any) => r.is_parcela)
     .reduce((s, r: any) => s + (r.valor_bruto ?? 0), 0);
 
+  // Lista detalhada para modal (todas as entradas do período, independente do filtro de tab)
+  const entradasFaturado: FaturadoEntrada[] = [
+    ...salesEntries.map((r: any) => ({
+      data: r.data,
+      tipo: "receita" as const,
+      cliente: r.cliente_nome,
+      produto: r.produto_nome,
+      valor: r.valor_bruto ?? 0,
+    })),
+    ...parcelasEntries.map((r: any) => ({
+      data: r.data,
+      tipo: "parcela" as const,
+      cliente: r.cliente_nome,
+      produto: r.produto_nome,
+      valor: r.valor_bruto ?? 0,
+      parcela_label: r.parcela_label,
+      data_vencimento: r._parent_detalhes ? undefined : undefined, // preenchido abaixo
+      contrato: r._parent_parcela?.numero_contrato,
+    })),
+  ];
+  // Preencher data_vencimento das parcelas a partir dos dados originais
+  (parcelasQuitadas ?? []).forEach((pq: any) => {
+    const entry = entradasFaturado.find(
+      e => e.tipo === "parcela" &&
+        e.data === (pq.data_pagamento ?? pq.data_vencimento) &&
+        e.valor === (pq.valor_real ?? pq.valor_sugerido ?? 0) &&
+        e.cliente === pq.parcelas_mentoria?.cliente_nome
+    );
+    if (entry) entry.data_vencimento = pq.data_vencimento;
+  });
+
   // Helper to find parcela info for a receita or parcela-type entry
   const getParcelaInfo = (entry: any) => {
     // For parcela-type entries, use the embedded parent data
