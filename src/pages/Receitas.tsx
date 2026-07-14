@@ -13,6 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { NovaReceitaModal } from "@/components/receitas/NovaReceitaModal";
 import { ImportarPlanilhaModal } from "@/components/receitas/ImportarPlanilhaModal";
 import { EditarReceitaModal } from "@/components/receitas/EditarReceitaModal";
+import { FaturadoDetalheModal, type FaturadoEntrada } from "@/components/FaturadoDetalheModal";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import MonthNavigator, { getCurrentMonthKey, type DateFilter, filterByDate } from "@/components/MonthNavigator";
 
