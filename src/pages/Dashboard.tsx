@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import MonthNavigator, { getCurrentMonthKey, getDateRange, type DateFilter } from "@/components/MonthNavigator";
 import { useAuth, isAdmin } from "@/contexts/AuthContext";
 import DashboardOperacional from "./DashboardOperacional";
+import { FaturadoDetalheModal, type FaturadoEntrada } from "@/components/FaturadoDetalheModal";
 
 const GOLD_COLORS = ["#C9A84C", "#E5C76B", "#A68A3E", "#D4B85A", "#8B7432", "#F0D87E"];
 
