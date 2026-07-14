@@ -563,26 +563,38 @@ export default function Receitas() {
       {/* Cards de resumo */}
       <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-7 gap-3">
         {[
-          { label: "Valor Vendido", value: formatCurrency(valorVendido), highlight: true, sub: "Total contratado" },
+          { label: "Valor Vendido", value: formatCurrency(valorVendido), highlight: true, sub: "Total contratado", tooltip: "Soma do valor TOTAL dos contratos vendidos no período (contratos parcelados contam pelo valor cheio, não apenas pela entrada). Vendas à vista contam pelo valor bruto." },
           {
             label: "Valor Faturado",
             value: formatCurrency(valorFaturado),
             highlight: true,
-            sub: `${formatCurrency(faturadoVendasNovas)} vendas novas + ${formatCurrency(faturadoParcelasAntigas)} parcelas antigas`,
+            sub: `${formatCurrency(faturadoVendasNovas)} vendas novas + ${formatCurrency(faturadoParcelasAntigas)} parcelas`,
+            tooltip: "Dinheiro que efetivamente entrou no período. Clique para ver o detalhamento por origem (vendas novas + parcelas pagas).",
+            onClick: () => setShowFaturadoDetalhe(true),
           },
-          { label: "Total Bruto", value: formatCurrency(totalBruto) },
-          { label: "Total Taxas", value: formatCurrency(totalTaxas) },
-          { label: "Total Líquido", value: formatCurrency(totalLiquido) },
-          { label: "Qtd vendas", value: String(tabData.length) },
-          { label: "Total em USD", value: formatCurrency(totalUSD, "USD") },
-        ].map(c => (
-          <div key={c.label} className={`rounded-xl border p-4 ${c.highlight ? "border-primary/40 bg-primary/5" : "border-border bg-card"}`}>
-            <p className="text-xs text-muted-foreground uppercase tracking-wider">{c.label}</p>
-            <p className={`text-lg font-bold mt-1 ${c.highlight ? "text-primary" : "text-foreground"}`}>{c.value}</p>
-            {c.sub && <p className="text-[10px] text-muted-foreground mt-0.5">{c.sub}</p>}
-          </div>
-        ))}
+          { label: "Total Bruto", value: formatCurrency(totalBruto), tooltip: "Soma do valor bruto de tudo que aparece na aba atual (antes de descontar taxas)." },
+          { label: "Total Taxas", value: formatCurrency(totalTaxas), tooltip: "Soma das taxas de plataforma/pagamento das receitas da aba atual." },
+          { label: "Total Líquido", value: formatCurrency(totalLiquido), tooltip: "Valor bruto menos as taxas — o que sobrou de fato." },
+          { label: "Qtd vendas", value: String(tabData.length), tooltip: "Quantidade de linhas exibidas na aba atual (inclui parcelas se estiver na aba 'Parcelas')." },
+          { label: "Total em USD", value: formatCurrency(totalUSD, "USD"), tooltip: "Soma das vendas cujo pagamento original foi em USD (antes da conversão para BRL)." },
+        ].map(c => {
+          const Cmp: any = c.onClick ? "button" : "div";
+          return (
+            <Cmp
+              key={c.label}
+              title={c.tooltip}
+              onClick={c.onClick}
+              className={`text-left rounded-xl border p-4 transition-colors ${c.highlight ? "border-primary/40 bg-primary/5" : "border-border bg-card"} ${c.onClick ? "hover:border-primary hover:bg-primary/10 cursor-pointer" : ""}`}
+            >
+              <p className="text-xs text-muted-foreground uppercase tracking-wider">{c.label}</p>
+              <p className={`text-lg font-bold mt-1 ${c.highlight ? "text-primary" : "text-foreground"}`}>{c.value}</p>
+              {c.sub && <p className="text-[10px] text-muted-foreground mt-0.5">{c.sub}</p>}
+              {c.onClick && <p className="text-[10px] text-primary mt-1">ver detalhes →</p>}
+            </Cmp>
+          );
+        })}
       </div>
+
 
       {/* Filtros */}
       <div className="flex flex-col sm:flex-row gap-3">
