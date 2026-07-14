@@ -579,8 +579,8 @@ function DashboardAdmin() {
               })()}
             </tbody>
           </table>
+        </div>
       </div>
-    </div>
 
       {showFaturadoDetalhe && (
         <FaturadoDetalheModal
