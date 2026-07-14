@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import MonthNavigator, { getCurrentMonthKey, getDateRange, type DateFilter } from "@/components/MonthNavigator";
 import { useAuth, isAdmin } from "@/contexts/AuthContext";
 import DashboardOperacional from "./DashboardOperacional";
+import { FaturadoDetalheModal, type FaturadoEntrada } from "@/components/FaturadoDetalheModal";
 
 const GOLD_COLORS = ["#C9A84C", "#E5C76B", "#A68A3E", "#D4B85A", "#8B7432", "#F0D87E"];
 
@@ -39,6 +40,7 @@ function DashboardAdmin() {
   const [editingMeta, setEditingMeta] = useState(false);
   const [metaInput, setMetaInput] = useState("");
   const [dateFilter, setDateFilter] = useState<DateFilter>({ type: "month", key: getCurrentMonthKey() });
+  const [showFaturadoDetalhe, setShowFaturadoDetalhe] = useState(false);
 
   const { start: periodStart, end: periodEnd } = getDateRange(dateFilter);
   const d = useDashboardData(periodStart, periodEnd);
@@ -101,6 +103,36 @@ function DashboardAdmin() {
   const detalhes = allDetalhes ?? [];
   const detalhesMes = detalhes.filter(p => p.data_vencimento >= mesInicio && p.data_vencimento <= mesFim);
   const today = now.toISOString().split("T")[0];
+
+  // Entradas detalhadas do Faturado (mesma lógica do hook: parcelas quitadas pela data_pagamento)
+  const parcelasQuitadasNoPeriodo = detalhes.filter(p => {
+    if (p.status !== "Quitado") return false;
+    const dataRef = p.data_pagamento ?? p.data_vencimento;
+    return dataRef >= mesInicio && dataRef <= mesFim;
+  });
+  const entradasFaturado: FaturadoEntrada[] = [
+    ...receitasMes.map(r => ({
+      data: r.data,
+      tipo: "receita" as const,
+      cliente: r.cliente_nome,
+      produto: r.produto_nome,
+      valor: r.valor_bruto ?? 0,
+    })),
+    ...parcelasQuitadasNoPeriodo.map((p: any) => {
+      const pm = p.parcelas_mentoria as any;
+      return {
+        data: (p.data_pagamento ?? p.data_vencimento) as string,
+        tipo: "parcela" as const,
+        cliente: pm?.cliente_nome ?? null,
+        produto: pm?.tipo_mentoria ?? "Parcela mentoria",
+        valor: (p.valor_real ?? p.valor_sugerido ?? 0) as number,
+        parcela_label: `${p.numero_parcela}/${pm?.quant_parcelas ?? "?"}`,
+        data_vencimento: p.data_vencimento as string,
+        contrato: pm?.numero_contrato,
+      };
+    }),
+  ];
+
 
   // A) KPIs principais (receitas + parcelas quitadas)
   const qtdVendas = (d.qtdReceitasMes ?? 0) + (d.qtdParcelasQuitadasMes ?? 0);
@@ -233,7 +265,10 @@ function DashboardAdmin() {
           <p className="text-xs text-muted-foreground mt-1">Acumulado 2026</p>
         </div>
 
-        <div className="rounded-xl border border-primary/30 bg-primary/5 p-5">
+        <div
+          className="rounded-xl border border-primary/30 bg-primary/5 p-5"
+          title="Soma do valor TOTAL dos contratos vendidos no mês (contratos parcelados contam pelo valor cheio, não apenas pela entrada)."
+        >
           <div className="flex items-center justify-between mb-2">
             <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Vendido este mês</span>
             <ShoppingCart className="h-4 w-4 text-primary" />
@@ -242,14 +277,20 @@ function DashboardAdmin() {
           <p className="text-xs text-muted-foreground mt-1">Total contratado (vendas)</p>
         </div>
 
-        <div className="rounded-xl border border-border bg-card p-5">
+
+        <button
+          onClick={() => setShowFaturadoDetalhe(true)}
+          title="Dinheiro que efetivamente entrou no período. Clique para ver o detalhamento por origem (vendas novas + parcelas pagas)."
+          className="text-left rounded-xl border border-border bg-card p-5 hover:border-primary hover:bg-primary/5 transition-colors cursor-pointer"
+        >
           <div className="flex items-center justify-between mb-2">
             <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Faturado este mês</span>
             <DollarSign className="h-4 w-4 text-primary" />
           </div>
           <p className="text-2xl font-bold text-foreground">{formatCurrency(d.totalBruto)}</p>
-          <p className="text-sm text-primary mt-1">Dinheiro que entrou</p>
-        </div>
+          <p className="text-sm text-primary mt-1">Dinheiro que entrou · ver detalhes →</p>
+        </button>
+
 
         <div className="rounded-xl border border-border bg-card p-5">
           <div className="flex items-center justify-between mb-2">
@@ -540,6 +581,15 @@ function DashboardAdmin() {
           </table>
         </div>
       </div>
+
+      {showFaturadoDetalhe && (
+        <FaturadoDetalheModal
+          open={showFaturadoDetalhe}
+          onClose={() => setShowFaturadoDetalhe(false)}
+          periodoLabel={dateFilter.type === "month" ? dateFilter.key : `${dateFilter.start} → ${dateFilter.end}`}
+          entradas={entradasFaturado}
+        />
+      )}
     </div>
   );
 }
