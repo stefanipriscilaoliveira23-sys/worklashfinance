@@ -31,6 +31,7 @@ export default function Receitas() {
   const [showNova, setShowNova] = useState(false);
   const [showImport, setShowImport] = useState(false);
   const [editReceita, setEditReceita] = useState<any>(null);
+  const [showFaturadoDetalhe, setShowFaturadoDetalhe] = useState(false);
   const [search, setSearch] = useState("");
   const [filtroPlataforma, setFiltroPlataforma] = useState("all");
   const [filtroProduto, setFiltroProduto] = useState("all");
