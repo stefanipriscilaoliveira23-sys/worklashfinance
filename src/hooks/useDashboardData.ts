@@ -78,9 +78,14 @@ export function useDashboardData(periodStart?: string, periodEnd?: string) {
   // Compute values
   const receitasMes = receitas.data ?? [];
   const allParcelasDet = parcelas.data ?? [];
-  const parcelasMesQuitadas = allParcelasDet.filter(p => 
-    p.data_vencimento >= mesInicio && p.data_vencimento <= mesFim && p.status === "Quitado"
-  );
+  // Faturado = dinheiro que efetivamente entrou. Usamos data_pagamento (fallback vencimento)
+  // para bater com a aba Receitas — assim uma parcela vencida em junho e paga em julho
+  // conta como faturamento de julho.
+  const parcelasMesQuitadas = allParcelasDet.filter(p => {
+    if (p.status !== "Quitado") return false;
+    const dataRef = p.data_pagamento ?? p.data_vencimento;
+    return dataRef >= mesInicio && dataRef <= mesFim;
+  });
   const receitaParcelasMes = parcelasMesQuitadas.reduce((s, p) => s + (p.valor_real ?? p.valor_sugerido ?? 0), 0);
 
   const totalBrutoReceitas = receitasMes.reduce((s, r) => s + (r.valor_bruto ?? 0), 0);
