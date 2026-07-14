@@ -579,8 +579,17 @@ function DashboardAdmin() {
               })()}
             </tbody>
           </table>
-        </div>
       </div>
+    </div>
+
+      {showFaturadoDetalhe && (
+        <FaturadoDetalheModal
+          open={showFaturadoDetalhe}
+          onClose={() => setShowFaturadoDetalhe(false)}
+          periodoLabel={dateFilter.type === "month" ? dateFilter.key : `${dateFilter.start} → ${dateFilter.end}`}
+          entradas={entradasFaturado}
+        />
+      )}
     </div>
   );
 }
