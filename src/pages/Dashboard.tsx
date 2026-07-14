@@ -40,6 +40,7 @@ function DashboardAdmin() {
   const [editingMeta, setEditingMeta] = useState(false);
   const [metaInput, setMetaInput] = useState("");
   const [dateFilter, setDateFilter] = useState<DateFilter>({ type: "month", key: getCurrentMonthKey() });
+  const [showFaturadoDetalhe, setShowFaturadoDetalhe] = useState(false);
 
   const { start: periodStart, end: periodEnd } = getDateRange(dateFilter);
   const d = useDashboardData(periodStart, periodEnd);
