@@ -652,6 +652,14 @@ export default function Receitas() {
       {showNova && <NovaReceitaModal open={showNova} onClose={() => setShowNova(false)} />}
       {showImport && <ImportarPlanilhaModal open={showImport} onClose={() => setShowImport(false)} />}
       {editReceita && <EditarReceitaModal receita={editReceita} open={!!editReceita} onClose={() => setEditReceita(null)} />}
+      {showFaturadoDetalhe && (
+        <FaturadoDetalheModal
+          open={showFaturadoDetalhe}
+          onClose={() => setShowFaturadoDetalhe(false)}
+          periodoLabel={dateFilter.type === "month" ? dateFilter.key : `${dateFilter.start} → ${dateFilter.end}`}
+          entradas={entradasFaturado}
+        />
+      )}
     </div>
   );
 }
