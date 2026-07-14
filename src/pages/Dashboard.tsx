@@ -265,7 +265,10 @@ function DashboardAdmin() {
           <p className="text-xs text-muted-foreground mt-1">Acumulado 2026</p>
         </div>
 
-        <div className="rounded-xl border border-primary/30 bg-primary/5 p-5">
+        <div
+          className="rounded-xl border border-primary/30 bg-primary/5 p-5"
+          title="Soma do valor TOTAL dos contratos vendidos no mês (contratos parcelados contam pelo valor cheio, não apenas pela entrada)."
+        >
           <div className="flex items-center justify-between mb-2">
             <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Vendido este mês</span>
             <ShoppingCart className="h-4 w-4 text-primary" />
@@ -273,6 +276,7 @@ function DashboardAdmin() {
           <p className="text-2xl font-bold text-primary">{formatCurrency(totalGeralVendido)}</p>
           <p className="text-xs text-muted-foreground mt-1">Total contratado (vendas)</p>
         </div>
+
 
         <button
           onClick={() => setShowFaturadoDetalhe(true)}
