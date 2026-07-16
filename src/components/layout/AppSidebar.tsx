@@ -11,7 +11,7 @@ import {
 
 const allMenuItems = [
   { title: "Início", url: "/", icon: Home, adminOnly: false },
-  { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard, adminOnly: false },
+  { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard, adminOnly: true },
   { title: "Receitas", url: "/receitas", icon: DollarSign, adminOnly: false },
   { title: "Parcelas de Mentoria", url: "/parcelas", icon: CalendarCheck, adminOnly: false },
   { title: "Clientes", url: "/clientes", icon: Users, adminOnly: false },
