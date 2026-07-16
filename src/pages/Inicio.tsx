@@ -133,21 +133,25 @@ export default function Inicio() {
         </p>
       </div>
 
-      {/* Faturamento */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Card label="Faturamento do mês" value={formatCurrency(fatMes)} icon={DollarSign} tone="primary" onClick={() => navigate("/receitas")} />
-        <Card label="Faturamento da semana" value={formatCurrency(fatSemana)} icon={TrendingUp} onClick={() => navigate("/receitas")} />
-      </div>
+      {/* Faturamento — apenas admin */}
+      {admin && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Card label="Faturamento do mês" value={formatCurrency(fatMes)} icon={DollarSign} tone="primary" onClick={() => navigate("/receitas")} />
+          <Card label="Faturamento da semana" value={formatCurrency(fatSemana)} icon={TrendingUp} onClick={() => navigate("/receitas")} />
+        </div>
+      )}
 
       {/* A receber e vendas */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card
-          label="A receber essa semana"
-          value={formatCurrency(valorReceberSemana)}
-          sub={`${parcSemana.length} parcela(s)`}
-          icon={CalendarCheck}
-          onClick={() => navigate("/parcelas")}
-        />
+        {admin && (
+          <Card
+            label="A receber essa semana"
+            value={formatCurrency(valorReceberSemana)}
+            sub={`${parcSemana.length} parcela(s)`}
+            icon={CalendarCheck}
+            onClick={() => navigate("/parcelas")}
+          />
+        )}
         <Card
           label="Mentorias vendidas no mês"
           value={String(mentoriasMes)}

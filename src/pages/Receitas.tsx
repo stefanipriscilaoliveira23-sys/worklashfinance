@@ -560,7 +560,8 @@ export default function Receitas() {
 
       <MonthNavigator filter={dateFilter} onChange={setDateFilter} />
 
-      {/* Cards de resumo */}
+      {/* Cards de resumo — visíveis apenas para admin */}
+      {role === "admin" && (
       <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-7 gap-3">
         {[
           { label: "Valor Vendido", value: formatCurrency(valorVendido), highlight: true, sub: "Total contratado", tooltip: "Soma do valor TOTAL dos contratos vendidos no período (contratos parcelados contam pelo valor cheio, não apenas pela entrada). Vendas à vista contam pelo valor bruto." },
@@ -594,6 +595,7 @@ export default function Receitas() {
           );
         })}
       </div>
+      )}
 
 
       {/* Filtros */}
