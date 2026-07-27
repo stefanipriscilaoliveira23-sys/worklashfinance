@@ -649,10 +649,10 @@ function FieldSelect({ label, value, options, onSave, allowEmpty }: { label: str
   return (
     <div>
       <Label className="text-xs">{label}</Label>
-      <Select value={value || undefined} onValueChange={v => onSave(v)}>
+      <Select value={value || undefined} onValueChange={v => onSave(v === "__none__" ? "" : v)}>
         <SelectTrigger><SelectValue placeholder={allowEmpty ? "—" : ""} /></SelectTrigger>
         <SelectContent>
-          {allowEmpty && <SelectItem value="__none__" onSelect={() => onSave("")}>—</SelectItem>}
+          {allowEmpty && <SelectItem value="__none__">—</SelectItem>}
           {options.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}
         </SelectContent>
       </Select>
