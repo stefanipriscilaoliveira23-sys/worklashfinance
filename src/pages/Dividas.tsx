@@ -41,6 +41,19 @@ const PROXIMAS_ACOES = [
 
 const CANAIS = ["Telefone", "WhatsApp", "E-mail", "Presencial", "Portal do credor", "Carta", "Outro"] as const;
 
+const TIPOS = [
+  "Empréstimo bancário", "Financiamento", "Cartão de crédito", "Cheque especial",
+  "Fornecedor", "Imposto", "Pessoa física", "Outro",
+] as const;
+
+const PRIORIDADES = ["Alta", "Média", "Baixa"] as const;
+
+const PRIORIDADE_STYLE: Record<string, string> = {
+  "Alta": "bg-red-100 text-red-800",
+  "Média": "bg-amber-100 text-amber-800",
+  "Baixa": "bg-slate-100 text-slate-700",
+};
+
 // Situação → agrupamento
 const A_APURAR = new Set(["Identificada, mas ainda não apurada", "Aguardando consulta ao credor", "Sem negociação", "Negociação pendente"]);
 const EM_NEG = new Set(["Em negociação"]);
