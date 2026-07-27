@@ -593,8 +593,8 @@ function ApurarTable({ rows, onSelect, onDelete }: { rows: DividaRow[]; onSelect
   );
 }
 
-function DetalheSheet({ divida, historico, open, onClose, onUpdate }: {
-  divida: DividaRow | undefined; historico: any[]; open: boolean; onClose: () => void; onUpdate: (patch: any) => void;
+function DetalheSheet({ divida, historico, despesasRecorrentes, amortizadoAcumulado, open, onClose, onUpdate }: {
+  divida: DividaRow | undefined; historico: any[]; despesasRecorrentes: any[]; amortizadoAcumulado: number; open: boolean; onClose: () => void; onUpdate: (patch: any) => void;
 }) {
   const qc = useQueryClient();
   const [showHist, setShowHist] = useState(false);
