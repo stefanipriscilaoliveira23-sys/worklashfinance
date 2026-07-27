@@ -384,6 +384,68 @@ export default function Dividas() {
               <Label>Observações</Label>
               <Textarea rows={3} value={form.observacoes} onChange={e => setForm(f => ({ ...f, observacoes: e.target.value }))} />
             </div>
+
+            {/* Gestão ativa (opcional) */}
+            <div className="rounded-lg border border-border p-3 space-y-3">
+              <p className="text-xs font-semibold text-foreground uppercase tracking-wider">Gestão ativa (opcional)</p>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <Label>Tipo</Label>
+                  <Select value={form.tipo} onValueChange={v => setForm(f => ({ ...f, tipo: v }))}>
+                    <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                    <SelectContent>{TIPOS.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>Prioridade</Label>
+                  <Select value={form.prioridade} onValueChange={v => setForm(f => ({ ...f, prioridade: v }))}>
+                    <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                    <SelectContent>{PRIORIDADES.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}</SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>Juros mensal (%)</Label>
+                  <Input type="number" step="0.01" value={form.juros_mensal_percentual} onChange={e => setForm(f => ({ ...f, juros_mensal_percentual: e.target.value }))} />
+                </div>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <Label>Qtd. parcelas contratadas</Label>
+                  <Input type="number" value={form.qtd_parcelas_contratadas} onChange={e => setForm(f => ({ ...f, qtd_parcelas_contratadas: e.target.value }))} />
+                </div>
+                <div>
+                  <Label>Valor parcela mensal (R$)</Label>
+                  <Input type="number" value={form.valor_parcela_mensal} onChange={e => setForm(f => ({ ...f, valor_parcela_mensal: e.target.value }))} />
+                </div>
+                <div>
+                  <Label>Próximo vencimento</Label>
+                  <Input type="date" value={form.proximo_vencimento} onChange={e => setForm(f => ({ ...f, proximo_vencimento: e.target.value }))} />
+                </div>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <Label>Saldo atual (R$)</Label>
+                  <Input type="number" value={form.saldo_atual} onChange={e => setForm(f => ({ ...f, saldo_atual: e.target.value }))} placeholder="Se vazio, usa o valor aproximado" />
+                </div>
+                <div>
+                  <Label>Garantia oferecida</Label>
+                  <Input value={form.garantia} onChange={e => setForm(f => ({ ...f, garantia: e.target.value }))} placeholder="Ex.: veículo, imóvel, aval" />
+                </div>
+              </div>
+              <div>
+                <Label>Vincular a despesa recorrente (opcional)</Label>
+                <Select value={form.despesa_empresa_id || "__none__"} onValueChange={v => setForm(f => ({ ...f, despesa_empresa_id: v === "__none__" ? "" : v }))}>
+                  <SelectTrigger><SelectValue placeholder="Nenhuma" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">Nenhuma</SelectItem>
+                    {(despesasRecorrentes ?? []).map(d => (
+                      <SelectItem key={d.id} value={d.id}>{d.descricao} · {formatCurrency(Number(d.valor_original) || 0)}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-[11px] text-muted-foreground mt-1">Liga a parcela mensal da dívida a uma despesa fixa já cadastrada, para não duplicar no fluxo de caixa.</p>
+              </div>
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowNew(false)}>Cancelar</Button>
@@ -398,6 +460,8 @@ export default function Dividas() {
       <DetalheSheet
         divida={selected}
         historico={historico ?? []}
+        despesasRecorrentes={despesasRecorrentes ?? []}
+        amortizadoAcumulado={selected ? (amortizadoPorDivida.get(selected.id) ?? 0) : 0}
         open={!!selectedId}
         onClose={() => setSelectedId(null)}
         onUpdate={patch => updateDivida.mutate(patch)}
