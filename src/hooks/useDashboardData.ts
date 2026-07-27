@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { getMonthRange, getWeekRange, getDaysInMonth } from "@/lib/format";
+import { filtrarParcelasFaturadas, valorRecebidoParcela } from "@/lib/faturamento";
 
 export function useDashboardData(periodStart?: string, periodEnd?: string) {
   const now = new Date();
