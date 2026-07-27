@@ -92,6 +92,23 @@ const emptyForm = {
   proxima_acao: "" as string,
   proxima_acao_prazo: "",
   situacao_contato: "",
+  // Gestão ativa
+  tipo: "" as string,
+  prioridade: "" as string,
+  juros_mensal_percentual: "",
+  qtd_parcelas_contratadas: "",
+  valor_parcela_mensal: "",
+  garantia: "",
+  saldo_atual: "",
+  proximo_vencimento: "",
+  despesa_empresa_id: "" as string,
+};
+
+const emptyAmort = {
+  data_pagamento: new Date().toISOString().split("T")[0],
+  valor_pago: "",
+  juros_periodo: "",
+  observacao: "",
 };
 
 const emptyHistorico = {
