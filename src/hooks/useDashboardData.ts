@@ -141,7 +141,7 @@ export function useDashboardData(periodStart?: string, periodEnd?: string) {
     d.setDate(startD.getDate() + i);
     const ds = d.toISOString().split("T")[0];
     const totalReceitas = receitasMes.filter(r => r.data === ds).reduce((s, r) => s + (r.valor_bruto ?? 0), 0);
-    const totalParcelasDia = parcelasMesQuitadas.filter(p => (p.data_pagamento ?? p.data_vencimento) === ds).reduce((s, p) => s + (p.valor_real ?? p.valor_sugerido ?? 0), 0);
+    const totalParcelasDia = parcelasMesQuitadas.filter(p => p.data_pagamento === ds).reduce((s, p) => s + valorRecebidoParcela(p), 0);
     faturamentoDiario.push({ data: ds, valor: totalReceitas + totalParcelasDia });
   }
 
