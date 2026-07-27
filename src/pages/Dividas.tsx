@@ -742,6 +742,93 @@ function DetalheSheet({ divida, historico, despesasRecorrentes, amortizadoAcumul
             <FieldTextarea label="Observações" value={divida.observacoes || ""} onSave={v => onUpdate({ observacoes: v || null })} />
           </div>
 
+          {/* Gestão ativa */}
+          <div className="rounded-lg border border-border p-3 space-y-3">
+            <h3 className="text-sm font-semibold text-foreground">Gestão ativa</h3>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+              <div><span className="text-muted-foreground">Saldo atual</span><p className="font-bold text-foreground">{formatCurrency(Number(divida.saldo_atual ?? divida.valor_aproximado ?? 0))}</p></div>
+              <div><span className="text-muted-foreground">Amortizado</span><p className="font-bold text-emerald-600">{formatCurrency(amortizadoAcumulado)}</p></div>
+              <div><span className="text-muted-foreground">Parcela mensal</span><p className="font-bold text-foreground">{formatCurrency(Number(divida.valor_parcela_mensal ?? 0))}</p></div>
+              <div><span className="text-muted-foreground">Parcelas</span><p className="font-bold text-foreground">{divida.parcelas_pagas ?? 0}/{divida.qtd_parcelas_contratadas ?? "—"}</p></div>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <FieldSelect label="Tipo" value={divida.tipo || ""} options={TIPOS as any} onSave={v => onUpdate({ tipo: v || null })} allowEmpty />
+              <FieldSelect label="Prioridade" value={divida.prioridade || ""} options={PRIORIDADES as any} onSave={v => onUpdate({ prioridade: v || null })} allowEmpty />
+              <FieldText label="Juros mensal (%)" type="number" value={divida.juros_mensal_percentual ?? ""} onSave={v => onUpdate({ juros_mensal_percentual: v ? Number(v) : null })} />
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <FieldText label="Parcelas contratadas" type="number" value={divida.qtd_parcelas_contratadas ?? ""} onSave={v => onUpdate({ qtd_parcelas_contratadas: v ? parseInt(v) : null })} />
+              <FieldText label="Valor parcela mensal" type="number" value={divida.valor_parcela_mensal ?? ""} onSave={v => onUpdate({ valor_parcela_mensal: v ? Number(v) : null })} />
+              <FieldText label="Próximo vencimento" type="date" value={divida.proximo_vencimento || ""} onSave={v => onUpdate({ proximo_vencimento: v || null })} />
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <FieldText label="Saldo atual (R$)" type="number" value={divida.saldo_atual ?? ""} onSave={v => onUpdate({ saldo_atual: v ? Number(v) : null })} />
+              <FieldText label="Garantia" value={divida.garantia || ""} onSave={v => onUpdate({ garantia: v || null })} />
+            </div>
+            <div>
+              <Label>Despesa recorrente vinculada</Label>
+              <Select value={divida.despesa_empresa_id || "__none__"} onValueChange={v => onUpdate({ despesa_empresa_id: v === "__none__" ? null : v })}>
+                <SelectTrigger><SelectValue placeholder="Nenhuma" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">Nenhuma</SelectItem>
+                  {despesasRecorrentes.map(d => (
+                    <SelectItem key={d.id} value={d.id}>{d.descricao} · {formatCurrency(Number(d.valor_original) || 0)}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          {/* Amortizações */}
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-semibold text-foreground">Amortizações</h3>
+              <Button size="sm" variant="outline" onClick={() => setShowAmort(true)}><Plus className="h-4 w-4 mr-2" />Registrar pagamento</Button>
+            </div>
+            {!amortizacoes || amortizacoes.length === 0 ? (
+              <p className="text-xs text-muted-foreground italic">Nenhuma amortização registrada.</p>
+            ) : (
+              <div className="space-y-2">
+                {amortizacoes.map(a => (
+                  <div key={a.id} className="rounded-lg border border-border bg-card p-3 text-sm flex items-center justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-3 flex-wrap">
+                        <span className="font-medium">{formatDate(a.data_pagamento)}</span>
+                        <span className="text-emerald-600 font-semibold">{formatCurrency(Number(a.valor_pago))}</span>
+                        {a.juros_periodo != null && <span className="text-xs text-muted-foreground">Juros: {formatCurrency(Number(a.juros_periodo))}</span>}
+                        {a.principal_amortizado != null && <span className="text-xs text-muted-foreground">Principal: {formatCurrency(Number(a.principal_amortizado))}</span>}
+                        {a.saldo_apos != null && <span className="text-xs text-muted-foreground">Saldo após: {formatCurrency(Number(a.saldo_apos))}</span>}
+                      </div>
+                      {a.observacao && <p className="text-xs text-muted-foreground mt-1">{a.observacao}</p>}
+                    </div>
+                    <Button size="icon" variant="ghost" onClick={() => { if (confirm("Excluir esta amortização?")) removeAmort.mutate(a.id); }}>
+                      <Trash2 className="h-4 w-4 text-red-600" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {showAmort && (
+            <div className="rounded-lg border border-primary/40 bg-primary/5 p-3 space-y-3">
+              <p className="text-sm font-semibold">Nova amortização</p>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div><Label>Data</Label><Input type="date" value={amort.data_pagamento} onChange={e => setAmort(a => ({ ...a, data_pagamento: e.target.value }))} /></div>
+                <div><Label>Valor pago (R$)</Label><Input type="number" value={amort.valor_pago} onChange={e => setAmort(a => ({ ...a, valor_pago: e.target.value }))} /></div>
+                <div><Label>Juros do período (R$)</Label><Input type="number" value={amort.juros_periodo} onChange={e => setAmort(a => ({ ...a, juros_periodo: e.target.value }))} /></div>
+              </div>
+              <div><Label>Observação</Label><Input value={amort.observacao} onChange={e => setAmort(a => ({ ...a, observacao: e.target.value }))} /></div>
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" size="sm" onClick={() => setShowAmort(false)}>Cancelar</Button>
+                <Button size="sm" onClick={() => addAmort.mutate()} disabled={addAmort.isPending} className="gold-gradient text-primary-foreground">
+                  {addAmort.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Salvar"}
+                </Button>
+              </div>
+            </div>
+          )}
+
+
           {/* Histórico */}
           <div>
             <div className="flex items-center justify-between mb-3">
