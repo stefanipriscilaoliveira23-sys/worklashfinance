@@ -41,6 +41,19 @@ const PROXIMAS_ACOES = [
 
 const CANAIS = ["Telefone", "WhatsApp", "E-mail", "Presencial", "Portal do credor", "Carta", "Outro"] as const;
 
+const TIPOS = [
+  "Empréstimo bancário", "Financiamento", "Cartão de crédito", "Cheque especial",
+  "Fornecedor", "Imposto", "Pessoa física", "Outro",
+] as const;
+
+const PRIORIDADES = ["Alta", "Média", "Baixa"] as const;
+
+const PRIORIDADE_STYLE: Record<string, string> = {
+  "Alta": "bg-red-100 text-red-800",
+  "Média": "bg-amber-100 text-amber-800",
+  "Baixa": "bg-slate-100 text-slate-700",
+};
+
 // Situação → agrupamento
 const A_APURAR = new Set(["Identificada, mas ainda não apurada", "Aguardando consulta ao credor", "Sem negociação", "Negociação pendente"]);
 const EM_NEG = new Set(["Em negociação"]);
@@ -79,6 +92,23 @@ const emptyForm = {
   proxima_acao: "" as string,
   proxima_acao_prazo: "",
   situacao_contato: "",
+  // Gestão ativa
+  tipo: "" as string,
+  prioridade: "" as string,
+  juros_mensal_percentual: "",
+  qtd_parcelas_contratadas: "",
+  valor_parcela_mensal: "",
+  garantia: "",
+  saldo_atual: "",
+  proximo_vencimento: "",
+  despesa_empresa_id: "" as string,
+};
+
+const emptyAmort = {
+  data_pagamento: new Date().toISOString().split("T")[0],
+  valor_pago: "",
+  juros_periodo: "",
+  observacao: "",
 };
 
 const emptyHistorico = {
@@ -142,6 +172,15 @@ export default function Dividas() {
         proxima_acao: form.proxima_acao || null,
         proxima_acao_prazo: form.proxima_acao_prazo || null,
         situacao_contato: form.situacao_contato.trim() || null,
+        tipo: form.tipo || null,
+        prioridade: form.prioridade || null,
+        juros_mensal_percentual: form.juros_mensal_percentual ? Number(form.juros_mensal_percentual) : null,
+        qtd_parcelas_contratadas: form.qtd_parcelas_contratadas ? parseInt(form.qtd_parcelas_contratadas) : null,
+        valor_parcela_mensal: form.valor_parcela_mensal ? Number(form.valor_parcela_mensal) : null,
+        garantia: form.garantia.trim() || null,
+        saldo_atual: form.saldo_atual ? Number(form.saldo_atual) : (form.valor_aproximado ? Number(form.valor_aproximado) : null),
+        proximo_vencimento: form.proximo_vencimento || null,
+        despesa_empresa_id: form.despesa_empresa_id || null,
       };
       const { error } = await (supabase as any).from("dividas").insert(payload);
       if (error) throw error;
@@ -180,8 +219,28 @@ export default function Dividas() {
     },
   });
 
+  // Amortizações (todas) e despesas recorrentes para vínculo opcional
+  const { data: amortizacoes } = useQuery({
+    queryKey: ["dividas_amortizacoes_all"],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any).from("dividas_amortizacoes").select("*").order("data_pagamento", { ascending: false });
+      if (error) throw error;
+      return (data ?? []) as any[];
+    },
+  });
+
+  const { data: despesasRecorrentes } = useQuery({
+    queryKey: ["despesas_empresa_recorrentes"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("despesas_empresa").select("id,descricao,tipo_despesa,valor_original").eq("tipo_despesa", "Fixa").order("descricao");
+      if (error) throw error;
+      return (data ?? []) as any[];
+    },
+  });
+
   // Indicators
   const list = dividas ?? [];
+  const allAmort = amortizacoes ?? [];
   const totalConfirmado = list.filter(d => ["Exato"].includes(d.valor_precisao)).reduce((s, d) => s + (Number(d.valor_aproximado) || 0), 0);
   const totalAproximado = list.filter(d => ["Aproximado", "Desatualizado", "Aguardando confirmação do credor"].includes(d.valor_precisao)).reduce((s, d) => s + (Number(d.valor_aproximado) || 0), 0);
   const semValor = list.filter(d => d.valor_precisao === "Desconhecido" || d.valor_aproximado == null).length;
@@ -190,6 +249,18 @@ export default function Dividas() {
   const emNegociacao = list.filter(d => EM_NEG.has(d.situacao)).length;
   const comAcordo = list.filter(d => ACORDO_ATIVO.has(d.situacao)).length;
   const quitadas = list.filter(d => QUITADAS.has(d.situacao)).length;
+
+  // Métricas de gestão ativa
+  const totalSaldoAtivo = list
+    .filter(d => !QUITADAS.has(d.situacao))
+    .reduce((s, d) => s + (Number(d.saldo_atual ?? d.valor_aproximado) || 0), 0);
+  const totalAmortizado = allAmort.reduce((s, a) => s + (Number(a.valor_pago) || 0), 0);
+  const totalParcelasMensais = list
+    .filter(d => !QUITADAS.has(d.situacao))
+    .reduce((s, d) => s + (Number(d.valor_parcela_mensal) || 0), 0);
+  const altaPrioridadeQtd = list.filter(d => d.prioridade === "Alta" && !QUITADAS.has(d.situacao)).length;
+  const amortizadoPorDivida = new Map<string, number>();
+  allAmort.forEach(a => amortizadoPorDivida.set(a.divida_id, (amortizadoPorDivida.get(a.divida_id) ?? 0) + Number(a.valor_pago || 0)));
 
   const filtered = useMemo(() => {
     if (tab === "todas") return list;
@@ -224,6 +295,14 @@ export default function Dividas() {
         <IndicatorCard title="Em negociação" value={String(emNegociacao)} />
         <IndicatorCard title="Com acordo ativo" value={String(comAcordo)} />
         <IndicatorCard title="Quitadas" value={String(quitadas)} />
+      </div>
+
+      {/* Dashboard de gestão ativa */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+        <IndicatorCard title="Saldo devedor ativo" hint="Dívidas não quitadas · usa saldo atual quando disponível" value={formatCurrency(totalSaldoAtivo)} highlight />
+        <IndicatorCard title="Total amortizado" hint="Soma de todos os pagamentos registrados" value={formatCurrency(totalAmortizado)} icon={<CheckCircle2 className="h-4 w-4 text-emerald-600" />} />
+        <IndicatorCard title="Compromisso mensal" hint="Parcelas mensais de dívidas ativas" value={formatCurrency(totalParcelasMensais)} />
+        <IndicatorCard title="Alta prioridade" hint="Dívidas ativas marcadas como Alta" value={String(altaPrioridadeQtd)} icon={<AlertCircle className="h-4 w-4 text-red-600" />} />
       </div>
 
       <Tabs value={tab} onValueChange={setTab}>
@@ -305,6 +384,68 @@ export default function Dividas() {
               <Label>Observações</Label>
               <Textarea rows={3} value={form.observacoes} onChange={e => setForm(f => ({ ...f, observacoes: e.target.value }))} />
             </div>
+
+            {/* Gestão ativa (opcional) */}
+            <div className="rounded-lg border border-border p-3 space-y-3">
+              <p className="text-xs font-semibold text-foreground uppercase tracking-wider">Gestão ativa (opcional)</p>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <Label>Tipo</Label>
+                  <Select value={form.tipo} onValueChange={v => setForm(f => ({ ...f, tipo: v }))}>
+                    <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                    <SelectContent>{TIPOS.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>Prioridade</Label>
+                  <Select value={form.prioridade} onValueChange={v => setForm(f => ({ ...f, prioridade: v }))}>
+                    <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                    <SelectContent>{PRIORIDADES.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}</SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>Juros mensal (%)</Label>
+                  <Input type="number" step="0.01" value={form.juros_mensal_percentual} onChange={e => setForm(f => ({ ...f, juros_mensal_percentual: e.target.value }))} />
+                </div>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <Label>Qtd. parcelas contratadas</Label>
+                  <Input type="number" value={form.qtd_parcelas_contratadas} onChange={e => setForm(f => ({ ...f, qtd_parcelas_contratadas: e.target.value }))} />
+                </div>
+                <div>
+                  <Label>Valor parcela mensal (R$)</Label>
+                  <Input type="number" value={form.valor_parcela_mensal} onChange={e => setForm(f => ({ ...f, valor_parcela_mensal: e.target.value }))} />
+                </div>
+                <div>
+                  <Label>Próximo vencimento</Label>
+                  <Input type="date" value={form.proximo_vencimento} onChange={e => setForm(f => ({ ...f, proximo_vencimento: e.target.value }))} />
+                </div>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <Label>Saldo atual (R$)</Label>
+                  <Input type="number" value={form.saldo_atual} onChange={e => setForm(f => ({ ...f, saldo_atual: e.target.value }))} placeholder="Se vazio, usa o valor aproximado" />
+                </div>
+                <div>
+                  <Label>Garantia oferecida</Label>
+                  <Input value={form.garantia} onChange={e => setForm(f => ({ ...f, garantia: e.target.value }))} placeholder="Ex.: veículo, imóvel, aval" />
+                </div>
+              </div>
+              <div>
+                <Label>Vincular a despesa recorrente (opcional)</Label>
+                <Select value={form.despesa_empresa_id || "__none__"} onValueChange={v => setForm(f => ({ ...f, despesa_empresa_id: v === "__none__" ? "" : v }))}>
+                  <SelectTrigger><SelectValue placeholder="Nenhuma" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">Nenhuma</SelectItem>
+                    {(despesasRecorrentes ?? []).map(d => (
+                      <SelectItem key={d.id} value={d.id}>{d.descricao} · {formatCurrency(Number(d.valor_original) || 0)}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-[11px] text-muted-foreground mt-1">Liga a parcela mensal da dívida a uma despesa fixa já cadastrada, para não duplicar no fluxo de caixa.</p>
+              </div>
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowNew(false)}>Cancelar</Button>
@@ -319,6 +460,8 @@ export default function Dividas() {
       <DetalheSheet
         divida={selected}
         historico={historico ?? []}
+        despesasRecorrentes={despesasRecorrentes ?? []}
+        amortizadoAcumulado={selected ? (amortizadoPorDivida.get(selected.id) ?? 0) : 0}
         open={!!selectedId}
         onClose={() => setSelectedId(null)}
         onUpdate={patch => updateDivida.mutate(patch)}
@@ -450,12 +593,71 @@ function ApurarTable({ rows, onSelect, onDelete }: { rows: DividaRow[]; onSelect
   );
 }
 
-function DetalheSheet({ divida, historico, open, onClose, onUpdate }: {
-  divida: DividaRow | undefined; historico: any[]; open: boolean; onClose: () => void; onUpdate: (patch: any) => void;
+function DetalheSheet({ divida, historico, despesasRecorrentes, amortizadoAcumulado, open, onClose, onUpdate }: {
+  divida: DividaRow | undefined; historico: any[]; despesasRecorrentes: any[]; amortizadoAcumulado: number; open: boolean; onClose: () => void; onUpdate: (patch: any) => void;
 }) {
   const qc = useQueryClient();
   const [showHist, setShowHist] = useState(false);
   const [hist, setHist] = useState({ ...emptyHistorico });
+  const [showAmort, setShowAmort] = useState(false);
+  const [amort, setAmort] = useState({ data_pagamento: new Date().toISOString().slice(0,10), valor_pago: "", juros_periodo: "", observacao: "" });
+
+  const { data: amortizacoes } = useQuery({
+    queryKey: ["dividas_amortizacoes", divida?.id],
+    enabled: !!divida?.id,
+    queryFn: async () => {
+      const { data, error } = await (supabase as any).from("dividas_amortizacoes").select("*").eq("divida_id", divida!.id).order("data_pagamento", { ascending: false });
+      if (error) throw error;
+      return (data ?? []) as any[];
+    },
+  });
+
+  const addAmort = useMutation({
+    mutationFn: async () => {
+      if (!divida) return;
+      const valor = Number(amort.valor_pago) || 0;
+      if (valor <= 0) throw new Error("Informe o valor pago.");
+      const juros = amort.juros_periodo ? Number(amort.juros_periodo) : 0;
+      const principal = Math.max(valor - juros, 0);
+      const saldoAtualBase = Number(divida.saldo_atual ?? divida.valor_aproximado ?? 0);
+      const saldoApos = Math.max(saldoAtualBase - principal, 0);
+      const { error } = await (supabase as any).from("dividas_amortizacoes").insert({
+        divida_id: divida.id,
+        data_pagamento: amort.data_pagamento,
+        valor_pago: valor,
+        juros_periodo: juros || null,
+        principal_amortizado: principal,
+        saldo_apos: saldoApos,
+        observacao: amort.observacao.trim() || null,
+      });
+      if (error) throw error;
+      // Atualiza dívida com novo saldo + incrementa parcelas pagas
+      const patch: any = { saldo_atual: saldoApos };
+      if (divida.parcelas_pagas != null) patch.parcelas_pagas = (Number(divida.parcelas_pagas) || 0) + 1;
+      if (saldoApos === 0) patch.situacao = "Quitada";
+      onUpdate(patch);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["dividas_amortizacoes", divida?.id] });
+      qc.invalidateQueries({ queryKey: ["dividas_amortizacoes_all"] });
+      toast.success("Amortização registrada.");
+      setShowAmort(false);
+      setAmort({ data_pagamento: new Date().toISOString().slice(0,10), valor_pago: "", juros_periodo: "", observacao: "" });
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  const removeAmort = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await (supabase as any).from("dividas_amortizacoes").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["dividas_amortizacoes", divida?.id] });
+      qc.invalidateQueries({ queryKey: ["dividas_amortizacoes_all"] });
+    },
+  });
+
 
   const addHist = useMutation({
     mutationFn: async () => {
@@ -539,6 +741,93 @@ function DetalheSheet({ divida, historico, open, onClose, onUpdate }: {
             <FieldText label="Situação do contato com o credor" value={divida.situacao_contato || ""} onSave={v => onUpdate({ situacao_contato: v || null })} />
             <FieldTextarea label="Observações" value={divida.observacoes || ""} onSave={v => onUpdate({ observacoes: v || null })} />
           </div>
+
+          {/* Gestão ativa */}
+          <div className="rounded-lg border border-border p-3 space-y-3">
+            <h3 className="text-sm font-semibold text-foreground">Gestão ativa</h3>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+              <div><span className="text-muted-foreground">Saldo atual</span><p className="font-bold text-foreground">{formatCurrency(Number(divida.saldo_atual ?? divida.valor_aproximado ?? 0))}</p></div>
+              <div><span className="text-muted-foreground">Amortizado</span><p className="font-bold text-emerald-600">{formatCurrency(amortizadoAcumulado)}</p></div>
+              <div><span className="text-muted-foreground">Parcela mensal</span><p className="font-bold text-foreground">{formatCurrency(Number(divida.valor_parcela_mensal ?? 0))}</p></div>
+              <div><span className="text-muted-foreground">Parcelas</span><p className="font-bold text-foreground">{divida.parcelas_pagas ?? 0}/{divida.qtd_parcelas_contratadas ?? "—"}</p></div>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <FieldSelect label="Tipo" value={divida.tipo || ""} options={TIPOS as any} onSave={v => onUpdate({ tipo: v || null })} allowEmpty />
+              <FieldSelect label="Prioridade" value={divida.prioridade || ""} options={PRIORIDADES as any} onSave={v => onUpdate({ prioridade: v || null })} allowEmpty />
+              <FieldText label="Juros mensal (%)" type="number" value={divida.juros_mensal_percentual ?? ""} onSave={v => onUpdate({ juros_mensal_percentual: v ? Number(v) : null })} />
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <FieldText label="Parcelas contratadas" type="number" value={divida.qtd_parcelas_contratadas ?? ""} onSave={v => onUpdate({ qtd_parcelas_contratadas: v ? parseInt(v) : null })} />
+              <FieldText label="Valor parcela mensal" type="number" value={divida.valor_parcela_mensal ?? ""} onSave={v => onUpdate({ valor_parcela_mensal: v ? Number(v) : null })} />
+              <FieldText label="Próximo vencimento" type="date" value={divida.proximo_vencimento || ""} onSave={v => onUpdate({ proximo_vencimento: v || null })} />
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <FieldText label="Saldo atual (R$)" type="number" value={divida.saldo_atual ?? ""} onSave={v => onUpdate({ saldo_atual: v ? Number(v) : null })} />
+              <FieldText label="Garantia" value={divida.garantia || ""} onSave={v => onUpdate({ garantia: v || null })} />
+            </div>
+            <div>
+              <Label>Despesa recorrente vinculada</Label>
+              <Select value={divida.despesa_empresa_id || "__none__"} onValueChange={v => onUpdate({ despesa_empresa_id: v === "__none__" ? null : v })}>
+                <SelectTrigger><SelectValue placeholder="Nenhuma" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">Nenhuma</SelectItem>
+                  {despesasRecorrentes.map(d => (
+                    <SelectItem key={d.id} value={d.id}>{d.descricao} · {formatCurrency(Number(d.valor_original) || 0)}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          {/* Amortizações */}
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-semibold text-foreground">Amortizações</h3>
+              <Button size="sm" variant="outline" onClick={() => setShowAmort(true)}><Plus className="h-4 w-4 mr-2" />Registrar pagamento</Button>
+            </div>
+            {!amortizacoes || amortizacoes.length === 0 ? (
+              <p className="text-xs text-muted-foreground italic">Nenhuma amortização registrada.</p>
+            ) : (
+              <div className="space-y-2">
+                {amortizacoes.map(a => (
+                  <div key={a.id} className="rounded-lg border border-border bg-card p-3 text-sm flex items-center justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-3 flex-wrap">
+                        <span className="font-medium">{formatDate(a.data_pagamento)}</span>
+                        <span className="text-emerald-600 font-semibold">{formatCurrency(Number(a.valor_pago))}</span>
+                        {a.juros_periodo != null && <span className="text-xs text-muted-foreground">Juros: {formatCurrency(Number(a.juros_periodo))}</span>}
+                        {a.principal_amortizado != null && <span className="text-xs text-muted-foreground">Principal: {formatCurrency(Number(a.principal_amortizado))}</span>}
+                        {a.saldo_apos != null && <span className="text-xs text-muted-foreground">Saldo após: {formatCurrency(Number(a.saldo_apos))}</span>}
+                      </div>
+                      {a.observacao && <p className="text-xs text-muted-foreground mt-1">{a.observacao}</p>}
+                    </div>
+                    <Button size="icon" variant="ghost" onClick={() => { if (confirm("Excluir esta amortização?")) removeAmort.mutate(a.id); }}>
+                      <Trash2 className="h-4 w-4 text-red-600" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {showAmort && (
+            <div className="rounded-lg border border-primary/40 bg-primary/5 p-3 space-y-3">
+              <p className="text-sm font-semibold">Nova amortização</p>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div><Label>Data</Label><Input type="date" value={amort.data_pagamento} onChange={e => setAmort(a => ({ ...a, data_pagamento: e.target.value }))} /></div>
+                <div><Label>Valor pago (R$)</Label><Input type="number" value={amort.valor_pago} onChange={e => setAmort(a => ({ ...a, valor_pago: e.target.value }))} /></div>
+                <div><Label>Juros do período (R$)</Label><Input type="number" value={amort.juros_periodo} onChange={e => setAmort(a => ({ ...a, juros_periodo: e.target.value }))} /></div>
+              </div>
+              <div><Label>Observação</Label><Input value={amort.observacao} onChange={e => setAmort(a => ({ ...a, observacao: e.target.value }))} /></div>
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" size="sm" onClick={() => setShowAmort(false)}>Cancelar</Button>
+                <Button size="sm" onClick={() => addAmort.mutate()} disabled={addAmort.isPending} className="gold-gradient text-primary-foreground">
+                  {addAmort.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Salvar"}
+                </Button>
+              </div>
+            </div>
+          )}
+
 
           {/* Histórico */}
           <div>

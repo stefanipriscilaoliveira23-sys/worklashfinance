@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { getMonthRange, getWeekRange, getDaysInMonth } from "@/lib/format";
+import { filtrarParcelasFaturadas, valorRecebidoParcela } from "@/lib/faturamento";
 
 export function useDashboardData(periodStart?: string, periodEnd?: string) {
   const now = new Date();
@@ -78,15 +79,11 @@ export function useDashboardData(periodStart?: string, periodEnd?: string) {
   // Compute values
   const receitasMes = receitas.data ?? [];
   const allParcelasDet = parcelas.data ?? [];
-  // Faturado = dinheiro que efetivamente entrou. Usamos data_pagamento (fallback vencimento)
-  // para bater com a aba Receitas — assim uma parcela vencida em junho e paga em julho
-  // conta como faturamento de julho.
-  const parcelasMesQuitadas = allParcelasDet.filter(p => {
-    if (p.status !== "Quitado") return false;
-    const dataRef = p.data_pagamento ?? p.data_vencimento;
-    return dataRef >= mesInicio && dataRef <= mesFim;
-  });
-  const receitaParcelasMes = parcelasMesQuitadas.reduce((s, p) => s + (p.valor_real ?? p.valor_sugerido ?? 0), 0);
+  // Faturado = dinheiro que efetivamente entrou. Só entram parcelas Quitadas COM data_pagamento
+  // registrada (regra unificada — ver src/lib/faturamento.ts). Parcelas quitadas sem
+  // data_pagamento são consideradas dados incompletos e não contam no faturamento.
+  const parcelasMesQuitadas = filtrarParcelasFaturadas(allParcelasDet, mesInicio, mesFim);
+  const receitaParcelasMes = parcelasMesQuitadas.reduce((s, p) => s + valorRecebidoParcela(p), 0);
 
   const totalBrutoReceitas = receitasMes.reduce((s, r) => s + (r.valor_bruto ?? 0), 0);
   const totalLiquidoReceitas = receitasMes.reduce((s, r) => s + (r.valor_liquido ?? 0), 0);
@@ -144,7 +141,7 @@ export function useDashboardData(periodStart?: string, periodEnd?: string) {
     d.setDate(startD.getDate() + i);
     const ds = d.toISOString().split("T")[0];
     const totalReceitas = receitasMes.filter(r => r.data === ds).reduce((s, r) => s + (r.valor_bruto ?? 0), 0);
-    const totalParcelasDia = parcelasMesQuitadas.filter(p => (p.data_pagamento ?? p.data_vencimento) === ds).reduce((s, p) => s + (p.valor_real ?? p.valor_sugerido ?? 0), 0);
+    const totalParcelasDia = parcelasMesQuitadas.filter(p => p.data_pagamento === ds).reduce((s, p) => s + valorRecebidoParcela(p), 0);
     faturamentoDiario.push({ data: ds, valor: totalReceitas + totalParcelasDia });
   }
 

@@ -104,11 +104,11 @@ function DashboardAdmin() {
   const detalhesMes = detalhes.filter(p => p.data_vencimento >= mesInicio && p.data_vencimento <= mesFim);
   const today = now.toISOString().split("T")[0];
 
-  // Entradas detalhadas do Faturado (mesma lógica do hook: parcelas quitadas pela data_pagamento)
+  // Entradas detalhadas do Faturado (regra unificada: só parcelas com data_pagamento)
   const parcelasQuitadasNoPeriodo = detalhes.filter(p => {
     if (p.status !== "Quitado") return false;
-    const dataRef = p.data_pagamento ?? p.data_vencimento;
-    return dataRef >= mesInicio && dataRef <= mesFim;
+    const dp = p.data_pagamento;
+    return !!dp && dp >= mesInicio && dp <= mesFim;
   });
   const entradasFaturado: FaturadoEntrada[] = [
     ...receitasMes.map(r => ({
@@ -121,7 +121,7 @@ function DashboardAdmin() {
     ...parcelasQuitadasNoPeriodo.map((p: any) => {
       const pm = p.parcelas_mentoria as any;
       return {
-        data: (p.data_pagamento ?? p.data_vencimento) as string,
+        data: p.data_pagamento as string,
         tipo: "parcela" as const,
         cliente: pm?.cliente_nome ?? null,
         produto: pm?.tipo_mentoria ?? "Parcela mentoria",
