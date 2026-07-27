@@ -58,23 +58,23 @@ export default function Inicio() {
   });
 
   const despEmpresa = useQuery({
-    queryKey: ["inicio-desp-emp", semStart, semEnd],
+    queryKey: ["inicio-desp-emp", mesStart, mesEnd],
     enabled: admin,
     queryFn: async () => {
       const { data } = await supabase
         .from("despesas_empresa").select("*")
-        .gte("data_vencimento", semStart).lte("data_vencimento", semEnd);
+        .gte("data_vencimento", mesStart).lte("data_vencimento", mesEnd);
       return data ?? [];
     },
   });
 
   const despPessoal = useQuery({
-    queryKey: ["inicio-desp-pes", semStart, semEnd],
+    queryKey: ["inicio-desp-pes", mesStart, mesEnd],
     enabled: admin,
     queryFn: async () => {
       const { data } = await supabase
         .from("despesas_pessoal").select("*")
-        .gte("data_vencimento", semStart).lte("data_vencimento", semEnd);
+        .gte("data_vencimento", mesStart).lte("data_vencimento", mesEnd);
       return data ?? [];
     },
   });
@@ -93,9 +93,17 @@ export default function Inicio() {
   const rSemana = rMes.filter(r => r.data >= semStart && r.data <= semEnd);
   const det = detalhes.data ?? [];
 
-  // Faturamento (inclui parcelas quitadas no período)
-  const parcQuitMes = det.filter(p => p.data_vencimento >= mesStart && p.data_vencimento <= mesEnd && p.status === "Quitado");
-  const parcQuitSem = det.filter(p => (p.data_pagamento ?? p.data_vencimento) >= semStart && (p.data_pagamento ?? p.data_vencimento) <= semEnd && p.status === "Quitado");
+  // Faturamento — alinhado com Dashboard: parcelas contam pela data_pagamento (fallback vencimento)
+  const parcQuitMes = det.filter(p => {
+    if (p.status !== "Quitado") return false;
+    const ref = p.data_pagamento ?? p.data_vencimento;
+    return ref >= mesStart && ref <= mesEnd;
+  });
+  const parcQuitSem = det.filter(p => {
+    if (p.status !== "Quitado") return false;
+    const ref = p.data_pagamento ?? p.data_vencimento;
+    return ref >= semStart && ref <= semEnd;
+  });
 
   const fatMes = rMes.reduce((s, r) => s + (r.valor_bruto ?? 0), 0)
     + parcQuitMes.reduce((s, p) => s + (p.valor_real ?? p.valor_sugerido ?? 0), 0);
@@ -114,9 +122,16 @@ export default function Inicio() {
   const mentoriasMes = rMes.filter(r => r.produto_categoria === "Mentorias").length;
   const renovacoesMes = rMes.filter(r => r.produto_categoria === "Renovações").length;
 
-  // Despesas vencendo essa semana (não pagas)
-  const dEmpSem = (despEmpresa.data ?? []).filter(d => d.status !== "Pago");
-  const dPesSem = (despPessoal.data ?? []).filter(d => d.status !== "Pago");
+  // Despesas do mês
+  const dEmpMes = despEmpresa.data ?? [];
+  const dPesMes = despPessoal.data ?? [];
+  const totalSaidasEmpMes = dEmpMes.reduce((s, d) => s + (d.valor_original ?? 0), 0);
+  const totalSaidasPesMes = dPesMes.reduce((s, d) => s + (d.valor_original ?? 0), 0);
+  const totalSaidasMes = totalSaidasEmpMes + totalSaidasPesMes;
+
+  // Vencendo essa semana (não pagas)
+  const dEmpSem = dEmpMes.filter(d => d.data_vencimento && d.data_vencimento >= semStart && d.data_vencimento <= semEnd && d.status !== "Pago");
+  const dPesSem = dPesMes.filter(d => d.data_vencimento && d.data_vencimento >= semStart && d.data_vencimento <= semEnd && d.status !== "Pago");
   const valorEmpSem = dEmpSem.reduce((s, d) => s + (d.saldo_pendente ?? d.valor_original ?? 0), 0);
   const valorPesSem = dPesSem.reduce((s, d) => s + (d.saldo_pendente ?? d.valor_original ?? 0), 0);
 

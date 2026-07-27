@@ -239,6 +239,7 @@ function getDisplayStatus(status: string | null, dataVencimento: string | null) 
   const pagoMes = mesAtual.reduce((s, d) => s + (d.valor_pago_total ?? 0), 0);
   const emAtraso = mesAtual.filter(d => d.status === "Em Atraso").reduce((s, d) => s + (d.saldo_pendente ?? 0), 0);
   const pendenteMes = mesAtual.filter(d => d.status === "A Vencer").reduce((s, d) => s + (d.saldo_pendente ?? 0), 0);
+  const totalVariaveis = mesAtual.filter(d => d.tipo_despesa === "Variável").reduce((s, d) => s + (d.valor_original ?? 0), 0);
 
   // Vencendo essa semana (não pagas)
   const { start: semStart, end: semEnd } = getWeekRange();
@@ -271,15 +272,16 @@ function getDisplayStatus(status: string | null, dataVencimento: string | null) 
 
       <MonthNavigator filter={dateFilter} onChange={setDateFilter} />
 
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
         {[
           { label: "Total do período", value: formatCurrency(totalMes) },
           { label: "Pago", value: formatCurrency(pagoMes) },
           { label: "Em atraso", value: formatCurrency(emAtraso), alert: emAtraso > 0 },
           { label: "Pendente", value: formatCurrency(pendenteMes) },
+          { label: "Variáveis do mês", value: formatCurrency(totalVariaveis) },
           { label: "Vencendo essa semana", value: formatCurrency(vencendoSemana), highlight: vencendoSemana > 0 },
         ].map((c: any) => (
-          <div key={c.label} className={`rounded-xl border p-4 ${c.alert ? "border-destructive/30 bg-destructive/5" : c.highlight ? "border-primary/40 bg-primary/5" : "border-border bg-card"}`}>
+          <div key={c.label} className={`rounded-xl border p-4 card-glow ${c.alert ? "border-destructive/30 bg-destructive/5" : c.highlight ? "border-primary/40 bg-primary/5" : "border-border bg-card"}`}>
             <p className="text-xs text-muted-foreground uppercase tracking-wider">{c.label}</p>
             <p className={`text-lg font-bold mt-1 ${c.alert ? "text-destructive" : c.highlight ? "text-primary" : "text-foreground"}`}>{c.value}</p>
           </div>
