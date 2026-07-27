@@ -219,8 +219,28 @@ export default function Dividas() {
     },
   });
 
+  // Amortizações (todas) e despesas recorrentes para vínculo opcional
+  const { data: amortizacoes } = useQuery({
+    queryKey: ["dividas_amortizacoes_all"],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any).from("dividas_amortizacoes").select("*").order("data_pagamento", { ascending: false });
+      if (error) throw error;
+      return (data ?? []) as any[];
+    },
+  });
+
+  const { data: despesasRecorrentes } = useQuery({
+    queryKey: ["despesas_empresa_recorrentes"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("despesas_empresa").select("id,descricao,tipo_despesa,valor_original").eq("tipo_despesa", "Fixa").order("descricao");
+      if (error) throw error;
+      return (data ?? []) as any[];
+    },
+  });
+
   // Indicators
   const list = dividas ?? [];
+  const allAmort = amortizacoes ?? [];
   const totalConfirmado = list.filter(d => ["Exato"].includes(d.valor_precisao)).reduce((s, d) => s + (Number(d.valor_aproximado) || 0), 0);
   const totalAproximado = list.filter(d => ["Aproximado", "Desatualizado", "Aguardando confirmação do credor"].includes(d.valor_precisao)).reduce((s, d) => s + (Number(d.valor_aproximado) || 0), 0);
   const semValor = list.filter(d => d.valor_precisao === "Desconhecido" || d.valor_aproximado == null).length;
@@ -229,6 +249,18 @@ export default function Dividas() {
   const emNegociacao = list.filter(d => EM_NEG.has(d.situacao)).length;
   const comAcordo = list.filter(d => ACORDO_ATIVO.has(d.situacao)).length;
   const quitadas = list.filter(d => QUITADAS.has(d.situacao)).length;
+
+  // Métricas de gestão ativa
+  const totalSaldoAtivo = list
+    .filter(d => !QUITADAS.has(d.situacao))
+    .reduce((s, d) => s + (Number(d.saldo_atual ?? d.valor_aproximado) || 0), 0);
+  const totalAmortizado = allAmort.reduce((s, a) => s + (Number(a.valor_pago) || 0), 0);
+  const totalParcelasMensais = list
+    .filter(d => !QUITADAS.has(d.situacao))
+    .reduce((s, d) => s + (Number(d.valor_parcela_mensal) || 0), 0);
+  const altaPrioridadeQtd = list.filter(d => d.prioridade === "Alta" && !QUITADAS.has(d.situacao)).length;
+  const amortizadoPorDivida = new Map<string, number>();
+  allAmort.forEach(a => amortizadoPorDivida.set(a.divida_id, (amortizadoPorDivida.get(a.divida_id) ?? 0) + Number(a.valor_pago || 0)));
 
   const filtered = useMemo(() => {
     if (tab === "todas") return list;
