@@ -275,11 +275,12 @@ function getDisplayStatus(status: string | null, dataVencimento: string | null) 
 
       <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
         {[
-          { label: "Total do período", value: formatCurrency(totalMes) },
+          { label: "Despesa total", value: formatCurrency(totalMes), highlight: true },
+          { label: "Despesas fixas", value: formatCurrency(totalFixas) },
+          { label: "Despesas variáveis", value: formatCurrency(totalVariaveis) },
           { label: "Pago", value: formatCurrency(pagoMes) },
           { label: "Em atraso", value: formatCurrency(emAtraso), alert: emAtraso > 0 },
           { label: "Pendente", value: formatCurrency(pendenteMes) },
-          { label: "Variáveis do mês", value: formatCurrency(totalVariaveis) },
           { label: "Vencendo essa semana", value: formatCurrency(vencendoSemana), highlight: vencendoSemana > 0 },
         ].map((c: any) => (
           <div key={c.label} className={`rounded-xl border p-4 card-glow ${c.alert ? "border-destructive/30 bg-destructive/5" : c.highlight ? "border-primary/40 bg-primary/5" : "border-border bg-card"}`}>
