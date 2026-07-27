@@ -371,11 +371,12 @@ export default function DespesasEmpresa() {
   const mesAtual = (despesas ?? []).filter(d => d.data_vencimento && d.data_vencimento >= mesStart && d.data_vencimento <= mesEnd && !((d as any).total_parcelas > 0));
   // Include parcelas from despesas_parcelas in the period for summary
   const parcelasNoPeriodo = (despesasParcelas ?? []).filter((p: any) => p.data_vencimento >= mesStart && p.data_vencimento <= mesEnd);
-  const totalMes = mesAtual.reduce((s, d) => s + (d.valor_original ?? 0), 0) + parcelasNoPeriodo.reduce((s: number, p: any) => s + (p.valor ?? 0), 0);
+  const totalFixas = mesAtual.filter(d => d.tipo_despesa === "Fixa").reduce((s, d) => s + (d.valor_original ?? 0), 0);
+  const totalVariaveis = mesAtual.filter(d => d.tipo_despesa === "Variável").reduce((s, d) => s + (d.valor_original ?? 0), 0) + parcelasNoPeriodo.reduce((s: number, p: any) => s + (p.valor ?? 0), 0);
+  const totalMes = totalFixas + totalVariaveis;
   const pagoMes = mesAtual.reduce((s, d) => s + (d.valor_pago_total ?? 0), 0) + parcelasNoPeriodo.filter((p: any) => p.status === "Pago").reduce((s: number, p: any) => s + (p.valor ?? 0), 0);
   const emAtraso = mesAtual.filter(d => d.status === "Em Atraso").reduce((s, d) => s + (d.saldo_pendente ?? 0), 0) + parcelasNoPeriodo.filter((p: any) => p.status === "Em Atraso").reduce((s: number, p: any) => s + (p.valor ?? 0), 0);
   const pendenteMes = mesAtual.filter(d => d.status === "A Vencer").reduce((s, d) => s + (d.saldo_pendente ?? 0), 0) + parcelasNoPeriodo.filter((p: any) => p.status === "A Vencer").reduce((s: number, p: any) => s + (p.valor ?? 0), 0);
-  const totalVariaveis = mesAtual.filter(d => d.tipo_despesa === "Variável").reduce((s, d) => s + (d.valor_original ?? 0), 0);
 
   // Vencendo essa semana (não pagas)
   const { start: semStart, end: semEnd } = getWeekRange();
@@ -588,11 +589,12 @@ export default function DespesasEmpresa() {
       {/* Summary cards */}
       <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
         {[
-          { label: "Total do período", value: formatCurrency(totalMes) },
+          { label: "Despesa total", value: formatCurrency(totalMes), highlight: true },
+          { label: "Despesas fixas", value: formatCurrency(totalFixas) },
+          { label: "Despesas variáveis", value: formatCurrency(totalVariaveis) },
           { label: "Pago", value: formatCurrency(pagoMes) },
           { label: "Em atraso", value: formatCurrency(emAtraso), alert: emAtraso > 0 },
           { label: "Pendente", value: formatCurrency(pendenteMes) },
-          { label: "Variáveis do mês", value: formatCurrency(totalVariaveis) },
           { label: "Vencendo essa semana", value: formatCurrency(vencendoSemana), highlight: vencendoSemana > 0 },
         ].map((c: any) => (
           <div key={c.label} className={`rounded-xl border p-4 card-glow ${c.alert ? "border-destructive/30 bg-destructive/5" : c.highlight ? "border-primary/40 bg-primary/5" : "border-border bg-card"}`}>
