@@ -297,6 +297,14 @@ export default function Dividas() {
         <IndicatorCard title="Quitadas" value={String(quitadas)} />
       </div>
 
+      {/* Dashboard de gestão ativa */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+        <IndicatorCard title="Saldo devedor ativo" hint="Dívidas não quitadas · usa saldo atual quando disponível" value={formatCurrency(totalSaldoAtivo)} highlight />
+        <IndicatorCard title="Total amortizado" hint="Soma de todos os pagamentos registrados" value={formatCurrency(totalAmortizado)} icon={<CheckCircle2 className="h-4 w-4 text-emerald-600" />} />
+        <IndicatorCard title="Compromisso mensal" hint="Parcelas mensais de dívidas ativas" value={formatCurrency(totalParcelasMensais)} />
+        <IndicatorCard title="Alta prioridade" hint="Dívidas ativas marcadas como Alta" value={String(altaPrioridadeQtd)} icon={<AlertCircle className="h-4 w-4 text-red-600" />} />
+      </div>
+
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList>
           <TabsTrigger value="todas">Todas ({list.length})</TabsTrigger>
