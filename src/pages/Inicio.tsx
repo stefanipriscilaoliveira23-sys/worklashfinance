@@ -93,17 +93,10 @@ export default function Inicio() {
   const rSemana = rMes.filter(r => r.data >= semStart && r.data <= semEnd);
   const det = detalhes.data ?? [];
 
-  // Faturamento — alinhado com Dashboard: parcelas contam pela data_pagamento (fallback vencimento)
-  const parcQuitMes = det.filter(p => {
-    if (p.status !== "Quitado") return false;
-    const ref = p.data_pagamento ?? p.data_vencimento;
-    return ref >= mesStart && ref <= mesEnd;
-  });
-  const parcQuitSem = det.filter(p => {
-    if (p.status !== "Quitado") return false;
-    const ref = p.data_pagamento ?? p.data_vencimento;
-    return ref >= semStart && ref <= semEnd;
-  });
+  // Faturamento — regra unificada (src/lib/faturamento.ts): parcelas contam apenas quando
+  // Quitadas e com data_pagamento registrada (a data efetiva do dinheiro no caixa).
+  const parcQuitMes = det.filter(p => p.status === "Quitado" && p.data_pagamento && p.data_pagamento >= mesStart && p.data_pagamento <= mesEnd);
+  const parcQuitSem = det.filter(p => p.status === "Quitado" && p.data_pagamento && p.data_pagamento >= semStart && p.data_pagamento <= semEnd);
 
   const fatMes = rMes.reduce((s, r) => s + (r.valor_bruto ?? 0), 0)
     + parcQuitMes.reduce((s, p) => s + (p.valor_real ?? p.valor_sugerido ?? 0), 0);
