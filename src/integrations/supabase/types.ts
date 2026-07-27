@@ -267,17 +267,27 @@ export type Database = {
           dados_faltando: string | null
           data_valor_informado: string | null
           descricao: string
+          despesa_empresa_id: string | null
           documentos_disponiveis: string | null
+          garantia: string | null
           id: string
+          juros_mensal_percentual: number | null
           observacoes: string | null
+          parcelas_pagas: number | null
+          prioridade: Database["public"]["Enums"]["divida_prioridade"] | null
           proxima_acao:
             | Database["public"]["Enums"]["divida_proxima_acao"]
             | null
           proxima_acao_prazo: string | null
+          proximo_vencimento: string | null
+          qtd_parcelas_contratadas: number | null
           responsavel: string | null
+          saldo_atual: number | null
           situacao: Database["public"]["Enums"]["divida_situacao"]
           situacao_contato: string | null
+          tipo: Database["public"]["Enums"]["divida_tipo"] | null
           valor_aproximado: number | null
+          valor_parcela_mensal: number | null
           valor_precisao: Database["public"]["Enums"]["divida_valor_precisao"]
         }
         Insert: {
@@ -288,17 +298,27 @@ export type Database = {
           dados_faltando?: string | null
           data_valor_informado?: string | null
           descricao: string
+          despesa_empresa_id?: string | null
           documentos_disponiveis?: string | null
+          garantia?: string | null
           id?: string
+          juros_mensal_percentual?: number | null
           observacoes?: string | null
+          parcelas_pagas?: number | null
+          prioridade?: Database["public"]["Enums"]["divida_prioridade"] | null
           proxima_acao?:
             | Database["public"]["Enums"]["divida_proxima_acao"]
             | null
           proxima_acao_prazo?: string | null
+          proximo_vencimento?: string | null
+          qtd_parcelas_contratadas?: number | null
           responsavel?: string | null
+          saldo_atual?: number | null
           situacao?: Database["public"]["Enums"]["divida_situacao"]
           situacao_contato?: string | null
+          tipo?: Database["public"]["Enums"]["divida_tipo"] | null
           valor_aproximado?: number | null
+          valor_parcela_mensal?: number | null
           valor_precisao?: Database["public"]["Enums"]["divida_valor_precisao"]
         }
         Update: {
@@ -309,20 +329,82 @@ export type Database = {
           dados_faltando?: string | null
           data_valor_informado?: string | null
           descricao?: string
+          despesa_empresa_id?: string | null
           documentos_disponiveis?: string | null
+          garantia?: string | null
           id?: string
+          juros_mensal_percentual?: number | null
           observacoes?: string | null
+          parcelas_pagas?: number | null
+          prioridade?: Database["public"]["Enums"]["divida_prioridade"] | null
           proxima_acao?:
             | Database["public"]["Enums"]["divida_proxima_acao"]
             | null
           proxima_acao_prazo?: string | null
+          proximo_vencimento?: string | null
+          qtd_parcelas_contratadas?: number | null
           responsavel?: string | null
+          saldo_atual?: number | null
           situacao?: Database["public"]["Enums"]["divida_situacao"]
           situacao_contato?: string | null
+          tipo?: Database["public"]["Enums"]["divida_tipo"] | null
           valor_aproximado?: number | null
+          valor_parcela_mensal?: number | null
           valor_precisao?: Database["public"]["Enums"]["divida_valor_precisao"]
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "dividas_despesa_empresa_id_fkey"
+            columns: ["despesa_empresa_id"]
+            isOneToOne: false
+            referencedRelation: "despesas_empresa"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      dividas_amortizacoes: {
+        Row: {
+          criado_em: string
+          data_pagamento: string
+          divida_id: string
+          id: string
+          juros_periodo: number | null
+          observacao: string | null
+          principal_amortizado: number | null
+          saldo_apos: number | null
+          valor_pago: number
+        }
+        Insert: {
+          criado_em?: string
+          data_pagamento: string
+          divida_id: string
+          id?: string
+          juros_periodo?: number | null
+          observacao?: string | null
+          principal_amortizado?: number | null
+          saldo_apos?: number | null
+          valor_pago: number
+        }
+        Update: {
+          criado_em?: string
+          data_pagamento?: string
+          divida_id?: string
+          id?: string
+          juros_periodo?: number | null
+          observacao?: string | null
+          principal_amortizado?: number | null
+          saldo_apos?: number | null
+          valor_pago?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dividas_amortizacoes_divida_id_fkey"
+            columns: ["divida_id"]
+            isOneToOne: false
+            referencedRelation: "dividas"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       dividas_historico: {
         Row: {
@@ -990,6 +1072,7 @@ export type Database = {
         | "Portal do credor"
         | "Carta"
         | "Outro"
+      divida_prioridade: "Alta" | "Média" | "Baixa"
       divida_proxima_acao:
         | "Identificar o credor atual"
         | "Consultar saldo atualizado"
@@ -1016,6 +1099,15 @@ export type Database = {
         | "Contestada"
         | "Prescrita ou em análise jurídica"
         | "Quitada"
+      divida_tipo:
+        | "Empréstimo bancário"
+        | "Financiamento"
+        | "Cartão de crédito"
+        | "Cheque especial"
+        | "Fornecedor"
+        | "Imposto"
+        | "Pessoa física"
+        | "Outro"
       divida_valor_precisao:
         | "Exato"
         | "Aproximado"
@@ -1196,6 +1288,7 @@ export const Constants = {
         "Carta",
         "Outro",
       ],
+      divida_prioridade: ["Alta", "Média", "Baixa"],
       divida_proxima_acao: [
         "Identificar o credor atual",
         "Consultar saldo atualizado",
@@ -1223,6 +1316,16 @@ export const Constants = {
         "Contestada",
         "Prescrita ou em análise jurídica",
         "Quitada",
+      ],
+      divida_tipo: [
+        "Empréstimo bancário",
+        "Financiamento",
+        "Cartão de crédito",
+        "Cheque especial",
+        "Fornecedor",
+        "Imposto",
+        "Pessoa física",
+        "Outro",
       ],
       divida_valor_precisao: [
         "Exato",
