@@ -172,11 +172,14 @@ export default function Receitas() {
   const allParcelas = parcelasData ?? [];
 
   // Transform parcelas quitadas into receita-like objects
-  const parcelasComoReceitas = (parcelasQuitadas ?? []).map((pq: any) => {
+  // Regra unificada de faturamento: só entram parcelas Quitadas COM data_pagamento.
+  const parcelasComoReceitas = (parcelasQuitadas ?? [])
+    .filter((pq: any) => !!pq.data_pagamento)
+    .map((pq: any) => {
     const parent = pq.parcelas_mentoria;
     return {
       id: `parcela-${pq.id}`,
-      data: pq.data_pagamento ?? pq.data_vencimento,
+      data: pq.data_pagamento,
       produto_nome: getProdutoNome(parent),
       produto_categoria: parent.tipo_mentoria,
       plataforma: "" as any,
