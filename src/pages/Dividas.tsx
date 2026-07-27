@@ -599,6 +599,65 @@ function DetalheSheet({ divida, historico, despesasRecorrentes, amortizadoAcumul
   const qc = useQueryClient();
   const [showHist, setShowHist] = useState(false);
   const [hist, setHist] = useState({ ...emptyHistorico });
+  const [showAmort, setShowAmort] = useState(false);
+  const [amort, setAmort] = useState({ data_pagamento: new Date().toISOString().slice(0,10), valor_pago: "", juros_periodo: "", observacao: "" });
+
+  const { data: amortizacoes } = useQuery({
+    queryKey: ["dividas_amortizacoes", divida?.id],
+    enabled: !!divida?.id,
+    queryFn: async () => {
+      const { data, error } = await (supabase as any).from("dividas_amortizacoes").select("*").eq("divida_id", divida!.id).order("data_pagamento", { ascending: false });
+      if (error) throw error;
+      return (data ?? []) as any[];
+    },
+  });
+
+  const addAmort = useMutation({
+    mutationFn: async () => {
+      if (!divida) return;
+      const valor = Number(amort.valor_pago) || 0;
+      if (valor <= 0) throw new Error("Informe o valor pago.");
+      const juros = amort.juros_periodo ? Number(amort.juros_periodo) : 0;
+      const principal = Math.max(valor - juros, 0);
+      const saldoAtualBase = Number(divida.saldo_atual ?? divida.valor_aproximado ?? 0);
+      const saldoApos = Math.max(saldoAtualBase - principal, 0);
+      const { error } = await (supabase as any).from("dividas_amortizacoes").insert({
+        divida_id: divida.id,
+        data_pagamento: amort.data_pagamento,
+        valor_pago: valor,
+        juros_periodo: juros || null,
+        principal_amortizado: principal,
+        saldo_apos: saldoApos,
+        observacao: amort.observacao.trim() || null,
+      });
+      if (error) throw error;
+      // Atualiza dívida com novo saldo + incrementa parcelas pagas
+      const patch: any = { saldo_atual: saldoApos };
+      if (divida.parcelas_pagas != null) patch.parcelas_pagas = (Number(divida.parcelas_pagas) || 0) + 1;
+      if (saldoApos === 0) patch.situacao = "Quitada";
+      onUpdate(patch);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["dividas_amortizacoes", divida?.id] });
+      qc.invalidateQueries({ queryKey: ["dividas_amortizacoes_all"] });
+      toast.success("Amortização registrada.");
+      setShowAmort(false);
+      setAmort({ data_pagamento: new Date().toISOString().slice(0,10), valor_pago: "", juros_periodo: "", observacao: "" });
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  const removeAmort = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await (supabase as any).from("dividas_amortizacoes").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["dividas_amortizacoes", divida?.id] });
+      qc.invalidateQueries({ queryKey: ["dividas_amortizacoes_all"] });
+    },
+  });
+
 
   const addHist = useMutation({
     mutationFn: async () => {
