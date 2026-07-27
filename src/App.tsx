@@ -21,6 +21,7 @@ import Configuracoes from "./pages/Configuracoes";
 import PLDiario from "./pages/PLDiario";
 import Clientes from "./pages/Clientes";
 import Cofrinho from "./pages/Cofrinho";
+import Dividas from "./pages/Dividas";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
