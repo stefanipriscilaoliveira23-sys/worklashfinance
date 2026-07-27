@@ -1,6 +1,6 @@
 import {
   LayoutDashboard, DollarSign, CalendarCheck, Building2, User, Users, PartyPopper,
-  Package, TrendingUp, BarChart3, Settings, LogOut, TrendingUp as Logo, FileSpreadsheet, PiggyBank, Home
+  Package, TrendingUp, BarChart3, Settings, LogOut, TrendingUp as Logo, FileSpreadsheet, PiggyBank, Home, Scale
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useAuth, isAdmin } from "@/contexts/AuthContext";
@@ -22,6 +22,7 @@ const allMenuItems = [
   { title: "Projeção", url: "/projecao", icon: TrendingUp, adminOnly: true },
   { title: "P&L Diário", url: "/pl-diario", icon: FileSpreadsheet, adminOnly: true },
   { title: "Cofrinho", url: "/cofrinho", icon: PiggyBank, adminOnly: true },
+  { title: "Dívidas", url: "/dividas", icon: Scale, adminOnly: true },
 ];
 
 const adminItems = [
