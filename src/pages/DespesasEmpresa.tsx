@@ -371,11 +371,12 @@ export default function DespesasEmpresa() {
   const mesAtual = (despesas ?? []).filter(d => d.data_vencimento && d.data_vencimento >= mesStart && d.data_vencimento <= mesEnd && !((d as any).total_parcelas > 0));
   // Include parcelas from despesas_parcelas in the period for summary
   const parcelasNoPeriodo = (despesasParcelas ?? []).filter((p: any) => p.data_vencimento >= mesStart && p.data_vencimento <= mesEnd);
-  const totalMes = mesAtual.reduce((s, d) => s + (d.valor_original ?? 0), 0) + parcelasNoPeriodo.reduce((s: number, p: any) => s + (p.valor ?? 0), 0);
+  const totalFixas = mesAtual.filter(d => d.tipo_despesa === "Fixa").reduce((s, d) => s + (d.valor_original ?? 0), 0);
+  const totalVariaveis = mesAtual.filter(d => d.tipo_despesa === "Variável").reduce((s, d) => s + (d.valor_original ?? 0), 0) + parcelasNoPeriodo.reduce((s: number, p: any) => s + (p.valor ?? 0), 0);
+  const totalMes = totalFixas + totalVariaveis;
   const pagoMes = mesAtual.reduce((s, d) => s + (d.valor_pago_total ?? 0), 0) + parcelasNoPeriodo.filter((p: any) => p.status === "Pago").reduce((s: number, p: any) => s + (p.valor ?? 0), 0);
   const emAtraso = mesAtual.filter(d => d.status === "Em Atraso").reduce((s, d) => s + (d.saldo_pendente ?? 0), 0) + parcelasNoPeriodo.filter((p: any) => p.status === "Em Atraso").reduce((s: number, p: any) => s + (p.valor ?? 0), 0);
   const pendenteMes = mesAtual.filter(d => d.status === "A Vencer").reduce((s, d) => s + (d.saldo_pendente ?? 0), 0) + parcelasNoPeriodo.filter((p: any) => p.status === "A Vencer").reduce((s: number, p: any) => s + (p.valor ?? 0), 0);
-  const totalVariaveis = mesAtual.filter(d => d.tipo_despesa === "Variável").reduce((s, d) => s + (d.valor_original ?? 0), 0);
 
   // Vencendo essa semana (não pagas)
   const { start: semStart, end: semEnd } = getWeekRange();
