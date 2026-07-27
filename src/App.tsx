@@ -21,6 +21,7 @@ import Configuracoes from "./pages/Configuracoes";
 import PLDiario from "./pages/PLDiario";
 import Clientes from "./pages/Clientes";
 import Cofrinho from "./pages/Cofrinho";
+import Dividas from "./pages/Dividas";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -47,6 +48,7 @@ const App = () => (
               <Route path="/projecao" element={<AdminRoute><Projecao /></AdminRoute>} />
               <Route path="/pl-diario" element={<AdminRoute><PLDiario /></AdminRoute>} />
               <Route path="/cofrinho" element={<AdminRoute><Cofrinho /></AdminRoute>} />
+              <Route path="/dividas" element={<AdminRoute><Dividas /></AdminRoute>} />
               <Route path="/bi" element={<AdminRoute><BusinessIntelligence /></AdminRoute>} />
               <Route path="/config" element={<AdminRoute><Configuracoes /></AdminRoute>} />
             </Route>
