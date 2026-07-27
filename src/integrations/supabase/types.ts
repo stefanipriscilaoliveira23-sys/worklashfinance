@@ -258,6 +258,134 @@ export type Database = {
         }
         Relationships: []
       }
+      dividas: {
+        Row: {
+          atualizado_em: string
+          credor: string | null
+          credor_nao_identificado: boolean
+          criado_em: string
+          dados_faltando: string | null
+          data_valor_informado: string | null
+          descricao: string
+          documentos_disponiveis: string | null
+          id: string
+          observacoes: string | null
+          proxima_acao:
+            | Database["public"]["Enums"]["divida_proxima_acao"]
+            | null
+          proxima_acao_prazo: string | null
+          responsavel: string | null
+          situacao: Database["public"]["Enums"]["divida_situacao"]
+          situacao_contato: string | null
+          valor_aproximado: number | null
+          valor_precisao: Database["public"]["Enums"]["divida_valor_precisao"]
+        }
+        Insert: {
+          atualizado_em?: string
+          credor?: string | null
+          credor_nao_identificado?: boolean
+          criado_em?: string
+          dados_faltando?: string | null
+          data_valor_informado?: string | null
+          descricao: string
+          documentos_disponiveis?: string | null
+          id?: string
+          observacoes?: string | null
+          proxima_acao?:
+            | Database["public"]["Enums"]["divida_proxima_acao"]
+            | null
+          proxima_acao_prazo?: string | null
+          responsavel?: string | null
+          situacao?: Database["public"]["Enums"]["divida_situacao"]
+          situacao_contato?: string | null
+          valor_aproximado?: number | null
+          valor_precisao?: Database["public"]["Enums"]["divida_valor_precisao"]
+        }
+        Update: {
+          atualizado_em?: string
+          credor?: string | null
+          credor_nao_identificado?: boolean
+          criado_em?: string
+          dados_faltando?: string | null
+          data_valor_informado?: string | null
+          descricao?: string
+          documentos_disponiveis?: string | null
+          id?: string
+          observacoes?: string | null
+          proxima_acao?:
+            | Database["public"]["Enums"]["divida_proxima_acao"]
+            | null
+          proxima_acao_prazo?: string | null
+          responsavel?: string | null
+          situacao?: Database["public"]["Enums"]["divida_situacao"]
+          situacao_contato?: string | null
+          valor_aproximado?: number | null
+          valor_precisao?: Database["public"]["Enums"]["divida_valor_precisao"]
+        }
+        Relationships: []
+      }
+      dividas_historico: {
+        Row: {
+          canal: Database["public"]["Enums"]["divida_contato_canal"] | null
+          criado_em: string
+          data_contato: string
+          desconto_oferecido: number | null
+          divida_id: string
+          entrada_solicitada: number | null
+          id: string
+          observacoes: string | null
+          pessoa_contatada: string | null
+          protocolo: string | null
+          qtd_parcelas: number | null
+          saldo_informado: number | null
+          validade_proposta: string | null
+          valor_a_vista: number | null
+          valor_parcela: number | null
+        }
+        Insert: {
+          canal?: Database["public"]["Enums"]["divida_contato_canal"] | null
+          criado_em?: string
+          data_contato?: string
+          desconto_oferecido?: number | null
+          divida_id: string
+          entrada_solicitada?: number | null
+          id?: string
+          observacoes?: string | null
+          pessoa_contatada?: string | null
+          protocolo?: string | null
+          qtd_parcelas?: number | null
+          saldo_informado?: number | null
+          validade_proposta?: string | null
+          valor_a_vista?: number | null
+          valor_parcela?: number | null
+        }
+        Update: {
+          canal?: Database["public"]["Enums"]["divida_contato_canal"] | null
+          criado_em?: string
+          data_contato?: string
+          desconto_oferecido?: number | null
+          divida_id?: string
+          entrada_solicitada?: number | null
+          id?: string
+          observacoes?: string | null
+          pessoa_contatada?: string | null
+          protocolo?: string | null
+          qtd_parcelas?: number | null
+          saldo_informado?: number | null
+          validade_proposta?: string | null
+          valor_a_vista?: number | null
+          valor_parcela?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dividas_historico_divida_id_fkey"
+            columns: ["divida_id"]
+            isOneToOne: false
+            referencedRelation: "dividas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       estoque_cmv: {
         Row: {
           criado_em: string
@@ -854,6 +982,46 @@ export type Database = {
         | "Pet"
         | "Estética"
         | "Outros"
+      divida_contato_canal:
+        | "Telefone"
+        | "WhatsApp"
+        | "E-mail"
+        | "Presencial"
+        | "Portal do credor"
+        | "Carta"
+        | "Outro"
+      divida_proxima_acao:
+        | "Identificar o credor atual"
+        | "Consultar saldo atualizado"
+        | "Solicitar contrato"
+        | "Solicitar memória de cálculo"
+        | "Verificar juros e multas"
+        | "Consultar possibilidade de desconto"
+        | "Solicitar proposta de negociação"
+        | "Comparar propostas"
+        | "Negociar"
+        | "Aguardar recursos"
+        | "Buscar orientação jurídica"
+        | "Outra"
+      divida_situacao:
+        | "Identificada, mas ainda não apurada"
+        | "Aguardando consulta ao credor"
+        | "Sem negociação"
+        | "Negociação pendente"
+        | "Em negociação"
+        | "Acordo realizado"
+        | "Parcelada"
+        | "Em pagamento"
+        | "Em atraso após acordo"
+        | "Contestada"
+        | "Prescrita ou em análise jurídica"
+        | "Quitada"
+      divida_valor_precisao:
+        | "Exato"
+        | "Aproximado"
+        | "Desatualizado"
+        | "Desconhecido"
+        | "Aguardando confirmação do credor"
       evento_despesa_categoria: "Fechado" | "Precisa Fechar" | "Pago/Presente"
       periodicidade: "Semanal" | "Quinzenal" | "Mensal"
       plataforma_origem: "Hotmart" | "Kiwify" | "Eduzz" | "Direto Pix" | "Outro"
@@ -1018,6 +1186,50 @@ export const Constants = {
         "Pet",
         "Estética",
         "Outros",
+      ],
+      divida_contato_canal: [
+        "Telefone",
+        "WhatsApp",
+        "E-mail",
+        "Presencial",
+        "Portal do credor",
+        "Carta",
+        "Outro",
+      ],
+      divida_proxima_acao: [
+        "Identificar o credor atual",
+        "Consultar saldo atualizado",
+        "Solicitar contrato",
+        "Solicitar memória de cálculo",
+        "Verificar juros e multas",
+        "Consultar possibilidade de desconto",
+        "Solicitar proposta de negociação",
+        "Comparar propostas",
+        "Negociar",
+        "Aguardar recursos",
+        "Buscar orientação jurídica",
+        "Outra",
+      ],
+      divida_situacao: [
+        "Identificada, mas ainda não apurada",
+        "Aguardando consulta ao credor",
+        "Sem negociação",
+        "Negociação pendente",
+        "Em negociação",
+        "Acordo realizado",
+        "Parcelada",
+        "Em pagamento",
+        "Em atraso após acordo",
+        "Contestada",
+        "Prescrita ou em análise jurídica",
+        "Quitada",
+      ],
+      divida_valor_precisao: [
+        "Exato",
+        "Aproximado",
+        "Desatualizado",
+        "Desconhecido",
+        "Aguardando confirmação do credor",
       ],
       evento_despesa_categoria: ["Fechado", "Precisa Fechar", "Pago/Presente"],
       periodicidade: ["Semanal", "Quinzenal", "Mensal"],
