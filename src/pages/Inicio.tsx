@@ -181,26 +181,50 @@ export default function Inicio() {
         />
       </div>
 
-      {/* Despesas da semana — só admin */}
+      {/* Saídas do mês + Despesas da semana — só admin */}
       {admin && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <Card
-            label="Despesas empresa — vencendo essa semana"
-            value={formatCurrency(valorEmpSem)}
-            sub={`${dEmpSem.length} conta(s)`}
-            icon={Building2}
-            tone={valorEmpSem > 0 ? "alert" : "default"}
-            onClick={() => navigate("/despesas-empresa")}
-          />
-          <Card
-            label="Despesas pessoais — vencendo essa semana"
-            value={formatCurrency(valorPesSem)}
-            sub={`${dPesSem.length} conta(s)`}
-            icon={User}
-            tone={valorPesSem > 0 ? "alert" : "default"}
-            onClick={() => navigate("/despesas-pessoal")}
-          />
-        </div>
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Card
+              label="Saídas totais no mês"
+              value={formatCurrency(totalSaidasMes)}
+              sub={`Empresa + Pessoais`}
+              icon={DollarSign}
+              tone="primary"
+              onClick={() => navigate("/despesas-empresa")}
+            />
+            <Card
+              label="Saídas empresa (mês)"
+              value={formatCurrency(totalSaidasEmpMes)}
+              icon={Building2}
+              onClick={() => navigate("/despesas-empresa")}
+            />
+            <Card
+              label="Saídas pessoais (mês)"
+              value={formatCurrency(totalSaidasPesMes)}
+              icon={User}
+              onClick={() => navigate("/despesas-pessoal")}
+            />
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Card
+              label="Despesas empresa — vencendo essa semana"
+              value={formatCurrency(valorEmpSem)}
+              sub={`${dEmpSem.length} conta(s)`}
+              icon={Building2}
+              tone={valorEmpSem > 0 ? "alert" : "default"}
+              onClick={() => navigate("/despesas-empresa")}
+            />
+            <Card
+              label="Despesas pessoais — vencendo essa semana"
+              value={formatCurrency(valorPesSem)}
+              sub={`${dPesSem.length} conta(s)`}
+              icon={User}
+              tone={valorPesSem > 0 ? "alert" : "default"}
+              onClick={() => navigate("/despesas-pessoal")}
+            />
+          </div>
+        </>
       )}
 
       <div className="flex justify-end">
