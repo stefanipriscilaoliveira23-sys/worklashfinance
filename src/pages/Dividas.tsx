@@ -172,6 +172,15 @@ export default function Dividas() {
         proxima_acao: form.proxima_acao || null,
         proxima_acao_prazo: form.proxima_acao_prazo || null,
         situacao_contato: form.situacao_contato.trim() || null,
+        tipo: form.tipo || null,
+        prioridade: form.prioridade || null,
+        juros_mensal_percentual: form.juros_mensal_percentual ? Number(form.juros_mensal_percentual) : null,
+        qtd_parcelas_contratadas: form.qtd_parcelas_contratadas ? parseInt(form.qtd_parcelas_contratadas) : null,
+        valor_parcela_mensal: form.valor_parcela_mensal ? Number(form.valor_parcela_mensal) : null,
+        garantia: form.garantia.trim() || null,
+        saldo_atual: form.saldo_atual ? Number(form.saldo_atual) : (form.valor_aproximado ? Number(form.valor_aproximado) : null),
+        proximo_vencimento: form.proximo_vencimento || null,
+        despesa_empresa_id: form.despesa_empresa_id || null,
       };
       const { error } = await (supabase as any).from("dividas").insert(payload);
       if (error) throw error;
