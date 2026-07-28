@@ -20,6 +20,8 @@ import MonthNavigator, { getCurrentMonthKey, type DateFilter, getDateRange } fro
 import type { Tables } from "@/integrations/supabase/types";
 import type { TemplateContext } from "@/lib/mensagensTemplates";
 
+import { useAuth } from "@/contexts/AuthContext";
+
 const TIPOS_MENTORIA = ["Mentorias", "Renovações"] as const;
 
 const STATUS_LABELS: Record<string, { label: string; className: string }> = {
@@ -37,6 +39,8 @@ export function statusBadge(status: string | null) {
 
 export default function ParcelasMentoria() {
   const queryClient = useQueryClient();
+  const { role } = useAuth();
+  const isAdminUser = role === "admin";
   const [search, setSearch] = useState("");
   const [filtroTipo, setFiltroTipo] = useState("all");
   const [filtroStatus, setFiltroStatus] = useState("all");
@@ -227,46 +231,50 @@ export default function ParcelasMentoria() {
             <p className="text-lg font-bold text-foreground">{metrics.clientes}</p>
           </CardContent>
         </Card>
-        <Card className="border-border bg-card">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 mb-1">
-              <DollarSign className="h-4 w-4 text-primary" />
-              <span className="text-[10px] uppercase text-muted-foreground tracking-wider">Valor Total</span>
-            </div>
-            <p className="text-lg font-bold text-foreground">{formatCurrency(metrics.total)}</p>
-          </CardContent>
-        </Card>
-        <Card className="border-border bg-card">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 mb-1">
-              <CheckCircle2 className="h-4 w-4 text-emerald-400" />
-              <span className="text-[10px] uppercase text-muted-foreground tracking-wider">Recebido ({metrics.qtdRecebido})</span>
-            </div>
-            <p className="text-lg font-bold text-emerald-400">{formatCurrency(metrics.recebido)}</p>
-          </CardContent>
-        </Card>
-        <Card className="border-border bg-card">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 mb-1">
-              <Clock className="h-4 w-4 text-yellow-400" />
-              <span className="text-[10px] uppercase text-muted-foreground tracking-wider">A Receber ({metrics.qtdAReceber})</span>
-            </div>
-            <p className="text-lg font-bold text-yellow-400">{formatCurrency(metrics.aReceber)}</p>
-          </CardContent>
-        </Card>
-        <Card className="border-border bg-card">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 mb-1">
-              <AlertTriangle className="h-4 w-4 text-destructive" />
-              <span className="text-[10px] uppercase text-muted-foreground tracking-wider">Atrasadas ({inadimplentes.length})</span>
-            </div>
-            <p className="text-lg font-bold text-destructive">{formatCurrency(metrics.valorAtrasado)}</p>
-          </CardContent>
-        </Card>
+        {isAdminUser && (
+          <>
+            <Card className="border-border bg-card">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-2 mb-1">
+                  <DollarSign className="h-4 w-4 text-primary" />
+                  <span className="text-[10px] uppercase text-muted-foreground tracking-wider">Valor Total</span>
+                </div>
+                <p className="text-lg font-bold text-foreground">{formatCurrency(metrics.total)}</p>
+              </CardContent>
+            </Card>
+            <Card className="border-border bg-card">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-2 mb-1">
+                  <CheckCircle2 className="h-4 w-4 text-emerald-400" />
+                  <span className="text-[10px] uppercase text-muted-foreground tracking-wider">Recebido ({metrics.qtdRecebido})</span>
+                </div>
+                <p className="text-lg font-bold text-emerald-400">{formatCurrency(metrics.recebido)}</p>
+              </CardContent>
+            </Card>
+            <Card className="border-border bg-card">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-2 mb-1">
+                  <Clock className="h-4 w-4 text-yellow-400" />
+                  <span className="text-[10px] uppercase text-muted-foreground tracking-wider">A Receber ({metrics.qtdAReceber})</span>
+                </div>
+                <p className="text-lg font-bold text-yellow-400">{formatCurrency(metrics.aReceber)}</p>
+              </CardContent>
+            </Card>
+            <Card className="border-border bg-card">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-2 mb-1">
+                  <AlertTriangle className="h-4 w-4 text-destructive" />
+                  <span className="text-[10px] uppercase text-muted-foreground tracking-wider">Atrasadas ({inadimplentes.length})</span>
+                </div>
+                <p className="text-lg font-bold text-destructive">{formatCurrency(metrics.valorAtrasado)}</p>
+              </CardContent>
+            </Card>
+          </>
+        )}
       </div>
 
       {/* Alert */}
-      {inadimplentes.length > 0 && (
+      {isAdminUser && inadimplentes.length > 0 && (
         <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-4 flex items-center gap-3">
           <AlertTriangle className="h-5 w-5 text-destructive shrink-0" />
           <div>
