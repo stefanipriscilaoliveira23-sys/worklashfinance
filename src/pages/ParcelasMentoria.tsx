@@ -222,6 +222,8 @@ export default function ParcelasMentoria() {
 
       {/* Metrics */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+      {/* Metrics */}
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
         <Card className="border-border bg-card">
           <CardContent className="p-4">
             <div className="flex items-center gap-2 mb-1">
@@ -231,46 +233,50 @@ export default function ParcelasMentoria() {
             <p className="text-lg font-bold text-foreground">{metrics.clientes}</p>
           </CardContent>
         </Card>
-        <Card className="border-border bg-card">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 mb-1">
-              <DollarSign className="h-4 w-4 text-primary" />
-              <span className="text-[10px] uppercase text-muted-foreground tracking-wider">Valor Total</span>
-            </div>
-            <p className="text-lg font-bold text-foreground">{formatCurrency(metrics.total)}</p>
-          </CardContent>
-        </Card>
-        <Card className="border-border bg-card">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 mb-1">
-              <CheckCircle2 className="h-4 w-4 text-emerald-400" />
-              <span className="text-[10px] uppercase text-muted-foreground tracking-wider">Recebido ({metrics.qtdRecebido})</span>
-            </div>
-            <p className="text-lg font-bold text-emerald-400">{formatCurrency(metrics.recebido)}</p>
-          </CardContent>
-        </Card>
-        <Card className="border-border bg-card">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 mb-1">
-              <Clock className="h-4 w-4 text-yellow-400" />
-              <span className="text-[10px] uppercase text-muted-foreground tracking-wider">A Receber ({metrics.qtdAReceber})</span>
-            </div>
-            <p className="text-lg font-bold text-yellow-400">{formatCurrency(metrics.aReceber)}</p>
-          </CardContent>
-        </Card>
-        <Card className="border-border bg-card">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 mb-1">
-              <AlertTriangle className="h-4 w-4 text-destructive" />
-              <span className="text-[10px] uppercase text-muted-foreground tracking-wider">Atrasadas ({inadimplentes.length})</span>
-            </div>
-            <p className="text-lg font-bold text-destructive">{formatCurrency(metrics.valorAtrasado)}</p>
-          </CardContent>
-        </Card>
+        {isAdminUser && (
+          <>
+            <Card className="border-border bg-card">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-2 mb-1">
+                  <DollarSign className="h-4 w-4 text-primary" />
+                  <span className="text-[10px] uppercase text-muted-foreground tracking-wider">Valor Total</span>
+                </div>
+                <p className="text-lg font-bold text-foreground">{formatCurrency(metrics.total)}</p>
+              </CardContent>
+            </Card>
+            <Card className="border-border bg-card">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-2 mb-1">
+                  <CheckCircle2 className="h-4 w-4 text-emerald-400" />
+                  <span className="text-[10px] uppercase text-muted-foreground tracking-wider">Recebido ({metrics.qtdRecebido})</span>
+                </div>
+                <p className="text-lg font-bold text-emerald-400">{formatCurrency(metrics.recebido)}</p>
+              </CardContent>
+            </Card>
+            <Card className="border-border bg-card">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-2 mb-1">
+                  <Clock className="h-4 w-4 text-yellow-400" />
+                  <span className="text-[10px] uppercase text-muted-foreground tracking-wider">A Receber ({metrics.qtdAReceber})</span>
+                </div>
+                <p className="text-lg font-bold text-yellow-400">{formatCurrency(metrics.aReceber)}</p>
+              </CardContent>
+            </Card>
+            <Card className="border-border bg-card">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-2 mb-1">
+                  <AlertTriangle className="h-4 w-4 text-destructive" />
+                  <span className="text-[10px] uppercase text-muted-foreground tracking-wider">Atrasadas ({inadimplentes.length})</span>
+                </div>
+                <p className="text-lg font-bold text-destructive">{formatCurrency(metrics.valorAtrasado)}</p>
+              </CardContent>
+            </Card>
+          </>
+        )}
       </div>
 
       {/* Alert */}
-      {inadimplentes.length > 0 && (
+      {isAdminUser && inadimplentes.length > 0 && (
         <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-4 flex items-center gap-3">
           <AlertTriangle className="h-5 w-5 text-destructive shrink-0" />
           <div>
