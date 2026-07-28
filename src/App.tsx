@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import AppLayout from "@/components/layout/AppLayout";
 import AdminRoute from "@/components/layout/AdminRoute";
+import RoleRoute from "@/components/layout/RoleRoute";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import Inicio from "./pages/Inicio";
@@ -44,7 +45,7 @@ const App = () => (
               <Route path="/despesas-empresa" element={<AdminRoute><DespesasEmpresa /></AdminRoute>} />
               <Route path="/despesas-pessoal" element={<AdminRoute><DespesasPessoal /></AdminRoute>} />
               <Route path="/eventos" element={<AdminRoute><EventosEspeciais /></AdminRoute>} />
-              <Route path="/produtos" element={<AdminRoute><ProdutosMargem /></AdminRoute>} />
+              <Route path="/produtos" element={<RoleRoute roles={["admin", "administrativo"]}><ProdutosMargem /></RoleRoute>} />
               <Route path="/projecao" element={<AdminRoute><Projecao /></AdminRoute>} />
               <Route path="/pl-diario" element={<AdminRoute><PLDiario /></AdminRoute>} />
               <Route path="/cofrinho" element={<AdminRoute><Cofrinho /></AdminRoute>} />

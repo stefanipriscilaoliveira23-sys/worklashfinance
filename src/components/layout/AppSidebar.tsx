@@ -18,7 +18,7 @@ const allMenuItems = [
   { title: "Despesas — Empresa", url: "/despesas-empresa", icon: Building2, adminOnly: true },
   { title: "Despesas — Pessoal", url: "/despesas-pessoal", icon: User, adminOnly: true },
   { title: "Eventos Especiais", url: "/eventos", icon: PartyPopper, adminOnly: true },
-  { title: "Produtos e Margem", url: "/produtos", icon: Package, adminOnly: true },
+  { title: "Produtos e Margem", url: "/produtos", icon: Package, adminOnly: false, roles: ["admin", "administrativo"] as string[] },
   { title: "Projeção", url: "/projecao", icon: TrendingUp, adminOnly: true },
   { title: "P&L Diário", url: "/pl-diario", icon: FileSpreadsheet, adminOnly: true },
   { title: "Cofrinho", url: "/cofrinho", icon: PiggyBank, adminOnly: true },
@@ -33,7 +33,10 @@ const adminItems = [
 export function AppSidebar() {
   const { role, signOut, user } = useAuth();
   const admin = isAdmin(role);
-  const visibleItems = allMenuItems.filter(item => !item.adminOnly || admin);
+  const visibleItems = allMenuItems.filter(item => {
+    if ((item as any).roles) return (item as any).roles.includes(role);
+    return !item.adminOnly || admin;
+  });
 
   return (
     <Sidebar className="border-r border-border bg-sidebar">
