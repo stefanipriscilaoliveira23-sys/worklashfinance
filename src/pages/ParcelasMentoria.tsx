@@ -39,6 +39,8 @@ export function statusBadge(status: string | null) {
 
 export default function ParcelasMentoria() {
   const queryClient = useQueryClient();
+  const { role } = useAuth();
+  const isAdminUser = role === "admin";
   const [search, setSearch] = useState("");
   const [filtroTipo, setFiltroTipo] = useState("all");
   const [filtroStatus, setFiltroStatus] = useState("all");
