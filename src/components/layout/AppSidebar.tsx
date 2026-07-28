@@ -33,7 +33,10 @@ const adminItems = [
 export function AppSidebar() {
   const { role, signOut, user } = useAuth();
   const admin = isAdmin(role);
-  const visibleItems = allMenuItems.filter(item => !item.adminOnly || admin);
+  const visibleItems = allMenuItems.filter(item => {
+    if ((item as any).roles) return (item as any).roles.includes(role);
+    return !item.adminOnly || admin;
+  });
 
   return (
     <Sidebar className="border-r border-border bg-sidebar">
