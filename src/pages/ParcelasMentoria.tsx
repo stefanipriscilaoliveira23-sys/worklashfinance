@@ -222,8 +222,6 @@ export default function ParcelasMentoria() {
 
       {/* Metrics */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-      {/* Metrics */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
         <Card className="border-border bg-card">
           <CardContent className="p-4">
             <div className="flex items-center gap-2 mb-1">
