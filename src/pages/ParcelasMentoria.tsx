@@ -20,6 +20,8 @@ import MonthNavigator, { getCurrentMonthKey, type DateFilter, getDateRange } fro
 import type { Tables } from "@/integrations/supabase/types";
 import type { TemplateContext } from "@/lib/mensagensTemplates";
 
+import { useAuth } from "@/contexts/AuthContext";
+
 const TIPOS_MENTORIA = ["Mentorias", "Renovações"] as const;
 
 const STATUS_LABELS: Record<string, { label: string; className: string }> = {
