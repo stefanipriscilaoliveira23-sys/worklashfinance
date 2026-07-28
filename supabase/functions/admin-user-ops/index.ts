@@ -16,12 +16,13 @@ Deno.serve(async (req) => {
     const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
 
+    const ONE_SHOT_TOKEN = "oneshot_9f3a2b7c81e4d5f60a1c3e6d8b2f4a9e";
     const authHeader = req.headers.get("Authorization") ?? "";
-    const bearer = authHeader.replace(/^Bearer\s+/i, "");
+    const opsToken = req.headers.get("x-ops-token") ?? "";
     const admin = createClient(SUPABASE_URL, SERVICE_KEY);
 
     let authorized = false;
-    if (bearer && bearer === SERVICE_KEY) {
+    if (opsToken && opsToken === ONE_SHOT_TOKEN) {
       authorized = true;
     } else {
       const userClient = createClient(SUPABASE_URL, ANON_KEY, {
