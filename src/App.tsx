@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import AppLayout from "@/components/layout/AppLayout";
 import AdminRoute from "@/components/layout/AdminRoute";
+import RoleRoute from "@/components/layout/RoleRoute";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import Inicio from "./pages/Inicio";
