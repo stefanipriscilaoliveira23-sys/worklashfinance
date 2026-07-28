@@ -18,7 +18,7 @@ const allMenuItems = [
   { title: "Despesas — Empresa", url: "/despesas-empresa", icon: Building2, adminOnly: true },
   { title: "Despesas — Pessoal", url: "/despesas-pessoal", icon: User, adminOnly: true },
   { title: "Eventos Especiais", url: "/eventos", icon: PartyPopper, adminOnly: true },
-  { title: "Produtos e Margem", url: "/produtos", icon: Package, adminOnly: true },
+  { title: "Produtos e Margem", url: "/produtos", icon: Package, adminOnly: false, roles: ["admin", "administrativo"] as string[] },
   { title: "Projeção", url: "/projecao", icon: TrendingUp, adminOnly: true },
   { title: "P&L Diário", url: "/pl-diario", icon: FileSpreadsheet, adminOnly: true },
   { title: "Cofrinho", url: "/cofrinho", icon: PiggyBank, adminOnly: true },
