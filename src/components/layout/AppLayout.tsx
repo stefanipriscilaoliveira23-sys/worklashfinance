@@ -22,11 +22,13 @@ export default function AppLayout() {
       <div className="min-h-screen flex w-full bg-background">
         <AppSidebar />
         <main className="flex-1 flex flex-col min-h-screen overflow-hidden">
-          <header className="h-14 flex items-center border-b border-border px-4 shrink-0">
+          <header className="h-14 flex items-center justify-between border-b border-border px-4 shrink-0">
             <SidebarTrigger className="text-muted-foreground hover:text-foreground">
               <Menu className="h-5 w-5" />
             </SidebarTrigger>
+            <NotificationBell />
           </header>
+
           <div className="flex-1 overflow-auto p-6">
             <Outlet />
           </div>
