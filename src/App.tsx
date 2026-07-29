@@ -23,7 +23,11 @@ import PLDiario from "./pages/PLDiario";
 import Clientes from "./pages/Clientes";
 import Cofrinho from "./pages/Cofrinho";
 import Dividas from "./pages/Dividas";
+import Mentoria from "./pages/Mentoria";
+import Agenda from "./pages/Agenda";
+import AgendarPublico from "./pages/AgendarPublico";
 import NotFound from "./pages/NotFound";
+
 
 const queryClient = new QueryClient();
 
@@ -36,8 +40,12 @@ const App = () => (
         <BrowserRouter>
           <Routes>
             <Route path="/auth" element={<Auth />} />
+            <Route path="/agendar/:slug" element={<AgendarPublico />} />
             <Route element={<AppLayout />}>
               <Route path="/" element={<Inicio />} />
+              <Route path="/mentoria" element={<Mentoria />} />
+              <Route path="/agenda" element={<Agenda />} />
+
               <Route path="/dashboard" element={<AdminRoute><Dashboard /></AdminRoute>} />
               <Route path="/receitas" element={<Receitas />} />
               <Route path="/parcelas" element={<ParcelasMentoria />} />
