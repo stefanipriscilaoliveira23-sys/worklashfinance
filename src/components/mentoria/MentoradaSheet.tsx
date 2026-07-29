@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { formatCurrency, formatDate } from "@/lib/format";
 import {
   STATUS_JORNADA, PROGRAMAS, FORMAS_PAGAMENTO, CHECKINS_PADRAO,
-  addDias, addMeses, diasRestantes, interpolar,
+  addDias, addMeses, diasRestantes, interpolar, gerarTarefasDaEtapa,
 } from "@/lib/mentoria";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -109,13 +109,46 @@ export default function MentoradaSheet({ id, onClose }: Props) {
 
   const toggleTarefa = useMutation({
     mutationFn: async ({ tid, valor }: { tid: string; valor: boolean }) => {
-      const { error } = await supabase.from("mentorada_tarefas")
-        .update({ concluida: valor, concluida_em: valor ? new Date().toISOString() : null })
-        .eq("id", tid);
+      const { data: auth } = await supabase.auth.getUser();
+      const { data: tarefa, error } = await supabase.from("mentorada_tarefas")
+        .update({
+          concluida: valor,
+          concluida_em: valor ? new Date().toISOString() : null,
+          responsavel: valor ? auth?.user?.id ?? null : null,
+        })
+        .eq("id", tid).select("titulo").single();
       if (error) throw error;
+      if (valor) {
+        await supabase.from("mentorada_interacoes").insert({
+          mentorada_id: id!,
+          tipo: "Tarefa",
+          conteudo: `Tarefa concluída: ${tarefa?.titulo ?? ""}`,
+          autor: auth?.user?.email ?? null,
+        });
+      }
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["mentorada-tarefas", id] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["mentorada-tarefas", id] });
+      qc.invalidateQueries({ queryKey: ["mentorada-tarefas-todas"] });
+      qc.invalidateQueries({ queryKey: ["mentorada-interacoes", id] });
+    },
+    onError: (e: Error) => toast.error(e.message),
   });
+
+  const gerarTarefas = useMutation({
+    mutationFn: async () => {
+      const n = await gerarTarefasDaEtapa(id!, m!.status_jornada);
+      if (!n) throw new Error("Nenhuma tarefa nova para esta etapa");
+      return n;
+    },
+    onSuccess: (n) => {
+      qc.invalidateQueries({ queryKey: ["mentorada-tarefas", id] });
+      qc.invalidateQueries({ queryKey: ["mentorada-tarefas-todas"] });
+      toast.success(`${n} tarefa(s) geradas`);
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
 
   const addTarefa = useMutation({
     mutationFn: async () => {
@@ -230,7 +263,9 @@ export default function MentoradaSheet({ id, onClose }: Props) {
             <Tabs defaultValue="dados">
               <TabsList className="flex flex-wrap h-auto">
                 <TabsTrigger value="dados">Dados</TabsTrigger>
+                <TabsTrigger value="tarefas">Tarefas</TabsTrigger>
                 <TabsTrigger value="financeiro">Financeiro</TabsTrigger>
+
                 <TabsTrigger value="onboarding">Onboarding</TabsTrigger>
                 <TabsTrigger value="acompanhamento">Acompanhamento</TabsTrigger>
                 <TabsTrigger value="renovacao">Renovação</TabsTrigger>
@@ -290,7 +325,60 @@ export default function MentoradaSheet({ id, onClose }: Props) {
                 )}
               </TabsContent>
 
+              {/* TAREFAS DA ETAPA */}
+              <TabsContent value="tarefas" className="space-y-3 pt-4">
+                {(() => {
+                  const daEtapa = (tarefas ?? []).filter((t) => t.etapa === m.status_jornada);
+                  const feitas = daEtapa.filter((t) => t.concluida).length;
+                  const pct = daEtapa.length ? Math.round((feitas / daEtapa.length) * 100) : 0;
+                  return (
+                    <>
+                      <div className="rounded-lg border border-border p-3">
+                        <div className="flex items-center justify-between mb-2">
+                          <p className="text-sm font-medium">Etapa atual: {m.status_jornada}</p>
+                          <span className="text-xs text-muted-foreground">
+                            {feitas}/{daEtapa.length} tarefas concluídas
+                          </span>
+                        </div>
+                        <div className="h-2 w-full rounded-full bg-muted overflow-hidden">
+                          <div className="h-full bg-primary transition-all" style={{ width: `${pct}%` }} />
+                        </div>
+                      </div>
+                      <ul className="space-y-2">
+                        {daEtapa.map((t) => (
+                          <li key={t.id} className="flex items-start gap-2 rounded-lg border border-border px-3 py-2">
+                            <Checkbox className="mt-0.5" checked={t.concluida}
+                              onCheckedChange={(c) => toggleTarefa.mutate({ tid: t.id, valor: !!c })} />
+                            <div className="min-w-0 flex-1">
+                              <p className={`text-sm ${t.concluida ? "line-through text-muted-foreground" : ""}`}>{t.titulo}</p>
+                              {t.descricao && (
+                                <p className="text-[11px] text-muted-foreground whitespace-pre-wrap">{t.descricao}</p>
+                              )}
+                              {t.concluida && t.concluida_em && (
+                                <p className="text-[10px] text-muted-foreground">
+                                  Concluída em {new Date(t.concluida_em).toLocaleString("pt-BR")}
+                                </p>
+                              )}
+                            </div>
+                          </li>
+                        ))}
+                        {daEtapa.length === 0 && (
+                          <li className="text-sm text-muted-foreground">
+                            Nenhuma tarefa gerada para esta etapa. Configure em Mentoria, aba Processos.
+                          </li>
+                        )}
+                      </ul>
+                      <Button variant="outline" size="sm" onClick={() => gerarTarefas.mutate()}
+                        disabled={gerarTarefas.isPending}>
+                        Gerar tarefas da etapa
+                      </Button>
+                    </>
+                  );
+                })()}
+              </TabsContent>
+
               {/* FINANCEIRO */}
+
               <TabsContent value="financeiro" className="space-y-4 pt-4">
                 <div className="grid grid-cols-2 gap-3">
                   <Campo label="Valor da mentoria" type="number" value={m.valor_mentoria != null ? String(m.valor_mentoria) : ""}
@@ -436,7 +524,7 @@ export default function MentoradaSheet({ id, onClose }: Props) {
                     data_inicio: m.data_termino,
                     data_termino: addMeses(m.data_termino, m.prazo_meses ?? 0),
                     status_renovacao: "Renovou",
-                    status_jornada: "Em andamento",
+                    status_jornada: "Ativa",
                   });
                 }}>
                   Registrar renovação

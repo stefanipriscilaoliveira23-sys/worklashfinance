@@ -896,9 +896,11 @@ export type Database = {
           concluida_em: string | null
           created_at: string
           descricao: string | null
+          etapa: string | null
           id: string
           mentorada_id: string
           ordem: number
+          processo_id: string | null
           responsavel: string | null
           titulo: string
         }
@@ -908,9 +910,11 @@ export type Database = {
           concluida_em?: string | null
           created_at?: string
           descricao?: string | null
+          etapa?: string | null
           id?: string
           mentorada_id: string
           ordem?: number
+          processo_id?: string | null
           responsavel?: string | null
           titulo: string
         }
@@ -920,9 +924,11 @@ export type Database = {
           concluida_em?: string | null
           created_at?: string
           descricao?: string | null
+          etapa?: string | null
           id?: string
           mentorada_id?: string
           ordem?: number
+          processo_id?: string | null
           responsavel?: string | null
           titulo?: string
         }
@@ -959,6 +965,7 @@ export type Database = {
           programa: string
           proxima_parcela: string | null
           qtd_renovacoes: number
+          receita_id: string | null
           status_cobranca: string | null
           status_jornada: string
           status_renovacao: string | null
@@ -988,6 +995,7 @@ export type Database = {
           programa?: string
           proxima_parcela?: string | null
           qtd_renovacoes?: number
+          receita_id?: string | null
           status_cobranca?: string | null
           status_jornada?: string
           status_renovacao?: string | null
@@ -1017,6 +1025,7 @@ export type Database = {
           programa?: string
           proxima_parcela?: string | null
           qtd_renovacoes?: number
+          receita_id?: string | null
           status_cobranca?: string | null
           status_jornada?: string
           status_renovacao?: string | null
@@ -1285,6 +1294,39 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      processos_etapa: {
+        Row: {
+          ativo: boolean
+          created_at: string
+          descricao: string | null
+          etapa: string
+          id: string
+          ordem: number
+          titulo: string
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          created_at?: string
+          descricao?: string | null
+          etapa: string
+          id?: string
+          ordem?: number
+          titulo: string
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          created_at?: string
+          descricao?: string | null
+          etapa?: string
+          id?: string
+          ordem?: number
+          titulo?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       produtos_catalogo: {
         Row: {

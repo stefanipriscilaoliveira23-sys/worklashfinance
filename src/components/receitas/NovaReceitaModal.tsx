@@ -14,6 +14,7 @@ import { AlertTriangle, Loader2, ArrowRight, ArrowLeft, Plus, Trash2 } from "luc
 import { format, addDays } from "date-fns";
 import { ClienteAutocomplete } from "@/components/receitas/ClienteAutocomplete";
 import { formatCurrency } from "@/lib/format";
+import { addMeses, gerarTarefasDaEtapa } from "@/lib/mentoria";
 import type { Database } from "@/integrations/supabase/types";
 
 type PlataformaOrigem = Database["public"]["Enums"]["plataforma_origem"];
@@ -25,6 +26,8 @@ const CATEGORIAS: ProdutoCategoria[] = ["Mentorias", "Renovações", "Digitais",
 const MENTORIA_CATS: ProdutoCategoria[] = ["Mentorias", "Renovações"];
 
 const FORMAS_PAGAMENTO = ["Pix", "Cartão", "Kiwify", "Hotmart", "Transferência", "Boleto", "Outro"];
+
+const PROGRAMAS_MENTORIA = ["Educadora Outsider", "Digital Beauty", "Outro"];
 
 interface ParcelaRow {
   numero: number;
@@ -78,6 +81,17 @@ export function NovaReceitaModal({ open, onClose }: { open: boolean; onClose: ()
   const [parcelas, setParcelas] = useState<ParcelaRow[]>([]);
   const [dataTerminoAnterior, setDataTerminoAnterior] = useState("");
   const [dataUltimoAcesso, setDataUltimoAcesso] = useState("");
+
+  // === VENDA DE MENTORIA (cria a mentorada na aba Mentoria) ===
+  const [vendaMentoria, setVendaMentoria] = useState(false);
+  const [alunaNome, setAlunaNome] = useState("");
+  const [alunaTelefone, setAlunaTelefone] = useState("");
+  const [alunaPrograma, setAlunaPrograma] = useState(PROGRAMAS_MENTORIA[0]);
+  const [alunaDuracao, setAlunaDuracao] = useState("3");
+  const [alunaVendedor, setAlunaVendedor] = useState("");
+  const [alunaForma, setAlunaForma] = useState("Pix");
+
+
 
   const { data: produtos } = useQuery({
     queryKey: ["produtos-catalogo"],
@@ -308,15 +322,51 @@ export function NovaReceitaModal({ open, onClose }: { open: boolean; onClose: ()
           status_geral: "Quitado",
         });
       }
+
+      // Venda de mentoria: cria a mentorada na pipeline (etapa Onboarding)
+      if (vendaMentoria && receita) {
+        const nomeAluna = (alunaNome || clienteNome).trim();
+        const telefone = alunaTelefone.trim();
+        const { data: existentes } = await supabase
+          .from("mentoradas").select("id, nome, telefone");
+        const jaExiste = (existentes ?? []).find(
+          (mm) =>
+            mm.nome.trim().toLowerCase() === nomeAluna.toLowerCase() ||
+            (!!telefone && (mm.telefone ?? "").trim() === telefone)
+        );
+        if (!jaExiste) {
+          const meses = Number(alunaDuracao) || 0;
+          const inicio = dataInicioMentoria || data;
+          const { data: nova, error: mErr } = await supabase.from("mentoradas").insert({
+            nome: nomeAluna,
+            email: clienteEmail || null,
+            telefone: telefone || null,
+            programa: alunaPrograma,
+            prazo_meses: meses,
+            data_inicio: inicio,
+            data_termino: dataFimMentoria || (inicio ? addMeses(inicio, meses) : null),
+            valor_mentoria: valorContrato || valorRecebido,
+            vendedor: alunaVendedor || null,
+            forma_pagamento: alunaForma ? [alunaForma] : null,
+            status_jornada: "Onboarding",
+            receita_id: receita.id,
+          }).select("id").single();
+          if (mErr) throw mErr;
+          await gerarTarefasDaEtapa(nova.id, "Onboarding");
+        }
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["receitas-all"] });
       queryClient.invalidateQueries({ queryKey: ["receitas-mes"] });
       queryClient.invalidateQueries({ queryKey: ["ultimas-receitas"] });
       queryClient.invalidateQueries({ queryKey: ["parcelas"] });
-      toast.success("Receita lançada com sucesso!");
+      queryClient.invalidateQueries({ queryKey: ["mentoradas"] });
+      queryClient.invalidateQueries({ queryKey: ["mentorada-tarefas-todas"] });
+      toast.success(vendaMentoria ? "Receita lançada e mentorada criada!" : "Receita lançada com sucesso!");
       onClose();
     },
+
     onError: (e) => toast.error("Erro: " + (e as Error).message),
   });
 
@@ -458,6 +508,66 @@ export function NovaReceitaModal({ open, onClose }: { open: boolean; onClose: ()
                   </div>
                 </div>
               )}
+
+              {/* Venda de mentoria: cria a aluna na pipeline */}
+              <div className="rounded-lg border border-border p-3 space-y-3">
+                <label className="flex items-center gap-2 text-sm cursor-pointer">
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 accent-primary"
+                    checked={vendaMentoria}
+                    onChange={(e) => {
+                      setVendaMentoria(e.target.checked);
+                      if (e.target.checked && !alunaNome) setAlunaNome(clienteNome);
+                    }}
+                  />
+                  <span className="font-medium">Venda de mentoria</span>
+                  <span className="text-xs text-muted-foreground">cria a aluna na aba Mentoria</span>
+                </label>
+
+                {vendaMentoria && (
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <Label className="text-foreground/80">Nome da aluna</Label>
+                      <Input value={alunaNome} onChange={(e) => setAlunaNome(e.target.value)}
+                        placeholder={clienteNome} className="bg-secondary/50 border-border" />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-foreground/80">Telefone</Label>
+                      <Input value={alunaTelefone} onChange={(e) => setAlunaTelefone(e.target.value)} className="bg-secondary/50 border-border" />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-foreground/80">Programa</Label>
+                      <Select value={alunaPrograma} onValueChange={setAlunaPrograma}>
+                        <SelectTrigger className="bg-secondary/50 border-border"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {PROGRAMAS_MENTORIA.map((p) => <SelectItem key={p} value={p}>{p}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-foreground/80">Duração (meses)</Label>
+                      <Input type="number" min={1} value={alunaDuracao}
+                        onChange={(e) => setAlunaDuracao(e.target.value)} className="bg-secondary/50 border-border" />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-foreground/80">Vendedor</Label>
+                      <Input value={alunaVendedor} onChange={(e) => setAlunaVendedor(e.target.value)} className="bg-secondary/50 border-border" />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-foreground/80">Forma de pagamento</Label>
+                      <Select value={alunaForma} onValueChange={setAlunaForma}>
+                        <SelectTrigger className="bg-secondary/50 border-border"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {FORMAS_PAGAMENTO.map((f) => <SelectItem key={f} value={f}>{f}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+
 
               {/* Origens venda */}
               <div className="space-y-1.5">

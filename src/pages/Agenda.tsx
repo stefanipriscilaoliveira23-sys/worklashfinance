@@ -17,7 +17,7 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { CalendarDays, Copy, Loader2, Plus, Trash2 } from "lucide-react";
+import { CalendarDays, ChevronLeft, ChevronRight, Copy, Loader2, Plus, Trash2 } from "lucide-react";
 
 const DIAS = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
 
@@ -45,6 +45,9 @@ export default function Agenda() {
   const [agForm, setAgForm] = useState({ nome: "", whatsapp: "", tipo_id: "", data: "", hora_inicio: "", observacoes: "", link_reuniao: "" });
   const [dispForm, setDispForm] = useState({ tipo_id: "", dia_semana: "1", hora_inicio: "09:00", hora_fim: "18:00" });
   const [bloqForm, setBloqForm] = useState({ data: "", hora_inicio: "", hora_fim: "", motivo: "" });
+  const [visao, setVisao] = useState<"calendario" | "lista">("calendario");
+  const [mesRef, setMesRef] = useState(() => { const h = new Date(); return new Date(h.getFullYear(), h.getMonth(), 1); });
+  const [diaSelecionado, setDiaSelecionado] = useState<string | null>(null);
 
   const { data: tipos } = useQuery({
     queryKey: ["agenda-tipos"],
@@ -210,6 +213,25 @@ export default function Agenda() {
     itens: (agendamentos ?? []).filter((a) => a.data === d),
   }));
 
+  const celulasDoMes: (string | null)[] = (() => {
+    const ano = mesRef.getFullYear();
+    const mes = mesRef.getMonth();
+    const primeiro = new Date(ano, mes, 1).getDay();
+    const totalDias = new Date(ano, mes + 1, 0).getDate();
+    const out: (string | null)[] = Array(primeiro).fill(null);
+    for (let d = 1; d <= totalDias; d++) {
+      out.push(`${ano}-${String(mes + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`);
+    }
+    while (out.length % 7 !== 0) out.push(null);
+    return out;
+  })();
+
+  const itensDoDia = diaSelecionado
+    ? (agendamentos ?? []).filter((a) => a.data === diaSelecionado)
+    : [];
+
+
+
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -226,16 +248,74 @@ export default function Agenda() {
 
       <Tabs defaultValue="calendario">
         <TabsList className="flex flex-wrap h-auto">
-          <TabsTrigger value="calendario">Calendário</TabsTrigger>
+          <TabsTrigger value="calendario">Agendamentos</TabsTrigger>
           <TabsTrigger value="tipos">Tipos e páginas</TabsTrigger>
           <TabsTrigger value="disponibilidade">Disponibilidade</TabsTrigger>
           <TabsTrigger value="bloqueios">Bloqueios</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="calendario" className="pt-4">
+        <TabsContent value="calendario" className="pt-4 space-y-4">
+          <div className="flex flex-wrap items-center gap-2">
+            <Button size="sm" variant={visao === "calendario" ? "default" : "outline"} onClick={() => setVisao("calendario")}>
+              Calendário
+            </Button>
+            <Button size="sm" variant={visao === "lista" ? "default" : "outline"} onClick={() => setVisao("lista")}>
+              Lista
+            </Button>
+          </div>
+
           {isLoading ? (
             <div className="flex h-40 items-center justify-center">
               <Loader2 className="h-6 w-6 animate-spin text-primary" />
+            </div>
+          ) : visao === "calendario" ? (
+            <div className="rounded-xl border border-border bg-card p-4">
+              <div className="flex items-center justify-between mb-4">
+                <Button size="sm" variant="ghost" onClick={() => setMesRef(new Date(mesRef.getFullYear(), mesRef.getMonth() - 1, 1))}>
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <p className="text-sm font-semibold capitalize">
+                  {mesRef.toLocaleDateString("pt-BR", { month: "long", year: "numeric" })}
+                </p>
+                <Button size="sm" variant="ghost" onClick={() => setMesRef(new Date(mesRef.getFullYear(), mesRef.getMonth() + 1, 1))}>
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+              <div className="grid grid-cols-7 gap-1 mb-1">
+                {["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"].map((d) => (
+                  <p key={d} className="text-[11px] text-center text-muted-foreground font-medium">{d}</p>
+                ))}
+              </div>
+              <div className="grid grid-cols-7 gap-1">
+                {celulasDoMes.map((cel, i) => {
+                  if (!cel) return <div key={`v${i}`} className="min-h-20 rounded-lg" />;
+                  const itens = (agendamentos ?? []).filter((a) => a.data === cel);
+                  const hoje = cel === new Date().toISOString().split("T")[0];
+                  return (
+                    <button
+                      key={cel}
+                      onClick={() => itens.length && setDiaSelecionado(cel)}
+                      className={`min-h-20 rounded-lg border p-1.5 text-left transition-colors hover:bg-surface-hover ${
+                        hoje ? "border-primary" : "border-border"
+                      }`}
+                    >
+                      <span className={`text-[11px] ${hoje ? "font-bold text-primary" : "text-muted-foreground"}`}>
+                        {Number(cel.slice(8, 10))}
+                      </span>
+                      {itens.length > 0 && (
+                        <div className="mt-1 space-y-1">
+                          <Badge variant="secondary" className="text-[10px] w-full justify-center">
+                            {itens.length} {itens.length === 1 ? "reunião" : "reuniões"}
+                          </Badge>
+                          <p className="text-[10px] text-muted-foreground truncate">
+                            {itens[0].hora_inicio?.slice(0, 5)} {itens[0].nome}
+                          </p>
+                        </div>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           ) : (
             <div className="space-y-3">
@@ -272,6 +352,7 @@ export default function Agenda() {
             </div>
           )}
         </TabsContent>
+
 
         <TabsContent value="tipos" className="pt-4 space-y-3">
           <Button variant="outline" size="sm" onClick={() => setShowTipo(true)}>
@@ -470,6 +551,47 @@ export default function Agenda() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <Dialog open={!!diaSelecionado} onOpenChange={(o) => !o && setDiaSelecionado(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              Agendamentos de {diaSelecionado ? formatDate(diaSelecionado) : ""}
+            </DialogTitle>
+          </DialogHeader>
+          <ul className="space-y-2">
+            {itensDoDia.map((a) => (
+              <li key={a.id} className="rounded-lg border border-border px-3 py-2 space-y-1">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-sm font-medium">
+                    {a.hora_inicio?.slice(0, 5)} às {a.hora_fim?.slice(0, 5)}
+                  </span>
+                  <Badge variant="outline" className="text-[10px]">{a.status}</Badge>
+                </div>
+                <p className="text-sm">{a.nome}</p>
+                {a.whatsapp && <p className="text-xs text-muted-foreground">{a.whatsapp}</p>}
+                {a.observacoes && <p className="text-xs text-muted-foreground">{a.observacoes}</p>}
+                {a.link_reuniao && (
+                  <a href={a.link_reuniao} target="_blank" rel="noreferrer" className="text-xs text-primary underline">
+                    Abrir link da reunião
+                  </a>
+                )}
+                <Select value={a.status} onValueChange={(v) => mudarStatus.mutate({ id: a.id, status: v })}>
+                  <SelectTrigger className="h-7 w-40 text-[11px]"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {["Pendente", "Confirmado", "Realizado", "Cancelado", "Não compareceu"].map((s) =>
+                      <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </li>
+            ))}
+            {itensDoDia.length === 0 && (
+              <li className="text-sm text-muted-foreground">Sem agendamentos neste dia.</li>
+            )}
+          </ul>
+        </DialogContent>
+      </Dialog>
     </div>
+
   );
 }
