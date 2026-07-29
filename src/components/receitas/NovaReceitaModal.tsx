@@ -26,6 +26,8 @@ const MENTORIA_CATS: ProdutoCategoria[] = ["Mentorias", "Renovações"];
 
 const FORMAS_PAGAMENTO = ["Pix", "Cartão", "Kiwify", "Hotmart", "Transferência", "Boleto", "Outro"];
 
+const PROGRAMAS_MENTORIA = ["Educadora Outsider", "Digital Beauty", "Outro"];
+
 interface ParcelaRow {
   numero: number;
   data: string;
@@ -78,6 +80,17 @@ export function NovaReceitaModal({ open, onClose }: { open: boolean; onClose: ()
   const [parcelas, setParcelas] = useState<ParcelaRow[]>([]);
   const [dataTerminoAnterior, setDataTerminoAnterior] = useState("");
   const [dataUltimoAcesso, setDataUltimoAcesso] = useState("");
+
+  // === VENDA DE MENTORIA (cria a mentorada na aba Mentoria) ===
+  const [vendaMentoria, setVendaMentoria] = useState(false);
+  const [alunaNome, setAlunaNome] = useState("");
+  const [alunaTelefone, setAlunaTelefone] = useState("");
+  const [alunaPrograma, setAlunaPrograma] = useState(PROGRAMAS_MENTORIA[0]);
+  const [alunaDuracao, setAlunaDuracao] = useState("3");
+  const [alunaVendedor, setAlunaVendedor] = useState("");
+  const [alunaForma, setAlunaForma] = useState("Pix");
+
+
 
   const { data: produtos } = useQuery({
     queryKey: ["produtos-catalogo"],
