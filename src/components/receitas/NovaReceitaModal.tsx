@@ -14,6 +14,7 @@ import { AlertTriangle, Loader2, ArrowRight, ArrowLeft, Plus, Trash2 } from "luc
 import { format, addDays } from "date-fns";
 import { ClienteAutocomplete } from "@/components/receitas/ClienteAutocomplete";
 import { formatCurrency } from "@/lib/format";
+import { addMeses, gerarTarefasDaEtapa } from "@/lib/mentoria";
 import type { Database } from "@/integrations/supabase/types";
 
 type PlataformaOrigem = Database["public"]["Enums"]["plataforma_origem"];
