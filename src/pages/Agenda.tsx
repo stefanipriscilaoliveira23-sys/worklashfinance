@@ -551,6 +551,47 @@ export default function Agenda() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <Dialog open={!!diaSelecionado} onOpenChange={(o) => !o && setDiaSelecionado(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              Agendamentos de {diaSelecionado ? formatDate(diaSelecionado) : ""}
+            </DialogTitle>
+          </DialogHeader>
+          <ul className="space-y-2">
+            {itensDoDia.map((a) => (
+              <li key={a.id} className="rounded-lg border border-border px-3 py-2 space-y-1">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-sm font-medium">
+                    {a.hora_inicio?.slice(0, 5)} às {a.hora_fim?.slice(0, 5)}
+                  </span>
+                  <Badge variant="outline" className="text-[10px]">{a.status}</Badge>
+                </div>
+                <p className="text-sm">{a.nome}</p>
+                {a.whatsapp && <p className="text-xs text-muted-foreground">{a.whatsapp}</p>}
+                {a.observacoes && <p className="text-xs text-muted-foreground">{a.observacoes}</p>}
+                {a.link_reuniao && (
+                  <a href={a.link_reuniao} target="_blank" rel="noreferrer" className="text-xs text-primary underline">
+                    Abrir link da reunião
+                  </a>
+                )}
+                <Select value={a.status} onValueChange={(v) => mudarStatus.mutate({ id: a.id, status: v })}>
+                  <SelectTrigger className="h-7 w-40 text-[11px]"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {["Pendente", "Confirmado", "Realizado", "Cancelado", "Não compareceu"].map((s) =>
+                      <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </li>
+            ))}
+            {itensDoDia.length === 0 && (
+              <li className="text-sm text-muted-foreground">Sem agendamentos neste dia.</li>
+            )}
+          </ul>
+        </DialogContent>
+      </Dialog>
     </div>
+
   );
 }
