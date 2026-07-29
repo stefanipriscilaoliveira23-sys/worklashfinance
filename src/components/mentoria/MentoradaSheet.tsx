@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { formatCurrency, formatDate } from "@/lib/format";
 import {
   STATUS_JORNADA, PROGRAMAS, FORMAS_PAGAMENTO, CHECKINS_PADRAO,
-  addDias, addMeses, diasRestantes, interpolar,
+  addDias, addMeses, diasRestantes, interpolar, gerarTarefasDaEtapa,
 } from "@/lib/mentoria";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
