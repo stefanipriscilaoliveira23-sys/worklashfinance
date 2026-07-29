@@ -2,7 +2,9 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Navigate, Outlet } from "react-router-dom";
 import { AppSidebar } from "@/components/layout/AppSidebar";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
+import NotificationBell from "@/components/NotificationBell";
 import { Loader2, Menu } from "lucide-react";
+
 
 export default function AppLayout() {
   const { session, loading } = useAuth();
