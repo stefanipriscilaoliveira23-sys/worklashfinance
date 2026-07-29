@@ -109,13 +109,32 @@ export default function MentoradaSheet({ id, onClose }: Props) {
 
   const toggleTarefa = useMutation({
     mutationFn: async ({ tid, valor }: { tid: string; valor: boolean }) => {
-      const { error } = await supabase.from("mentorada_tarefas")
-        .update({ concluida: valor, concluida_em: valor ? new Date().toISOString() : null })
-        .eq("id", tid);
+      const { data: auth } = await supabase.auth.getUser();
+      const { data: tarefa, error } = await supabase.from("mentorada_tarefas")
+        .update({
+          concluida: valor,
+          concluida_em: valor ? new Date().toISOString() : null,
+          responsavel: valor ? auth?.user?.id ?? null : null,
+        })
+        .eq("id", tid).select("titulo").single();
       if (error) throw error;
+      if (valor) {
+        await supabase.from("mentorada_interacoes").insert({
+          mentorada_id: id!,
+          tipo: "Tarefa",
+          conteudo: `Tarefa concluída: ${tarefa?.titulo ?? ""}`,
+          autor: auth?.user?.email ?? null,
+        });
+      }
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["mentorada-tarefas", id] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["mentorada-tarefas", id] });
+      qc.invalidateQueries({ queryKey: ["mentorada-tarefas-todas"] });
+      qc.invalidateQueries({ queryKey: ["mentorada-interacoes", id] });
+    },
+    onError: (e: Error) => toast.error(e.message),
   });
+
 
   const addTarefa = useMutation({
     mutationFn: async () => {
