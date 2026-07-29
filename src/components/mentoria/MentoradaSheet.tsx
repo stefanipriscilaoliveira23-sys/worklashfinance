@@ -78,11 +78,12 @@ export default function MentoradaSheet({ id, onClose }: Props) {
     queryKey: ["mentorada-receitas", m?.cliente_id],
     enabled: !!m?.cliente_id,
     queryFn: async () => {
-      const { data } = await supabase
+      const { data } = await (supabase as any)
         .from("receitas").select("*").eq("cliente_id", m!.cliente_id!)
         .order("data", { ascending: true });
-      return data ?? [];
+      return (data ?? []) as Record<string, any>[];
     },
+
   });
 
   const { data: modelos } = useQuery({
