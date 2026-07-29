@@ -14,7 +14,10 @@ const allMenuItems = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard, adminOnly: true },
   { title: "Receitas", url: "/receitas", icon: DollarSign, adminOnly: false },
   { title: "Parcelas de Mentoria", url: "/parcelas", icon: CalendarCheck, adminOnly: false },
+  { title: "Mentoria", url: "/mentoria", icon: GraduationCap, adminOnly: false },
+  { title: "Agenda", url: "/agenda", icon: CalendarDays, adminOnly: false },
   { title: "Clientes", url: "/clientes", icon: Users, adminOnly: false },
+
   { title: "Despesas — Empresa", url: "/despesas-empresa", icon: Building2, adminOnly: true },
   { title: "Despesas — Pessoal", url: "/despesas-pessoal", icon: User, adminOnly: true },
   { title: "Eventos Especiais", url: "/eventos", icon: PartyPopper, adminOnly: true },
