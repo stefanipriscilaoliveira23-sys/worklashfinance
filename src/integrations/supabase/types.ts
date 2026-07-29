@@ -14,6 +14,173 @@ export type Database = {
   }
   public: {
     Tables: {
+      agenda_bloqueios: {
+        Row: {
+          created_at: string
+          data: string
+          hora_fim: string | null
+          hora_inicio: string | null
+          id: string
+          motivo: string | null
+        }
+        Insert: {
+          created_at?: string
+          data: string
+          hora_fim?: string | null
+          hora_inicio?: string | null
+          id?: string
+          motivo?: string | null
+        }
+        Update: {
+          created_at?: string
+          data?: string
+          hora_fim?: string | null
+          hora_inicio?: string | null
+          id?: string
+          motivo?: string | null
+        }
+        Relationships: []
+      }
+      agenda_disponibilidade: {
+        Row: {
+          created_at: string
+          dia_semana: number
+          hora_fim: string
+          hora_inicio: string
+          id: string
+          tipo_id: string
+        }
+        Insert: {
+          created_at?: string
+          dia_semana: number
+          hora_fim: string
+          hora_inicio: string
+          id?: string
+          tipo_id: string
+        }
+        Update: {
+          created_at?: string
+          dia_semana?: number
+          hora_fim?: string
+          hora_inicio?: string
+          id?: string
+          tipo_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agenda_disponibilidade_tipo_id_fkey"
+            columns: ["tipo_id"]
+            isOneToOne: false
+            referencedRelation: "agenda_tipos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      agenda_tipos: {
+        Row: {
+          ativo: boolean
+          created_at: string
+          descricao: string | null
+          duracao_minutos: number
+          id: string
+          nome: string
+          slug: string
+          subtitulo_pagina: string | null
+          titulo_pagina: string | null
+        }
+        Insert: {
+          ativo?: boolean
+          created_at?: string
+          descricao?: string | null
+          duracao_minutos?: number
+          id?: string
+          nome: string
+          slug: string
+          subtitulo_pagina?: string | null
+          titulo_pagina?: string | null
+        }
+        Update: {
+          ativo?: boolean
+          created_at?: string
+          descricao?: string | null
+          duracao_minutos?: number
+          id?: string
+          nome?: string
+          slug?: string
+          subtitulo_pagina?: string | null
+          titulo_pagina?: string | null
+        }
+        Relationships: []
+      }
+      agendamentos: {
+        Row: {
+          created_at: string
+          data: string
+          hora_fim: string
+          hora_inicio: string
+          id: string
+          instagram: string | null
+          link_reuniao: string | null
+          mentorada_id: string | null
+          nome: string
+          observacoes: string | null
+          origem: string
+          responsavel: string | null
+          status: string
+          tipo_id: string | null
+          whatsapp: string | null
+        }
+        Insert: {
+          created_at?: string
+          data: string
+          hora_fim: string
+          hora_inicio: string
+          id?: string
+          instagram?: string | null
+          link_reuniao?: string | null
+          mentorada_id?: string | null
+          nome: string
+          observacoes?: string | null
+          origem?: string
+          responsavel?: string | null
+          status?: string
+          tipo_id?: string | null
+          whatsapp?: string | null
+        }
+        Update: {
+          created_at?: string
+          data?: string
+          hora_fim?: string
+          hora_inicio?: string
+          id?: string
+          instagram?: string | null
+          link_reuniao?: string | null
+          mentorada_id?: string | null
+          nome?: string
+          observacoes?: string | null
+          origem?: string
+          responsavel?: string | null
+          status?: string
+          tipo_id?: string | null
+          whatsapp?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agendamentos_mentorada_id_fkey"
+            columns: ["mentorada_id"]
+            isOneToOne: false
+            referencedRelation: "mentoradas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agendamentos_tipo_id_fkey"
+            columns: ["tipo_id"]
+            isOneToOne: false
+            referencedRelation: "agenda_tipos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       clientes: {
         Row: {
           criado_em: string
@@ -616,6 +783,257 @@ export type Database = {
           },
         ]
       }
+      mensagens_modelo: {
+        Row: {
+          created_at: string
+          id: string
+          texto: string
+          tipo: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          texto: string
+          tipo: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          texto?: string
+          tipo?: string
+        }
+        Relationships: []
+      }
+      mentorada_acompanhamentos: {
+        Row: {
+          canal: string | null
+          created_at: string
+          data_prevista: string | null
+          feito: boolean
+          feito_em: string | null
+          id: string
+          mentorada_id: string
+          observacao: string | null
+          responsavel: string | null
+          tipo: string
+        }
+        Insert: {
+          canal?: string | null
+          created_at?: string
+          data_prevista?: string | null
+          feito?: boolean
+          feito_em?: string | null
+          id?: string
+          mentorada_id: string
+          observacao?: string | null
+          responsavel?: string | null
+          tipo: string
+        }
+        Update: {
+          canal?: string | null
+          created_at?: string
+          data_prevista?: string | null
+          feito?: boolean
+          feito_em?: string | null
+          id?: string
+          mentorada_id?: string
+          observacao?: string | null
+          responsavel?: string | null
+          tipo?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mentorada_acompanhamentos_mentorada_id_fkey"
+            columns: ["mentorada_id"]
+            isOneToOne: false
+            referencedRelation: "mentoradas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mentorada_interacoes: {
+        Row: {
+          autor: string | null
+          conteudo: string
+          created_at: string
+          data: string
+          id: string
+          mentorada_id: string
+          tipo: string
+        }
+        Insert: {
+          autor?: string | null
+          conteudo: string
+          created_at?: string
+          data?: string
+          id?: string
+          mentorada_id: string
+          tipo?: string
+        }
+        Update: {
+          autor?: string | null
+          conteudo?: string
+          created_at?: string
+          data?: string
+          id?: string
+          mentorada_id?: string
+          tipo?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mentorada_interacoes_mentorada_id_fkey"
+            columns: ["mentorada_id"]
+            isOneToOne: false
+            referencedRelation: "mentoradas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mentorada_tarefas: {
+        Row: {
+          categoria: string
+          concluida: boolean
+          concluida_em: string | null
+          created_at: string
+          descricao: string | null
+          id: string
+          mentorada_id: string
+          ordem: number
+          responsavel: string | null
+          titulo: string
+        }
+        Insert: {
+          categoria?: string
+          concluida?: boolean
+          concluida_em?: string | null
+          created_at?: string
+          descricao?: string | null
+          id?: string
+          mentorada_id: string
+          ordem?: number
+          responsavel?: string | null
+          titulo: string
+        }
+        Update: {
+          categoria?: string
+          concluida?: boolean
+          concluida_em?: string | null
+          created_at?: string
+          descricao?: string | null
+          id?: string
+          mentorada_id?: string
+          ordem?: number
+          responsavel?: string | null
+          titulo?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mentorada_tarefas_mentorada_id_fkey"
+            columns: ["mentorada_id"]
+            isOneToOne: false
+            referencedRelation: "mentoradas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mentoradas: {
+        Row: {
+          cliente_id: string | null
+          contrato_url: string | null
+          cpf: string | null
+          created_at: string
+          data_inicio: string | null
+          data_saida: string | null
+          data_termino: string | null
+          email: string | null
+          forma_pagamento: string[] | null
+          id: string
+          instagram: string | null
+          link_briefing: string | null
+          link_formulario_onboarding: string | null
+          link_plano_acao: string | null
+          motivo_cancelamento: string | null
+          nome: string
+          observacao: string | null
+          prazo_meses: number
+          programa: string
+          proxima_parcela: string | null
+          qtd_renovacoes: number
+          status_cobranca: string | null
+          status_jornada: string
+          status_renovacao: string | null
+          telefone: string | null
+          valor_mentoria: number | null
+          vendedor: string | null
+        }
+        Insert: {
+          cliente_id?: string | null
+          contrato_url?: string | null
+          cpf?: string | null
+          created_at?: string
+          data_inicio?: string | null
+          data_saida?: string | null
+          data_termino?: string | null
+          email?: string | null
+          forma_pagamento?: string[] | null
+          id?: string
+          instagram?: string | null
+          link_briefing?: string | null
+          link_formulario_onboarding?: string | null
+          link_plano_acao?: string | null
+          motivo_cancelamento?: string | null
+          nome: string
+          observacao?: string | null
+          prazo_meses?: number
+          programa?: string
+          proxima_parcela?: string | null
+          qtd_renovacoes?: number
+          status_cobranca?: string | null
+          status_jornada?: string
+          status_renovacao?: string | null
+          telefone?: string | null
+          valor_mentoria?: number | null
+          vendedor?: string | null
+        }
+        Update: {
+          cliente_id?: string | null
+          contrato_url?: string | null
+          cpf?: string | null
+          created_at?: string
+          data_inicio?: string | null
+          data_saida?: string | null
+          data_termino?: string | null
+          email?: string | null
+          forma_pagamento?: string[] | null
+          id?: string
+          instagram?: string | null
+          link_briefing?: string | null
+          link_formulario_onboarding?: string | null
+          link_plano_acao?: string | null
+          motivo_cancelamento?: string | null
+          nome?: string
+          observacao?: string | null
+          prazo_meses?: number
+          programa?: string
+          proxima_parcela?: string | null
+          qtd_renovacoes?: number
+          status_cobranca?: string | null
+          status_jornada?: string
+          status_renovacao?: string | null
+          telefone?: string | null
+          valor_mentoria?: number | null
+          vendedor?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mentoradas_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "clientes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       metas: {
         Row: {
           ano: number
@@ -640,6 +1058,42 @@ export type Database = {
           mes?: number
           pro_labore?: number | null
           valor_meta?: number
+        }
+        Relationships: []
+      }
+      notificacoes: {
+        Row: {
+          created_at: string
+          criado_por: string | null
+          descricao: string | null
+          destinatario_id: string
+          id: string
+          lida: boolean
+          link_interno: string | null
+          tipo: string
+          titulo: string
+        }
+        Insert: {
+          created_at?: string
+          criado_por?: string | null
+          descricao?: string | null
+          destinatario_id: string
+          id?: string
+          lida?: boolean
+          link_interno?: string | null
+          tipo?: string
+          titulo: string
+        }
+        Update: {
+          created_at?: string
+          criado_por?: string | null
+          descricao?: string | null
+          destinatario_id?: string
+          id?: string
+          lida?: boolean
+          link_interno?: string | null
+          tipo?: string
+          titulo?: string
         }
         Relationships: []
       }
@@ -1025,8 +1479,26 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      agenda_slots_ocupados: {
+        Args: { _data: string }
+        Returns: {
+          hora_fim: string
+          hora_inicio: string
+        }[]
+      }
       atualizar_despesas_atrasadas: { Args: never; Returns: undefined }
       atualizar_parcelas_atrasadas: { Args: never; Returns: undefined }
+      criar_agendamento_publico: {
+        Args: {
+          _data: string
+          _hora_inicio: string
+          _instagram: string
+          _nome: string
+          _slug: string
+          _whatsapp: string
+        }
+        Returns: string
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
