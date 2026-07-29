@@ -249,7 +249,9 @@ export default function MentoradaSheet({ id, onClose }: Props) {
             <Tabs defaultValue="dados">
               <TabsList className="flex flex-wrap h-auto">
                 <TabsTrigger value="dados">Dados</TabsTrigger>
+                <TabsTrigger value="tarefas">Tarefas</TabsTrigger>
                 <TabsTrigger value="financeiro">Financeiro</TabsTrigger>
+
                 <TabsTrigger value="onboarding">Onboarding</TabsTrigger>
                 <TabsTrigger value="acompanhamento">Acompanhamento</TabsTrigger>
                 <TabsTrigger value="renovacao">Renovação</TabsTrigger>
