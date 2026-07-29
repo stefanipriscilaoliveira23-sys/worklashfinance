@@ -17,7 +17,7 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { CalendarDays, Copy, Loader2, Plus, Trash2 } from "lucide-react";
+import { CalendarDays, ChevronLeft, ChevronRight, Copy, Loader2, Plus, Trash2 } from "lucide-react";
 
 const DIAS = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
 
@@ -45,6 +45,9 @@ export default function Agenda() {
   const [agForm, setAgForm] = useState({ nome: "", whatsapp: "", tipo_id: "", data: "", hora_inicio: "", observacoes: "", link_reuniao: "" });
   const [dispForm, setDispForm] = useState({ tipo_id: "", dia_semana: "1", hora_inicio: "09:00", hora_fim: "18:00" });
   const [bloqForm, setBloqForm] = useState({ data: "", hora_inicio: "", hora_fim: "", motivo: "" });
+  const [visao, setVisao] = useState<"calendario" | "lista">("calendario");
+  const [mesRef, setMesRef] = useState(() => { const h = new Date(); return new Date(h.getFullYear(), h.getMonth(), 1); });
+  const [diaSelecionado, setDiaSelecionado] = useState<string | null>(null);
 
   const { data: tipos } = useQuery({
     queryKey: ["agenda-tipos"],
