@@ -226,16 +226,74 @@ export default function Agenda() {
 
       <Tabs defaultValue="calendario">
         <TabsList className="flex flex-wrap h-auto">
-          <TabsTrigger value="calendario">Calendário</TabsTrigger>
+          <TabsTrigger value="calendario">Agendamentos</TabsTrigger>
           <TabsTrigger value="tipos">Tipos e páginas</TabsTrigger>
           <TabsTrigger value="disponibilidade">Disponibilidade</TabsTrigger>
           <TabsTrigger value="bloqueios">Bloqueios</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="calendario" className="pt-4">
+        <TabsContent value="calendario" className="pt-4 space-y-4">
+          <div className="flex flex-wrap items-center gap-2">
+            <Button size="sm" variant={visao === "calendario" ? "default" : "outline"} onClick={() => setVisao("calendario")}>
+              Calendário
+            </Button>
+            <Button size="sm" variant={visao === "lista" ? "default" : "outline"} onClick={() => setVisao("lista")}>
+              Lista
+            </Button>
+          </div>
+
           {isLoading ? (
             <div className="flex h-40 items-center justify-center">
               <Loader2 className="h-6 w-6 animate-spin text-primary" />
+            </div>
+          ) : visao === "calendario" ? (
+            <div className="rounded-xl border border-border bg-card p-4">
+              <div className="flex items-center justify-between mb-4">
+                <Button size="sm" variant="ghost" onClick={() => setMesRef(new Date(mesRef.getFullYear(), mesRef.getMonth() - 1, 1))}>
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <p className="text-sm font-semibold capitalize">
+                  {mesRef.toLocaleDateString("pt-BR", { month: "long", year: "numeric" })}
+                </p>
+                <Button size="sm" variant="ghost" onClick={() => setMesRef(new Date(mesRef.getFullYear(), mesRef.getMonth() + 1, 1))}>
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+              <div className="grid grid-cols-7 gap-1 mb-1">
+                {["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"].map((d) => (
+                  <p key={d} className="text-[11px] text-center text-muted-foreground font-medium">{d}</p>
+                ))}
+              </div>
+              <div className="grid grid-cols-7 gap-1">
+                {celulasDoMes.map((cel, i) => {
+                  if (!cel) return <div key={`v${i}`} className="min-h-20 rounded-lg" />;
+                  const itens = (agendamentos ?? []).filter((a) => a.data === cel);
+                  const hoje = cel === new Date().toISOString().split("T")[0];
+                  return (
+                    <button
+                      key={cel}
+                      onClick={() => itens.length && setDiaSelecionado(cel)}
+                      className={`min-h-20 rounded-lg border p-1.5 text-left transition-colors hover:bg-surface-hover ${
+                        hoje ? "border-primary" : "border-border"
+                      }`}
+                    >
+                      <span className={`text-[11px] ${hoje ? "font-bold text-primary" : "text-muted-foreground"}`}>
+                        {Number(cel.slice(8, 10))}
+                      </span>
+                      {itens.length > 0 && (
+                        <div className="mt-1 space-y-1">
+                          <Badge variant="secondary" className="text-[10px] w-full justify-center">
+                            {itens.length} {itens.length === 1 ? "reunião" : "reuniões"}
+                          </Badge>
+                          <p className="text-[10px] text-muted-foreground truncate">
+                            {itens[0].hora_inicio?.slice(0, 5)} {itens[0].nome}
+                          </p>
+                        </div>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           ) : (
             <div className="space-y-3">
@@ -272,6 +330,7 @@ export default function Agenda() {
             </div>
           )}
         </TabsContent>
+
 
         <TabsContent value="tipos" className="pt-4 space-y-3">
           <Button variant="outline" size="sm" onClick={() => setShowTipo(true)}>
