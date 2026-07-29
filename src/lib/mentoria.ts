@@ -1,17 +1,53 @@
+import { supabase } from "@/integrations/supabase/client";
+
 export const STATUS_JORNADA = [
   "Onboarding",
-  "Em andamento",
-  "Acompanhamento",
+  "Ativa",
+  "Em risco",
   "Renovação",
-  "Concluída",
+  "Inativa",
   "Cancelada",
+  "Concluída",
 ] as const;
 
 export type StatusJornada = (typeof STATUS_JORNADA)[number];
 
-export const PROGRAMAS = ["Educadora Outsider", "Mentoria Individual", "Imersão", "Outro"];
+export const PROGRAMAS = ["Educadora Outsider", "Digital Beauty", "Mentoria Individual", "Imersão", "Outro"];
 
 export const FORMAS_PAGAMENTO = ["Pix", "Cartão de crédito", "Boleto", "Transferência", "Dinheiro"];
+
+/** Gera as tarefas configuradas de uma etapa para uma mentorada, sem duplicar. */
+export async function gerarTarefasDaEtapa(mentoradaId: string, etapa: string): Promise<number> {
+  const { data: processos } = await supabase
+    .from("processos_etapa").select("*").eq("etapa", etapa).eq("ativo", true)
+    .order("ordem", { ascending: true });
+  if (!processos?.length) return 0;
+
+  const { data: existentes } = await supabase
+    .from("mentorada_tarefas").select("processo_id, titulo")
+    .eq("mentorada_id", mentoradaId).eq("etapa", etapa);
+
+  const idsFeitos = new Set((existentes ?? []).map((t) => t.processo_id).filter(Boolean));
+  const titulosFeitos = new Set((existentes ?? []).map((t) => t.titulo));
+
+  const novas = processos
+    .filter((p) => !idsFeitos.has(p.id) && !titulosFeitos.has(p.titulo))
+    .map((p) => ({
+      mentorada_id: mentoradaId,
+      titulo: p.titulo,
+      descricao: p.descricao,
+      categoria: etapa,
+      etapa,
+      processo_id: p.id,
+      ordem: p.ordem,
+    }));
+
+  if (!novas.length) return 0;
+  const { error } = await supabase.from("mentorada_tarefas").insert(novas);
+  if (error) throw error;
+  return novas.length;
+}
+
 
 /** Checklist padrão criado automaticamente no onboarding de cada mentorada. */
 export const CHECKLIST_ONBOARDING: { titulo: string; categoria: string }[] = [
