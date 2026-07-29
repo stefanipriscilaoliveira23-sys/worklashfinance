@@ -40,8 +40,12 @@ const App = () => (
         <BrowserRouter>
           <Routes>
             <Route path="/auth" element={<Auth />} />
+            <Route path="/agendar/:slug" element={<AgendarPublico />} />
             <Route element={<AppLayout />}>
               <Route path="/" element={<Inicio />} />
+              <Route path="/mentoria" element={<Mentoria />} />
+              <Route path="/agenda" element={<Agenda />} />
+
               <Route path="/dashboard" element={<AdminRoute><Dashboard /></AdminRoute>} />
               <Route path="/receitas" element={<Receitas />} />
               <Route path="/parcelas" element={<ParcelasMentoria />} />
