@@ -321,15 +321,51 @@ export function NovaReceitaModal({ open, onClose }: { open: boolean; onClose: ()
           status_geral: "Quitado",
         });
       }
+
+      // Venda de mentoria: cria a mentorada na pipeline (etapa Onboarding)
+      if (vendaMentoria && receita) {
+        const nomeAluna = (alunaNome || clienteNome).trim();
+        const telefone = alunaTelefone.trim();
+        const { data: existentes } = await supabase
+          .from("mentoradas").select("id, nome, telefone");
+        const jaExiste = (existentes ?? []).find(
+          (mm) =>
+            mm.nome.trim().toLowerCase() === nomeAluna.toLowerCase() ||
+            (!!telefone && (mm.telefone ?? "").trim() === telefone)
+        );
+        if (!jaExiste) {
+          const meses = Number(alunaDuracao) || 0;
+          const inicio = dataInicioMentoria || data;
+          const { data: nova, error: mErr } = await supabase.from("mentoradas").insert({
+            nome: nomeAluna,
+            email: clienteEmail || null,
+            telefone: telefone || null,
+            programa: alunaPrograma,
+            prazo_meses: meses,
+            data_inicio: inicio,
+            data_termino: dataFimMentoria || (inicio ? addMeses(inicio, meses) : null),
+            valor_mentoria: valorContrato || valorRecebido,
+            vendedor: alunaVendedor || null,
+            forma_pagamento: alunaForma ? [alunaForma] : null,
+            status_jornada: "Onboarding",
+            receita_id: receita.id,
+          }).select("id").single();
+          if (mErr) throw mErr;
+          await gerarTarefasDaEtapa(nova.id, "Onboarding");
+        }
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["receitas-all"] });
       queryClient.invalidateQueries({ queryKey: ["receitas-mes"] });
       queryClient.invalidateQueries({ queryKey: ["ultimas-receitas"] });
       queryClient.invalidateQueries({ queryKey: ["parcelas"] });
-      toast.success("Receita lançada com sucesso!");
+      queryClient.invalidateQueries({ queryKey: ["mentoradas"] });
+      queryClient.invalidateQueries({ queryKey: ["mentorada-tarefas-todas"] });
+      toast.success(vendaMentoria ? "Receita lançada e mentorada criada!" : "Receita lançada com sucesso!");
       onClose();
     },
+
     onError: (e) => toast.error("Erro: " + (e as Error).message),
   });
 
