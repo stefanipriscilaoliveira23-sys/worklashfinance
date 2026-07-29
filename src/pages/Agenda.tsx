@@ -213,6 +213,25 @@ export default function Agenda() {
     itens: (agendamentos ?? []).filter((a) => a.data === d),
   }));
 
+  const celulasDoMes: (string | null)[] = (() => {
+    const ano = mesRef.getFullYear();
+    const mes = mesRef.getMonth();
+    const primeiro = new Date(ano, mes, 1).getDay();
+    const totalDias = new Date(ano, mes + 1, 0).getDate();
+    const out: (string | null)[] = Array(primeiro).fill(null);
+    for (let d = 1; d <= totalDias; d++) {
+      out.push(`${ano}-${String(mes + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`);
+    }
+    while (out.length % 7 !== 0) out.push(null);
+    return out;
+  })();
+
+  const itensDoDia = diaSelecionado
+    ? (agendamentos ?? []).filter((a) => a.data === diaSelecionado)
+    : [];
+
+
+
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex flex-wrap items-center justify-between gap-3">
