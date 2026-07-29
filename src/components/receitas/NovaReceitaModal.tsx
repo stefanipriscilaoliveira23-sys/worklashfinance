@@ -509,6 +509,66 @@ export function NovaReceitaModal({ open, onClose }: { open: boolean; onClose: ()
                 </div>
               )}
 
+              {/* Venda de mentoria: cria a aluna na pipeline */}
+              <div className="rounded-lg border border-border p-3 space-y-3">
+                <label className="flex items-center gap-2 text-sm cursor-pointer">
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 accent-primary"
+                    checked={vendaMentoria}
+                    onChange={(e) => {
+                      setVendaMentoria(e.target.checked);
+                      if (e.target.checked && !alunaNome) setAlunaNome(clienteNome);
+                    }}
+                  />
+                  <span className="font-medium">Venda de mentoria</span>
+                  <span className="text-xs text-muted-foreground">cria a aluna na aba Mentoria</span>
+                </label>
+
+                {vendaMentoria && (
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <Label className="text-foreground/80">Nome da aluna</Label>
+                      <Input value={alunaNome} onChange={(e) => setAlunaNome(e.target.value)}
+                        placeholder={clienteNome} className="bg-secondary/50 border-border" />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-foreground/80">Telefone</Label>
+                      <Input value={alunaTelefone} onChange={(e) => setAlunaTelefone(e.target.value)} className="bg-secondary/50 border-border" />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-foreground/80">Programa</Label>
+                      <Select value={alunaPrograma} onValueChange={setAlunaPrograma}>
+                        <SelectTrigger className="bg-secondary/50 border-border"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {PROGRAMAS_MENTORIA.map((p) => <SelectItem key={p} value={p}>{p}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-foreground/80">Duração (meses)</Label>
+                      <Input type="number" min={1} value={alunaDuracao}
+                        onChange={(e) => setAlunaDuracao(e.target.value)} className="bg-secondary/50 border-border" />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-foreground/80">Vendedor</Label>
+                      <Input value={alunaVendedor} onChange={(e) => setAlunaVendedor(e.target.value)} className="bg-secondary/50 border-border" />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-foreground/80">Forma de pagamento</Label>
+                      <Select value={alunaForma} onValueChange={setAlunaForma}>
+                        <SelectTrigger className="bg-secondary/50 border-border"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {FORMAS_PAGAMENTO.map((f) => <SelectItem key={f} value={f}>{f}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+
+
               {/* Origens venda */}
               <div className="space-y-1.5">
                 <Label className="text-foreground/80">Origens da venda (opcional)</Label>
