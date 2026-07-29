@@ -135,6 +135,20 @@ export default function MentoradaSheet({ id, onClose }: Props) {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const gerarTarefas = useMutation({
+    mutationFn: async () => {
+      const n = await gerarTarefasDaEtapa(id!, m!.status_jornada);
+      if (!n) throw new Error("Nenhuma tarefa nova para esta etapa");
+      return n;
+    },
+    onSuccess: (n) => {
+      qc.invalidateQueries({ queryKey: ["mentorada-tarefas", id] });
+      qc.invalidateQueries({ queryKey: ["mentorada-tarefas-todas"] });
+      toast.success(`${n} tarefa(s) geradas`);
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
 
   const addTarefa = useMutation({
     mutationFn: async () => {
