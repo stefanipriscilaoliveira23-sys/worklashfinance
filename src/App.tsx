@@ -23,7 +23,11 @@ import PLDiario from "./pages/PLDiario";
 import Clientes from "./pages/Clientes";
 import Cofrinho from "./pages/Cofrinho";
 import Dividas from "./pages/Dividas";
+import Mentoria from "./pages/Mentoria";
+import Agenda from "./pages/Agenda";
+import AgendarPublico from "./pages/AgendarPublico";
 import NotFound from "./pages/NotFound";
+
 
 const queryClient = new QueryClient();
 
