@@ -629,7 +629,7 @@ export default function Agenda() {
       </Dialog>
 
       <Dialog open={!!diaSelecionado} onOpenChange={(o) => !o && setDiaSelecionado(null)}>
-        <DialogContent>
+        <DialogContent className="max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
               Agendamentos de {diaSelecionado ? formatDate(diaSelecionado) : ""}
@@ -645,7 +645,11 @@ export default function Agenda() {
                   <Badge variant="outline" className="text-[10px]">{a.status}</Badge>
                 </div>
                 <p className="text-sm">{a.nome}</p>
+                {a.anfitriao_id && (
+                  <p className="text-xs text-muted-foreground">Anfitrião: {nomeAnfitriao(a.anfitriao_id)}</p>
+                )}
                 {a.whatsapp && <p className="text-xs text-muted-foreground">{a.whatsapp}</p>}
+                {a.instagram && <p className="text-xs text-muted-foreground">{a.instagram}</p>}
                 {a.observacoes && <p className="text-xs text-muted-foreground">{a.observacoes}</p>}
                 {a.link_reuniao && (
                   <a href={a.link_reuniao} target="_blank" rel="noreferrer" className="text-xs text-primary underline">
@@ -659,6 +663,13 @@ export default function Agenda() {
                       <SelectItem key={s} value={s}>{s}</SelectItem>)}
                   </SelectContent>
                 </Select>
+                <ReuniaoDetalhe
+                  agendamentoId={a.id}
+                  anfitriao={nomeAnfitriao(a.anfitriao_id)}
+                  convidado={a.nome}
+                  hora={a.hora_inicio?.slice(0, 5) ?? ""}
+                  tipo={nomeTipo(a.tipo_id)}
+                />
               </li>
             ))}
             {itensDoDia.length === 0 && (
@@ -666,6 +677,7 @@ export default function Agenda() {
             )}
           </ul>
         </DialogContent>
+
       </Dialog>
     </div>
 
