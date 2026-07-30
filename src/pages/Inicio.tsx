@@ -3,6 +3,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth, isAdmin } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { formatCurrency, getMonthRange, getWeekRange } from "@/lib/format";
+import { saudacaoAgora, primeiroNome, dataPorExtenso } from "@/lib/saudacao";
+
 import {
   Loader2, DollarSign, CalendarClock, Building2, User,
   CalendarCheck, BookOpen, RefreshCw, ArrowRight, TrendingUp,
