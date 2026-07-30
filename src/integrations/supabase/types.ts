@@ -112,8 +112,45 @@ export type Database = {
         }
         Relationships: []
       }
+      agendamento_tarefas: {
+        Row: {
+          agendamento_id: string
+          concluida: boolean
+          created_at: string
+          id: string
+          responsavel_id: string | null
+          titulo: string
+        }
+        Insert: {
+          agendamento_id: string
+          concluida?: boolean
+          created_at?: string
+          id?: string
+          responsavel_id?: string | null
+          titulo: string
+        }
+        Update: {
+          agendamento_id?: string
+          concluida?: boolean
+          created_at?: string
+          id?: string
+          responsavel_id?: string | null
+          titulo?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agendamento_tarefas_agendamento_id_fkey"
+            columns: ["agendamento_id"]
+            isOneToOne: false
+            referencedRelation: "agendamentos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       agendamentos: {
         Row: {
+          agendado_por: string | null
+          anfitriao_id: string | null
           created_at: string
           data: string
           hora_fim: string
@@ -131,6 +168,8 @@ export type Database = {
           whatsapp: string | null
         }
         Insert: {
+          agendado_por?: string | null
+          anfitriao_id?: string | null
           created_at?: string
           data: string
           hora_fim: string
@@ -148,6 +187,8 @@ export type Database = {
           whatsapp?: string | null
         }
         Update: {
+          agendado_por?: string | null
+          anfitriao_id?: string | null
           created_at?: string
           data?: string
           hora_fim?: string
@@ -166,6 +207,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "agendamentos_anfitriao_id_fkey"
+            columns: ["anfitriao_id"]
+            isOneToOne: false
+            referencedRelation: "anfitrioes"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "agendamentos_mentorada_id_fkey"
             columns: ["mentorada_id"]
             isOneToOne: false
@@ -177,6 +225,127 @@ export type Database = {
             columns: ["tipo_id"]
             isOneToOne: false
             referencedRelation: "agenda_tipos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      anfitrioes: {
+        Row: {
+          ativo: boolean
+          created_at: string
+          email: string | null
+          id: string
+          nome: string
+        }
+        Insert: {
+          ativo?: boolean
+          created_at?: string
+          email?: string | null
+          id?: string
+          nome: string
+        }
+        Update: {
+          ativo?: boolean
+          created_at?: string
+          email?: string | null
+          id?: string
+          nome?: string
+        }
+        Relationships: []
+      }
+      biblioteca_processos: {
+        Row: {
+          categoria: string | null
+          conteudo: string | null
+          created_at: string
+          id: string
+          ordem: number
+          titulo: string
+          updated_at: string
+        }
+        Insert: {
+          categoria?: string | null
+          conteudo?: string | null
+          created_at?: string
+          id?: string
+          ordem?: number
+          titulo: string
+          updated_at?: string
+        }
+        Update: {
+          categoria?: string | null
+          conteudo?: string | null
+          created_at?: string
+          id?: string
+          ordem?: number
+          titulo?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      cliente_documentos: {
+        Row: {
+          cliente_id: string
+          created_at: string
+          id: string
+          nome: string
+          url: string
+        }
+        Insert: {
+          cliente_id: string
+          created_at?: string
+          id?: string
+          nome: string
+          url: string
+        }
+        Update: {
+          cliente_id?: string
+          created_at?: string
+          id?: string
+          nome?: string
+          url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cliente_documentos_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "clientes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cliente_interacoes: {
+        Row: {
+          cliente_id: string
+          conteudo: string
+          created_at: string
+          criado_por: string | null
+          id: string
+          tipo: string
+        }
+        Insert: {
+          cliente_id: string
+          conteudo: string
+          created_at?: string
+          criado_por?: string | null
+          id?: string
+          tipo?: string
+        }
+        Update: {
+          cliente_id?: string
+          conteudo?: string
+          created_at?: string
+          criado_por?: string | null
+          id?: string
+          tipo?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cliente_interacoes_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "clientes"
             referencedColumns: ["id"]
           },
         ]
@@ -783,6 +952,33 @@ export type Database = {
           },
         ]
       }
+      formularios: {
+        Row: {
+          created_at: string
+          descricao: string | null
+          id: string
+          link: string
+          ordem: number
+          titulo: string
+        }
+        Insert: {
+          created_at?: string
+          descricao?: string | null
+          id?: string
+          link?: string
+          ordem?: number
+          titulo: string
+        }
+        Update: {
+          created_at?: string
+          descricao?: string | null
+          id?: string
+          link?: string
+          ordem?: number
+          titulo?: string
+        }
+        Relationships: []
+      }
       mensagens_modelo: {
         Row: {
           created_at: string
@@ -961,6 +1157,7 @@ export type Database = {
           motivo_cancelamento: string | null
           nome: string
           observacao: string | null
+          pipeline_id: string | null
           prazo_meses: number
           programa: string
           proxima_parcela: string | null
@@ -992,6 +1189,7 @@ export type Database = {
           motivo_cancelamento?: string | null
           nome: string
           observacao?: string | null
+          pipeline_id?: string | null
           prazo_meses?: number
           programa?: string
           proxima_parcela?: string | null
@@ -1023,6 +1221,7 @@ export type Database = {
           motivo_cancelamento?: string | null
           nome?: string
           observacao?: string | null
+          pipeline_id?: string | null
           prazo_meses?: number
           programa?: string
           proxima_parcela?: string | null
@@ -1042,6 +1241,13 @@ export type Database = {
             columns: ["cliente_id"]
             isOneToOne: false
             referencedRelation: "clientes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mentoradas_pipeline_id_fkey"
+            columns: ["pipeline_id"]
+            isOneToOne: false
+            referencedRelation: "pipelines"
             referencedColumns: ["id"]
           },
         ]
@@ -1298,6 +1504,27 @@ export type Database = {
           },
         ]
       }
+      pipelines: {
+        Row: {
+          created_at: string
+          id: string
+          nome: string
+          ordem: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          nome: string
+          ordem?: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          nome?: string
+          ordem?: number
+        }
+        Relationships: []
+      }
       processos_etapa: {
         Row: {
           ativo: boolean
@@ -1364,6 +1591,60 @@ export type Database = {
           observacao?: string | null
           plataformas?: string[] | null
           tipo?: string | null
+        }
+        Relationships: []
+      }
+      produtos_cursos: {
+        Row: {
+          ativo: boolean
+          como_funciona: string | null
+          created_at: string
+          diferenciais: string | null
+          entregaveis: string | null
+          explicacao_comercial: string | null
+          id: string
+          link_pagamento: string | null
+          modulos_aulas: string | null
+          nome: string
+          o_que_e: string | null
+          para_quem: string | null
+          para_quem_nao: string | null
+          persona: string | null
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          como_funciona?: string | null
+          created_at?: string
+          diferenciais?: string | null
+          entregaveis?: string | null
+          explicacao_comercial?: string | null
+          id?: string
+          link_pagamento?: string | null
+          modulos_aulas?: string | null
+          nome: string
+          o_que_e?: string | null
+          para_quem?: string | null
+          para_quem_nao?: string | null
+          persona?: string | null
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          como_funciona?: string | null
+          created_at?: string
+          diferenciais?: string | null
+          entregaveis?: string | null
+          explicacao_comercial?: string | null
+          id?: string
+          link_pagamento?: string | null
+          modulos_aulas?: string | null
+          nome?: string
+          o_que_e?: string | null
+          para_quem?: string | null
+          para_quem_nao?: string | null
+          persona?: string | null
+          updated_at?: string
         }
         Relationships: []
       }
@@ -1500,6 +1781,36 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      scripts: {
+        Row: {
+          categoria: string
+          created_at: string
+          id: string
+          ordem: number
+          texto: string
+          titulo: string
+          updated_at: string
+        }
+        Insert: {
+          categoria: string
+          created_at?: string
+          id?: string
+          ordem?: number
+          texto?: string
+          titulo: string
+          updated_at?: string
+        }
+        Update: {
+          categoria?: string
+          created_at?: string
+          id?: string
+          ordem?: number
+          texto?: string
+          titulo?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       user_roles: {
         Row: {
