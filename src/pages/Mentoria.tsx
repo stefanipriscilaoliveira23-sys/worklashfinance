@@ -22,7 +22,17 @@ export default function Mentoria() {
   const [arrastando, setArrastando] = useState<string | null>(null);
   const [colunaAlvo, setColunaAlvo] = useState<string | null>(null);
   const [soPendencias, setSoPendencias] = useState(false);
+  const [pipelineId, setPipelineId] = useState<string>("todas");
 
+  const { data: pipelines } = useQuery({
+    queryKey: ["pipelines"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("pipelines").select("*").order("ordem", { ascending: true });
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
 
   const { data: mentoradas, isLoading } = useQuery({
     queryKey: ["mentoradas"],
@@ -44,6 +54,7 @@ export default function Mentoria() {
     },
   });
 
+
   const progressoDe = (mentoradaId: string, etapa: string) => {
     const itens = (tarefas ?? []).filter((t) => t.mentorada_id === mentoradaId && t.etapa === etapa);
     return { total: itens.length, feitas: itens.filter((t) => t.concluida).length };
@@ -64,19 +75,36 @@ export default function Mentoria() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const pendencias = (mentoradas ?? []).filter((m) => !!m.motivo_cancelamento);
+  const criarPipeline = useMutation({
+    mutationFn: async (nome: string) => {
+      const { error } = await supabase.from("pipelines").insert({ nome, ordem: (pipelines ?? []).length + 1 });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["pipelines"] });
+      toast.success("Pipeline criada");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
 
-  const filtradas = (mentoradas ?? []).filter(
+  const doPipeline = (mentoradas ?? []).filter(
+    (m) => pipelineId === "todas" || m.pipeline_id === pipelineId
+  );
+
+  const pendencias = doPipeline.filter((m) => !!m.motivo_cancelamento);
+
+  const filtradas = doPipeline.filter(
     (m) =>
       m.nome.toLowerCase().includes(busca.toLowerCase()) &&
       (!soPendencias || !!m.motivo_cancelamento)
   );
 
-  const ativas = (mentoradas ?? []).filter((m) => !["Concluída", "Cancelada", "Inativa"].includes(m.status_jornada));
-  const emRenovacao = (mentoradas ?? []).filter((m) => {
+  const ativas = doPipeline.filter((m) => !["Concluída", "Cancelada", "Inativa"].includes(m.status_jornada));
+  const emRenovacao = doPipeline.filter((m) => {
     const d = diasRestantes(m.data_termino);
     return d !== null && d <= 30 && d >= 0 && m.status_jornada !== "Cancelada";
   });
+
 
   useEffect(() => {
     if (!mentoradas || pendencias.length === 0) return;
@@ -111,11 +139,47 @@ export default function Mentoria() {
         </TabsList>
 
         <TabsContent value="pipeline" className="space-y-4 pt-4">
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => setPipelineId("todas")}
+              className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
+                pipelineId === "todas" ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-surface-hover"
+              }`}
+            >
+              Todas
+            </button>
+            {(pipelines ?? []).map((p) => (
+              <button
+                key={p.id}
+                type="button"
+                onClick={() => setPipelineId(p.id)}
+                className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
+                  pipelineId === p.id ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-surface-hover"
+                }`}
+              >
+                {p.nome}
+              </button>
+            ))}
+            <button
+              type="button"
+              onClick={() => {
+                const nome = window.prompt("Nome da nova pipeline");
+                if (nome?.trim()) criarPipeline.mutate(nome.trim());
+              }}
+              className="rounded-full border border-dashed border-border px-3 py-1 text-xs font-medium text-muted-foreground hover:bg-surface-hover"
+            >
+              + Nova pipeline
+            </button>
+          </div>
+
+
           <div className="grid gap-4 sm:grid-cols-3">
             <CardResumo titulo="Mentoradas ativas" valor={String(ativas.length)} />
             <CardResumo titulo="Renovação em até 30 dias" valor={String(emRenovacao.length)} />
-            <CardResumo titulo="Total cadastradas" valor={String((mentoradas ?? []).length)} />
+            <CardResumo titulo="Total cadastradas" valor={String(doPipeline.length)} />
           </div>
+
 
           {pendencias.length > 0 && (
             <button

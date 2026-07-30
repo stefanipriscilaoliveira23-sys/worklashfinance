@@ -1,9 +1,11 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { formatDate } from "@/lib/format";
-import { notificarProprio } from "@/lib/notificacoes";
+import { notificarProprio, criarNotificacao } from "@/lib/notificacoes";
+import { useAuth } from "@/contexts/AuthContext";
+import ReuniaoDetalhe from "@/components/agenda/ReuniaoDetalhe";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -18,6 +20,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { CalendarDays, ChevronLeft, ChevronRight, Copy, Loader2, Plus, Trash2 } from "lucide-react";
+
 
 const DIAS = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
 
@@ -37,17 +40,46 @@ function proximosDias(n: number) {
   return out;
 }
 
+const AG_VAZIO = {
+  nome: "", whatsapp: "", instagram: "", tipo_id: "", anfitriao_id: "",
+  data: "", hora_inicio: "", observacoes: "", link_reuniao: "",
+};
+
 export default function Agenda() {
   const qc = useQueryClient();
+  const { user } = useAuth();
   const [showTipo, setShowTipo] = useState(false);
   const [showAgendar, setShowAgendar] = useState(false);
   const [tipoForm, setTipoForm] = useState({ nome: "", duracao_minutos: "60", descricao: "", titulo_pagina: "", subtitulo_pagina: "" });
-  const [agForm, setAgForm] = useState({ nome: "", whatsapp: "", tipo_id: "", data: "", hora_inicio: "", observacoes: "", link_reuniao: "" });
+  const [agForm, setAgForm] = useState({ ...AG_VAZIO });
   const [dispForm, setDispForm] = useState({ tipo_id: "", dia_semana: "1", hora_inicio: "09:00", hora_fim: "18:00" });
   const [bloqForm, setBloqForm] = useState({ data: "", hora_inicio: "", hora_fim: "", motivo: "" });
   const [visao, setVisao] = useState<"calendario" | "lista">("calendario");
   const [mesRef, setMesRef] = useState(() => { const h = new Date(); return new Date(h.getFullYear(), h.getMonth(), 1); });
   const [diaSelecionado, setDiaSelecionado] = useState<string | null>(null);
+
+  const { data: anfitrioes } = useQuery({
+    queryKey: ["anfitrioes"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("anfitrioes").select("*").order("nome");
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
+  const { data: perfis } = useQuery({
+    queryKey: ["perfis-equipe"],
+    queryFn: async () => {
+      const { data } = await supabase.from("profiles").select("user_id, email, display_name");
+      return data ?? [];
+    },
+  });
+
+  const nomeAnfitriao = (id: string | null | undefined) =>
+    (anfitrioes ?? []).find((a) => a.id === id)?.nome ?? "";
+  const nomeTipo = (id: string | null | undefined) =>
+    (tipos ?? []).find((t) => t.id === id)?.nome ?? "reunião";
+
 
   const { data: tipos } = useQuery({
     queryKey: ["agenda-tipos"],
@@ -165,16 +197,20 @@ export default function Agenda() {
 
   const criarAgendamento = useMutation({
     mutationFn: async () => {
-      if (!agForm.nome.trim() || !agForm.data || !agForm.hora_inicio) throw new Error("Preencha nome, data e horário");
+      if (!agForm.nome.trim() || !agForm.data || !agForm.hora_inicio) throw new Error("Preencha convidado, data e horário");
+      if (!agForm.anfitriao_id) throw new Error("Escolha o anfitrião da reunião");
       const tipo = (tipos ?? []).find((t) => t.id === agForm.tipo_id);
       const dur = tipo?.duracao_minutos ?? 60;
       const [h, min] = agForm.hora_inicio.split(":").map(Number);
       const fimMin = h * 60 + min + dur;
       const horaFim = `${String(Math.floor(fimMin / 60) % 24).padStart(2, "0")}:${String(fimMin % 60).padStart(2, "0")}`;
-      const { error } = await supabase.from("agendamentos").insert({
+      const { data: criado, error } = await supabase.from("agendamentos").insert({
         nome: agForm.nome.trim(),
         whatsapp: agForm.whatsapp || null,
+        instagram: agForm.instagram || null,
         tipo_id: agForm.tipo_id || null,
+        anfitriao_id: agForm.anfitriao_id,
+        agendado_por: user?.id ?? null,
         data: agForm.data,
         hora_inicio: agForm.hora_inicio,
         hora_fim: horaFim,
@@ -182,22 +218,46 @@ export default function Agenda() {
         link_reuniao: agForm.link_reuniao || null,
         status: "Confirmado",
         origem: "Interno",
-      });
+      }).select("id").single();
       if (error) throw error;
+
+      const anfitriao = (anfitrioes ?? []).find((a) => a.id === agForm.anfitriao_id);
+      const perfilAnfitriao = (perfis ?? []).find(
+        (p) => (p.email ?? "").toLowerCase() === (anfitriao?.email ?? "").toLowerCase() && !!anfitriao?.email,
+      );
+      const descricaoReuniao = `${agForm.nome} em ${formatDate(agForm.data)} às ${agForm.hora_inicio} (${tipo?.nome ?? "reunião"})`;
+
+      if (perfilAnfitriao?.user_id) {
+        await criarNotificacao({
+          destinatario_id: perfilAnfitriao.user_id,
+          titulo: `Reunião agendada: ${descricaoReuniao}`,
+          tipo: "agenda",
+          link_interno: "/agenda",
+        });
+      }
+
       await notificarProprio({
-        titulo: "Novo agendamento",
-        descricao: `${agForm.nome} em ${formatDate(agForm.data)} às ${agForm.hora_inicio}`,
+        titulo: "Reunião agendada",
+        descricao: `${descricaoReuniao} com ${anfitriao?.nome ?? "anfitrião"}`,
         tipo: "agenda", link_interno: "/agenda",
       });
+
+      if (criado?.id) {
+        await supabase.from("agendamento_tarefas").insert([
+          { agendamento_id: criado.id, responsavel_id: user?.id ?? null, titulo: "Enviar lembrete ao anfitrião" },
+          { agendamento_id: criado.id, responsavel_id: user?.id ?? null, titulo: "Enviar confirmação ao convidado" },
+        ]);
+      }
     },
     onSuccess: () => {
       setShowAgendar(false);
-      setAgForm({ nome: "", whatsapp: "", tipo_id: "", data: "", hora_inicio: "", observacoes: "", link_reuniao: "" });
+      setAgForm({ ...AG_VAZIO });
       qc.invalidateQueries({ queryKey: ["agendamentos"] });
       toast.success("Agendamento criado");
     },
     onError: (e: Error) => toast.error(e.message),
   });
+
 
   const mudarStatus = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: string }) => {
@@ -230,6 +290,24 @@ export default function Agenda() {
     ? (agendamentos ?? []).filter((a) => a.data === diaSelecionado)
     : [];
 
+  // Lembrete diário das reuniões do dia (uma vez por dia por usuário)
+  useEffect(() => {
+    if (!agendamentos?.length) return;
+    const hoje = new Date().toISOString().slice(0, 10);
+    const doDia = agendamentos.filter((a) => a.data === hoje && a.status !== "Cancelado");
+    if (!doDia.length) return;
+    const chave = `agenda-lembrete-${hoje}`;
+    if (localStorage.getItem(chave)) return;
+    localStorage.setItem(chave, "1");
+    notificarProprio({
+      titulo: `${doDia.length} reunião(ões) hoje`,
+      descricao: doDia
+        .map((a) => `${a.hora_inicio?.slice(0, 5)} ${a.nome}`)
+        .join(" · "),
+      tipo: "agenda",
+      link_interno: "/agenda",
+    });
+  }, [agendamentos]);
 
 
   return (
@@ -510,15 +588,31 @@ export default function Agenda() {
       <Dialog open={showAgendar} onOpenChange={setShowAgendar}>
         <DialogContent>
           <DialogHeader><DialogTitle>Novo agendamento</DialogTitle></DialogHeader>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-3 max-h-[70vh] overflow-y-auto pr-1">
             <div className="space-y-1.5 col-span-2">
-              <Label className="text-xs">Nome *</Label>
+              <Label className="text-xs">Convidado *</Label>
               <Input value={agForm.nome} onChange={(e) => setAgForm({ ...agForm, nome: e.target.value })} />
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs">WhatsApp</Label>
               <Input value={agForm.whatsapp} onChange={(e) => setAgForm({ ...agForm, whatsapp: e.target.value })} />
             </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Instagram</Label>
+              <Input value={agForm.instagram} onChange={(e) => setAgForm({ ...agForm, instagram: e.target.value })} />
+            </div>
+            <div className="space-y-1.5 col-span-2">
+              <Label className="text-xs">Anfitrião *</Label>
+              <Select value={agForm.anfitriao_id} onValueChange={(v) => setAgForm({ ...agForm, anfitriao_id: v })}>
+                <SelectTrigger><SelectValue placeholder="Quem vai conduzir" /></SelectTrigger>
+                <SelectContent>
+                  {(anfitrioes ?? []).filter((a) => a.ativo).map((a) => (
+                    <SelectItem key={a.id} value={a.id}>{a.nome}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
             <div className="space-y-1.5">
               <Label className="text-xs">Tipo</Label>
               <Select value={agForm.tipo_id} onValueChange={(v) => setAgForm({ ...agForm, tipo_id: v })}>
@@ -553,7 +647,7 @@ export default function Agenda() {
       </Dialog>
 
       <Dialog open={!!diaSelecionado} onOpenChange={(o) => !o && setDiaSelecionado(null)}>
-        <DialogContent>
+        <DialogContent className="max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
               Agendamentos de {diaSelecionado ? formatDate(diaSelecionado) : ""}
@@ -569,7 +663,11 @@ export default function Agenda() {
                   <Badge variant="outline" className="text-[10px]">{a.status}</Badge>
                 </div>
                 <p className="text-sm">{a.nome}</p>
+                {a.anfitriao_id && (
+                  <p className="text-xs text-muted-foreground">Anfitrião: {nomeAnfitriao(a.anfitriao_id)}</p>
+                )}
                 {a.whatsapp && <p className="text-xs text-muted-foreground">{a.whatsapp}</p>}
+                {a.instagram && <p className="text-xs text-muted-foreground">{a.instagram}</p>}
                 {a.observacoes && <p className="text-xs text-muted-foreground">{a.observacoes}</p>}
                 {a.link_reuniao && (
                   <a href={a.link_reuniao} target="_blank" rel="noreferrer" className="text-xs text-primary underline">
@@ -583,6 +681,13 @@ export default function Agenda() {
                       <SelectItem key={s} value={s}>{s}</SelectItem>)}
                   </SelectContent>
                 </Select>
+                <ReuniaoDetalhe
+                  agendamentoId={a.id}
+                  anfitriao={nomeAnfitriao(a.anfitriao_id)}
+                  convidado={a.nome}
+                  hora={a.hora_inicio?.slice(0, 5) ?? ""}
+                  tipo={nomeTipo(a.tipo_id)}
+                />
               </li>
             ))}
             {itensDoDia.length === 0 && (
@@ -590,6 +695,7 @@ export default function Agenda() {
             )}
           </ul>
         </DialogContent>
+
       </Dialog>
     </div>
 

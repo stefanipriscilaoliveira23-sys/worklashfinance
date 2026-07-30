@@ -3,6 +3,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth, isAdmin } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { formatCurrency, getMonthRange, getWeekRange } from "@/lib/format";
+import { saudacaoAgora, primeiroNome, dataPorExtenso } from "@/lib/saudacao";
+
 import {
   Loader2, DollarSign, CalendarClock, Building2, User,
   CalendarCheck, BookOpen, RefreshCw, ArrowRight, TrendingUp,
@@ -128,18 +130,19 @@ export default function Inicio() {
   const valorEmpSem = dEmpSem.reduce((s, d) => s + (d.saldo_pendente ?? d.valor_original ?? 0), 0);
   const valorPesSem = dPesSem.reduce((s, d) => s + (d.saldo_pendente ?? d.valor_original ?? 0), 0);
 
-  const nome = user?.user_metadata?.display_name || user?.email?.split("@")[0] || "";
+  const nome = primeiroNome(user?.user_metadata?.display_name || user?.email);
 
   return (
     <div className="space-y-6 animate-fade-in">
       <div>
         <h1 className="text-2xl font-bold text-foreground">
-          Olá{nome ? `, ${nome}` : ""} 👋
+          {saudacaoAgora(now)}{nome ? `, ${nome}` : ""} 👋
         </h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          Visão rápida de hoje — {now.toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "long" })}
+        <p className="text-sm text-muted-foreground mt-1 capitalize">
+          {dataPorExtenso(now)}
         </p>
       </div>
+
 
       {/* Faturamento — apenas admin */}
       {admin && (

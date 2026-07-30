@@ -15,6 +15,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import EditarContratoDialog from "@/components/parcelas/EditarContratoDialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ClienteInteracoes, ClienteDocumentos } from "@/components/clientes/ClienteExtras";
+
 import { EditarReceitaModal } from "@/components/receitas/EditarReceitaModal";
 import type { Tables } from "@/integrations/supabase/types";
 
@@ -303,6 +306,22 @@ export default function Clientes() {
                 </div>
               </SheetHeader>
 
+              <Tabs defaultValue="compras">
+                <TabsList className="flex flex-wrap h-auto">
+                  <TabsTrigger value="compras">Compras</TabsTrigger>
+                  <TabsTrigger value="interacoes">Interações</TabsTrigger>
+                  <TabsTrigger value="documentos">Documentos</TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="interacoes" className="pt-4">
+                  <ClienteInteracoes clienteId={selectedCliente.id} />
+                </TabsContent>
+
+                <TabsContent value="documentos" className="pt-4">
+                  <ClienteDocumentos clienteId={selectedCliente.id} />
+                </TabsContent>
+
+                <TabsContent value="compras" className="space-y-6 pt-4">
               {/* Total gasto */}
               <div className="rounded-lg border border-border bg-secondary/20 p-4">
                 <p className="text-xs text-muted-foreground uppercase">Total gasto conosco</p>
@@ -311,6 +330,7 @@ export default function Clientes() {
                   (contratos ?? []).reduce((s: number, c: any) => s + ((c.parcelas_mentoria_detalhe ?? []).filter((d: any) => d.status === "Quitado").reduce((a: number, d: any) => a + (d.valor_real ?? d.valor_sugerido ?? 0), 0)), 0)
                 )}</p>
               </div>
+
 
               {/* Contracts */}
               <div>
@@ -444,7 +464,10 @@ export default function Clientes() {
                   </div>
                 )}
               </div>
+                </TabsContent>
+              </Tabs>
             </div>
+
           )}
         </SheetContent>
       </Sheet>
