@@ -42,7 +42,8 @@ export default function Receitas() {
   const { data: receitas, isLoading } = useQuery({
     queryKey: ["receitas-all"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("receitas").select("*").order("data", { ascending: true });
+      const { data, error } = await supabase.from("receitas").select("*").order("data", { ascending: false });
+
       if (error) throw error;
       return data;
     },
@@ -81,7 +82,8 @@ export default function Receitas() {
         .from("parcelas_mentoria_detalhe")
         .select("*, parcelas_mentoria!inner(*)")
         .eq("status", "Quitado")
-        .order("data_pagamento", { ascending: true });
+        .order("data_pagamento", { ascending: false });
+
       return data ?? [];
     },
   });
@@ -229,16 +231,17 @@ export default function Receitas() {
   // Only receitas (actual sales), filtered by date
   const salesEntries = filtered
     .filter(r => filterByDate(r.data, dateFilter))
-    .sort((a, b) => (a.data ?? "").localeCompare(b.data ?? ""));
+    .sort((a, b) => (b.data ?? "").localeCompare(a.data ?? ""));
 
   // Only parcelas, filtered by date
   const parcelasEntries = filteredParcelas
     .filter(r => filterByDate(r.data, dateFilter))
-    .sort((a, b) => (a.data ?? "").localeCompare(b.data ?? ""));
+    .sort((a, b) => (b.data ?? "").localeCompare(a.data ?? ""));
 
   // Merge for "Todas" tab
   const allEntries = [...salesEntries, ...parcelasEntries]
-    .sort((a, b) => (a.data ?? "").localeCompare(b.data ?? ""));
+    .sort((a, b) => (b.data ?? "").localeCompare(a.data ?? ""));
+
 
   // Tab filtering — category tabs show only sales, "parcelas" tab shows only parcelas
   const getTabData = () => {
