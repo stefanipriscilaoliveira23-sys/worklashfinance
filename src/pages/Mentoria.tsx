@@ -1,16 +1,17 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { STATUS_JORNADA, diasRestantes, gerarTarefasDaEtapa } from "@/lib/mentoria";
+import { notificarProprio } from "@/lib/notificacoes";
 import MentoradaSheet from "@/components/mentoria/MentoradaSheet";
 import ProcessosTab from "@/components/mentoria/ProcessosTab";
 import TagsAluna from "@/components/mentoria/TagsAluna";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { GraduationCap, Loader2, Search } from "lucide-react";
+import { AlertTriangle, GraduationCap, Loader2, Search } from "lucide-react";
 
 const COLUNAS = STATUS_JORNADA;
 
@@ -20,6 +21,8 @@ export default function Mentoria() {
   const [busca, setBusca] = useState("");
   const [arrastando, setArrastando] = useState<string | null>(null);
   const [colunaAlvo, setColunaAlvo] = useState<string | null>(null);
+  const [soPendencias, setSoPendencias] = useState(false);
+
 
   const { data: mentoradas, isLoading } = useQuery({
     queryKey: ["mentoradas"],
