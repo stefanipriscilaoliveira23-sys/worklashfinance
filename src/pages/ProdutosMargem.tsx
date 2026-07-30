@@ -25,7 +25,6 @@ const ENTRY_CATEGORIES = ["Digitais", "Físicos"];
 const CATEGORIAS: ProdutoCategoria[] = [
   "Mentorias", "Renovações", "Digitais", "Físicos"
 ];
-const PLATAFORMAS = ["Hotmart", "Kiwify", "Eduzz", "Direto Pix", "Outro"];
 
 export default function ProdutosMargem() {
   const { role } = useAuth();
@@ -37,7 +36,7 @@ export default function ProdutosMargem() {
   // Product form state
   const [showProdForm, setShowProdForm] = useState(false);
   const [editProd, setEditProd] = useState<any>(null);
-  const [prodForm, setProdForm] = useState({ nome: "", categoria: "Digitais" as ProdutoCategoria, plataformas: [] as string[], custo_direto_percentual: 0, observacao: "" });
+  const [prodForm, setProdForm] = useState({ nome: "", categoria: "Digitais" as ProdutoCategoria, preco_venda: 0, observacao: "" });
   const [showCompradores, setShowCompradores] = useState<{ nome: string; compradores: { nome: string; data: string; valor: number }[] } | null>(null);
 
   const { data: produtos, isLoading: loadProd } = useQuery({
@@ -90,14 +89,14 @@ export default function ProdutosMargem() {
 
   const isLoading = loadProd || loadRec;
 
-  const openAddProd = () => { setEditProd(null); setProdForm({ nome: "", categoria: "Digitais", plataformas: [], custo_direto_percentual: 0, observacao: "" }); setShowProdForm(true); };
-  const openEditProd = (p: any) => { setEditProd(p); setProdForm({ nome: p.nome, categoria: p.categoria, plataformas: p.plataformas ?? [], custo_direto_percentual: p.custo_direto_percentual ?? 0, observacao: p.observacao ?? "" }); setShowProdForm(true); };
+  const openAddProd = () => { setEditProd(null); setProdForm({ nome: "", categoria: "Digitais", preco_venda: 0, observacao: "" }); setShowProdForm(true); };
+  const openEditProd = (p: any) => { setEditProd(p); setProdForm({ nome: p.nome, categoria: p.categoria, preco_venda: (p as any).preco_venda ?? 0, observacao: p.observacao ?? "" }); setShowProdForm(true); };
   const closeProdForm = () => { setShowProdForm(false); setEditProd(null); };
 
   const saveProd = useMutation({
     mutationFn: async () => {
       if (!prodForm.nome) throw new Error("Nome obrigatório");
-      const payload = { nome: prodForm.nome, categoria: prodForm.categoria, plataformas: prodForm.plataformas, custo_direto_percentual: prodForm.custo_direto_percentual, observacao: prodForm.observacao || null };
+      const payload = { nome: prodForm.nome, categoria: prodForm.categoria, preco_venda: prodForm.preco_venda, observacao: prodForm.observacao || null };
       if (editProd) {
         const { error } = await supabase.from("produtos_catalogo").update(payload).eq("id", editProd.id);
         if (error) throw error;
@@ -284,7 +283,7 @@ export default function ProdutosMargem() {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <h1 className="text-xl font-bold text-foreground">Produtos e Margem</h1>
+      <h1 className="text-xl font-bold text-foreground">Nossos Produtos</h1>
 
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList className="bg-secondary/50 border border-border flex-wrap">
@@ -304,18 +303,17 @@ export default function ProdutosMargem() {
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead><tr className="border-b border-border bg-secondary/30">
-                  {["Produto", "Categoria", "Plataforma(s)", "Custo Direto %", "Preço Médio", "Margem Média %", "Vendas", "Ações"].map(h => (
-                    <th key={h} className={`p-3 text-xs font-medium text-muted-foreground ${["Custo Direto %", "Preço Médio", "Margem Média %", "Vendas"].includes(h) ? "text-right" : "text-left"}`}>{h}</th>
+                  {["Produto", "Categoria", "Preço de Venda", "Preço Médio", "Margem Média %", "Vendas", "Ações"].map(h => (
+                    <th key={h} className={`p-3 text-xs font-medium text-muted-foreground ${["Preço de Venda", "Preço Médio", "Margem Média %", "Vendas"].includes(h) ? "text-right" : "text-left"}`}>{h}</th>
                   ))}
                 </tr></thead>
                 <tbody>
-                  {catalogData.length === 0 && <tr><td colSpan={8} className="p-12 text-center text-muted-foreground">Nenhum produto no catálogo</td></tr>}
+                  {catalogData.length === 0 && <tr><td colSpan={7} className="p-12 text-center text-muted-foreground">Nenhum produto no catálogo</td></tr>}
                   {catalogData.map(p => (
                     <tr key={p.id} className="border-b border-border/50 hover:bg-surface-hover transition-colors">
                       <td className="p-3 font-medium">{p.nome}</td>
                       <td className="p-3 text-muted-foreground">{p.categoria}</td>
-                      <td className="p-3"><div className="flex gap-1">{(p.plataformas ?? []).map((pl, i) => <span key={i} className="px-1.5 py-0.5 text-[10px] rounded bg-primary/10 text-primary">{pl}</span>)}</div></td>
-                      <td className="p-3 text-right text-muted-foreground">{formatPercent(p.custo_direto_percentual)}</td>
+                      <td className="p-3 text-right text-muted-foreground">{formatCurrency((p as any).preco_venda ?? 0)}</td>
                       <td className="p-3 text-right">{formatCurrency(p.precoMedio)}</td>
                       <td className={`p-3 text-right font-medium ${p.margemPerc >= 70 ? "text-emerald-400" : "text-foreground"}`}>{formatPercent(p.margemPerc)}</td>
                       <td className="p-3 text-right">
@@ -354,7 +352,7 @@ export default function ProdutosMargem() {
                   ))}
                 </tr></thead>
                 <tbody>
-                  {desempenhoData.length === 0 && <tr><td colSpan={8} className="p-12 text-center text-muted-foreground">Nenhum produto no catálogo</td></tr>}
+                  {desempenhoData.length === 0 && <tr><td colSpan={7} className="p-12 text-center text-muted-foreground">Nenhum produto no catálogo</td></tr>}
                   {desempenhoData.map((d, i) => (
                     <tr key={i} className={`border-b border-border/50 hover:bg-surface-hover transition-colors ${d.margemP >= 70 ? "bg-emerald-500/5" : ""} ${d.unidades === 0 ? "opacity-50" : ""}`}>
                       <td className="p-3 font-medium">{d.nome}</td>
@@ -494,7 +492,7 @@ export default function ProdutosMargem() {
                     ))}
                   </tr></thead>
                   <tbody>
-                    {rateioData.length === 0 && <tr><td colSpan={8} className="p-12 text-center text-muted-foreground">Sem dados no mês</td></tr>}
+                    {rateioData.length === 0 && <tr><td colSpan={7} className="p-12 text-center text-muted-foreground">Sem dados no mês</td></tr>}
                     {rateioData.map((r, i) => (
                       <tr key={i} className="border-b border-border/50 hover:bg-surface-hover transition-colors">
                         <td className="p-3 font-medium">{r.cat}</td>
@@ -545,19 +543,8 @@ export default function ProdutosMargem() {
                 </Select>
               </div>
               <div className="space-y-1.5">
-                <Label className="text-foreground/80">Custo Direto %</Label>
-                <Input type="number" step="0.1" value={prodForm.custo_direto_percentual || ""} onChange={e => setProdForm(f => ({ ...f, custo_direto_percentual: Number(e.target.value) }))} className="bg-secondary/50 border-border" />
-              </div>
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-foreground/80">Plataformas</Label>
-              <div className="flex flex-wrap gap-2">
-                {PLATAFORMAS.map(p => (
-                  <button key={p} type="button" onClick={() => setProdForm(f => ({ ...f, plataformas: f.plataformas.includes(p) ? f.plataformas.filter(x => x !== p) : [...f.plataformas, p] }))}
-                    className={`px-3 py-1.5 text-xs rounded-full border transition-colors ${prodForm.plataformas.includes(p) ? "bg-primary/20 border-primary text-primary" : "border-border text-muted-foreground hover:border-primary/50"}`}>
-                    {p}
-                  </button>
-                ))}
+                <Label className="text-foreground/80">Preço de venda (R$)</Label>
+                <Input type="number" step="0.01" value={prodForm.preco_venda || ""} onChange={e => setProdForm(f => ({ ...f, preco_venda: Number(e.target.value) }))} className="bg-secondary/50 border-border" />
               </div>
             </div>
             <div className="space-y-1.5">
@@ -565,6 +552,7 @@ export default function ProdutosMargem() {
               <Textarea value={prodForm.observacao} onChange={e => setProdForm(f => ({ ...f, observacao: e.target.value }))} className="bg-secondary/50 border-border" rows={2} />
             </div>
           </div>
+
           <DialogFooter>
             <Button variant="outline" onClick={closeProdForm} className="border-border">Cancelar</Button>
             <Button onClick={() => saveProd.mutate()} disabled={saveProd.isPending} className="gold-gradient text-primary-foreground">
