@@ -16,6 +16,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, BarChart, Bar } from "recharts";
 import type { Database } from "@/integrations/supabase/types";
+import ProdutoSheet from "@/components/produtos/ProdutoSheet";
 
 type ProdutoCategoria = Database["public"]["Enums"]["produto_categoria"];
 
@@ -36,13 +37,12 @@ export default function ProdutosMargem() {
   // Product form state
   const [showProdForm, setShowProdForm] = useState(false);
   const [editProd, setEditProd] = useState<any>(null);
-  const [prodForm, setProdForm] = useState({ nome: "", categoria: "Digitais" as ProdutoCategoria, preco_venda: 0, observacao: "" });
   const [showCompradores, setShowCompradores] = useState<{ nome: string; compradores: { nome: string; data: string; valor: number }[] } | null>(null);
 
   const { data: produtos, isLoading: loadProd } = useQuery({
     queryKey: ["produtos-catalogo"],
     queryFn: async () => {
-      const { data } = await supabase.from("produtos_catalogo").select("*").eq("ativo", true).order("nome");
+      const { data } = await supabase.from("produtos_catalogo").select("*").order("nome");
       return data ?? [];
     },
   });
@@ -89,25 +89,9 @@ export default function ProdutosMargem() {
 
   const isLoading = loadProd || loadRec;
 
-  const openAddProd = () => { setEditProd(null); setProdForm({ nome: "", categoria: "Digitais", preco_venda: 0, observacao: "" }); setShowProdForm(true); };
-  const openEditProd = (p: any) => { setEditProd(p); setProdForm({ nome: p.nome, categoria: p.categoria, preco_venda: (p as any).preco_venda ?? 0, observacao: p.observacao ?? "" }); setShowProdForm(true); };
+  const openAddProd = () => { setEditProd(null); setShowProdForm(true); };
+  const openEditProd = (p: any) => { setEditProd(p); setShowProdForm(true); };
   const closeProdForm = () => { setShowProdForm(false); setEditProd(null); };
-
-  const saveProd = useMutation({
-    mutationFn: async () => {
-      if (!prodForm.nome) throw new Error("Nome obrigatório");
-      const payload = { nome: prodForm.nome, categoria: prodForm.categoria, preco_venda: prodForm.preco_venda, observacao: prodForm.observacao || null };
-      if (editProd) {
-        const { error } = await supabase.from("produtos_catalogo").update(payload).eq("id", editProd.id);
-        if (error) throw error;
-      } else {
-        const { error } = await supabase.from("produtos_catalogo").insert(payload);
-        if (error) throw error;
-      }
-    },
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["produtos-catalogo"] }); toast.success(editProd ? "Produto atualizado" : "Produto adicionado"); closeProdForm(); },
-    onError: (e: any) => toast.error(e.message),
-  });
 
   const deleteProd = useMutation({
     mutationFn: async (id: string) => {
@@ -525,42 +509,7 @@ export default function ProdutosMargem() {
         </TabsContent>
       </Tabs>
 
-      {/* Product Add/Edit Dialog */}
-      <Dialog open={showProdForm} onOpenChange={() => closeProdForm()}>
-        <DialogContent className="max-w-lg bg-card border-border">
-          <DialogHeader><DialogTitle className="text-foreground">{editProd ? "Editar Produto" : "Novo Produto"}</DialogTitle></DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-1.5">
-              <Label className="text-foreground/80">Nome *</Label>
-              <Input value={prodForm.nome} onChange={e => setProdForm(f => ({ ...f, nome: e.target.value }))} className="bg-secondary/50 border-border" />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <Label className="text-foreground/80">Categoria</Label>
-                <Select value={prodForm.categoria} onValueChange={v => setProdForm(f => ({ ...f, categoria: v as ProdutoCategoria }))}>
-                  <SelectTrigger className="bg-secondary/50 border-border"><SelectValue /></SelectTrigger>
-                  <SelectContent>{CATEGORIAS.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-foreground/80">Preço de venda (R$)</Label>
-                <Input type="number" step="0.01" value={prodForm.preco_venda || ""} onChange={e => setProdForm(f => ({ ...f, preco_venda: Number(e.target.value) }))} className="bg-secondary/50 border-border" />
-              </div>
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-foreground/80">Observação</Label>
-              <Textarea value={prodForm.observacao} onChange={e => setProdForm(f => ({ ...f, observacao: e.target.value }))} className="bg-secondary/50 border-border" rows={2} />
-            </div>
-          </div>
-
-          <DialogFooter>
-            <Button variant="outline" onClick={closeProdForm} className="border-border">Cancelar</Button>
-            <Button onClick={() => saveProd.mutate()} disabled={saveProd.isPending} className="gold-gradient text-primary-foreground">
-              {saveProd.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Salvar"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <ProdutoSheet open={showProdForm} produto={editProd} onClose={closeProdForm} />
 
       {/* Compradores Dialog */}
       <Dialog open={!!showCompradores} onOpenChange={() => setShowCompradores(null)}>
