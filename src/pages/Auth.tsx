@@ -67,12 +67,13 @@ export default function Auth() {
             <TrendingUp className="h-7 w-7 text-primary-foreground" />
           </div>
           <h1 className="text-2xl font-bold tracking-tight">
-            <span className="gold-text">Worklash</span>{" "}
-            <span className="text-foreground">Finance</span>
+            <span className="text-foreground">Escritório</span>{" "}
+            <span className="gold-text">Worklash</span>
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Sistema financeiro inteligente
+            O escritório digital do seu negócio
           </p>
+
         </div>
 
         {/* Card */}
