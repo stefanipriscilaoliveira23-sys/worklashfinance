@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import {
   Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
-import { GripVertical, Loader2, Pencil, Plus, Trash2, Users } from "lucide-react";
+import { ChevronDown, GripVertical, Loader2, Pencil, Plus, Trash2, Users } from "lucide-react";
 
 type Processo = {
   id: string;
