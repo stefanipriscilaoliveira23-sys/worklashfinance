@@ -42,7 +42,8 @@ export default function Receitas() {
   const { data: receitas, isLoading } = useQuery({
     queryKey: ["receitas-all"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("receitas").select("*").order("data", { ascending: true });
+      const { data, error } = await supabase.from("receitas").select("*").order("data", { ascending: false });
+
       if (error) throw error;
       return data;
     },
