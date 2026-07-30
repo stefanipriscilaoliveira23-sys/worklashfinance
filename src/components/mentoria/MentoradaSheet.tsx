@@ -292,6 +292,16 @@ export default function MentoradaSheet({ id, onClose }: Props) {
                       </SelectContent>
                     </Select>
                   </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Pipeline</Label>
+                    <Select value={m.pipeline_id ?? ""} onValueChange={(v) => salvar.mutate({ pipeline_id: v })}>
+                      <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                      <SelectContent>
+                        {(pipelines ?? []).map((p) => <SelectItem key={p.id} value={p.id}>{p.nome}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
                   <Campo label="Prazo (meses)" type="number" value={String(m.prazo_meses ?? "")}
                     onSave={(v) => salvar.mutate({ prazo_meses: Number(v) || 0 })} />
                   <div className="space-y-1.5">
