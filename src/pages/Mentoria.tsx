@@ -64,8 +64,12 @@ export default function Mentoria() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const filtradas = (mentoradas ?? []).filter((m) =>
-    m.nome.toLowerCase().includes(busca.toLowerCase())
+  const pendencias = (mentoradas ?? []).filter((m) => !!m.motivo_cancelamento);
+
+  const filtradas = (mentoradas ?? []).filter(
+    (m) =>
+      m.nome.toLowerCase().includes(busca.toLowerCase()) &&
+      (!soPendencias || !!m.motivo_cancelamento)
   );
 
   const ativas = (mentoradas ?? []).filter((m) => !["Concluída", "Cancelada", "Inativa"].includes(m.status_jornada));
@@ -73,6 +77,21 @@ export default function Mentoria() {
     const d = diasRestantes(m.data_termino);
     return d !== null && d <= 30 && d >= 0 && m.status_jornada !== "Cancelada";
   });
+
+  useEffect(() => {
+    if (!mentoradas || pendencias.length === 0) return;
+    const chave = `mentoria-pendencias-${new Date().toISOString().slice(0, 10)}`;
+    if (localStorage.getItem(chave)) return;
+    localStorage.setItem(chave, "1");
+    const juridico = pendencias.filter((m) => (m.motivo_cancelamento ?? "").toLowerCase().includes("jur")).length;
+    notificarProprio({
+      titulo: `${pendencias.length} pendências jurídicas / inadimplência`,
+      descricao: `${juridico} no jurídico e ${pendencias.length - juridico} com parcelas em atraso. Acompanhe a cobrança.`,
+      tipo: "mentoria",
+      link_interno: "/mentoria",
+    });
+  }, [mentoradas, pendencias.length]);
+
 
   return (
     <div className="space-y-6 animate-fade-in">
