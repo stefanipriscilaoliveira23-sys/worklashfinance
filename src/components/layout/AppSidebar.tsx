@@ -56,7 +56,7 @@ const setores: Setor[] = [
     setor: "Comercial",
     items: [
       { title: "Scripts", url: "/scripts", icon: MessageSquareText },
-      { title: "Nossos Produtos", url: "/produtos", icon: Package, roles: ["admin", "administrativo"] },
+      { title: "Nossos Produtos", url: "/produtos", icon: Package },
       { title: "Formulários", url: "/formularios", icon: ClipboardList },
     ],
   },
