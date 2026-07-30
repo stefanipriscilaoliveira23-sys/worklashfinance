@@ -15,6 +15,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import EditarContratoDialog from "@/components/parcelas/EditarContratoDialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ClienteInteracoes, ClienteDocumentos } from "@/components/clientes/ClienteExtras";
+
 import { EditarReceitaModal } from "@/components/receitas/EditarReceitaModal";
 import type { Tables } from "@/integrations/supabase/types";
 
