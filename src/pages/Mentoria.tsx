@@ -75,6 +75,18 @@ export default function Mentoria() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const criarPipeline = useMutation({
+    mutationFn: async (nome: string) => {
+      const { error } = await supabase.from("pipelines").insert({ nome, ordem: (pipelines ?? []).length + 1 });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["pipelines"] });
+      toast.success("Pipeline criada");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   const doPipeline = (mentoradas ?? []).filter(
     (m) => pipelineId === "todas" || m.pipeline_id === pipelineId
   );
