@@ -82,7 +82,8 @@ export default function Receitas() {
         .from("parcelas_mentoria_detalhe")
         .select("*, parcelas_mentoria!inner(*)")
         .eq("status", "Quitado")
-        .order("data_pagamento", { ascending: true });
+        .order("data_pagamento", { ascending: false });
+
       return data ?? [];
     },
   });
