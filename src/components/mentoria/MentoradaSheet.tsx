@@ -39,6 +39,16 @@ export default function MentoradaSheet({ id, onClose }: Props) {
     },
   });
 
+  const { data: pipelines } = useQuery({
+    queryKey: ["pipelines"],
+    queryFn: async () => {
+      const { data } = await supabase.from("pipelines").select("*").order("ordem");
+      return data ?? [];
+    },
+  });
+
+
+
   const { data: tarefas } = useQuery({
     queryKey: ["mentorada-tarefas", id],
     enabled: !!id,
