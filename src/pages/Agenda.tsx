@@ -197,16 +197,20 @@ export default function Agenda() {
 
   const criarAgendamento = useMutation({
     mutationFn: async () => {
-      if (!agForm.nome.trim() || !agForm.data || !agForm.hora_inicio) throw new Error("Preencha nome, data e horário");
+      if (!agForm.nome.trim() || !agForm.data || !agForm.hora_inicio) throw new Error("Preencha convidado, data e horário");
+      if (!agForm.anfitriao_id) throw new Error("Escolha o anfitrião da reunião");
       const tipo = (tipos ?? []).find((t) => t.id === agForm.tipo_id);
       const dur = tipo?.duracao_minutos ?? 60;
       const [h, min] = agForm.hora_inicio.split(":").map(Number);
       const fimMin = h * 60 + min + dur;
       const horaFim = `${String(Math.floor(fimMin / 60) % 24).padStart(2, "0")}:${String(fimMin % 60).padStart(2, "0")}`;
-      const { error } = await supabase.from("agendamentos").insert({
+      const { data: criado, error } = await supabase.from("agendamentos").insert({
         nome: agForm.nome.trim(),
         whatsapp: agForm.whatsapp || null,
+        instagram: agForm.instagram || null,
         tipo_id: agForm.tipo_id || null,
+        anfitriao_id: agForm.anfitriao_id,
+        agendado_por: user?.id ?? null,
         data: agForm.data,
         hora_inicio: agForm.hora_inicio,
         hora_fim: horaFim,
@@ -214,22 +218,46 @@ export default function Agenda() {
         link_reuniao: agForm.link_reuniao || null,
         status: "Confirmado",
         origem: "Interno",
-      });
+      }).select("id").single();
       if (error) throw error;
+
+      const anfitriao = (anfitrioes ?? []).find((a) => a.id === agForm.anfitriao_id);
+      const perfilAnfitriao = (perfis ?? []).find(
+        (p) => (p.email ?? "").toLowerCase() === (anfitriao?.email ?? "").toLowerCase() && !!anfitriao?.email,
+      );
+      const descricaoReuniao = `${agForm.nome} em ${formatDate(agForm.data)} às ${agForm.hora_inicio} (${tipo?.nome ?? "reunião"})`;
+
+      if (perfilAnfitriao?.user_id) {
+        await criarNotificacao({
+          destinatario_id: perfilAnfitriao.user_id,
+          titulo: `Reunião agendada: ${descricaoReuniao}`,
+          tipo: "agenda",
+          link_interno: "/agenda",
+        });
+      }
+
       await notificarProprio({
-        titulo: "Novo agendamento",
-        descricao: `${agForm.nome} em ${formatDate(agForm.data)} às ${agForm.hora_inicio}`,
+        titulo: "Reunião agendada",
+        descricao: `${descricaoReuniao} com ${anfitriao?.nome ?? "anfitrião"}`,
         tipo: "agenda", link_interno: "/agenda",
       });
+
+      if (criado?.id) {
+        await supabase.from("agendamento_tarefas").insert([
+          { agendamento_id: criado.id, responsavel_id: user?.id ?? null, titulo: "Enviar lembrete ao anfitrião" },
+          { agendamento_id: criado.id, responsavel_id: user?.id ?? null, titulo: "Enviar confirmação ao convidado" },
+        ]);
+      }
     },
     onSuccess: () => {
       setShowAgendar(false);
-      setAgForm({ nome: "", whatsapp: "", tipo_id: "", data: "", hora_inicio: "", observacoes: "", link_reuniao: "" });
+      setAgForm({ ...AG_VAZIO });
       qc.invalidateQueries({ queryKey: ["agendamentos"] });
       toast.success("Agendamento criado");
     },
     onError: (e: Error) => toast.error(e.message),
   });
+
 
   const mudarStatus = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: string }) => {
