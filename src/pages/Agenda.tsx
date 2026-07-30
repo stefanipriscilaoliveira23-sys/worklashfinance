@@ -570,15 +570,31 @@ export default function Agenda() {
       <Dialog open={showAgendar} onOpenChange={setShowAgendar}>
         <DialogContent>
           <DialogHeader><DialogTitle>Novo agendamento</DialogTitle></DialogHeader>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-3 max-h-[70vh] overflow-y-auto pr-1">
             <div className="space-y-1.5 col-span-2">
-              <Label className="text-xs">Nome *</Label>
+              <Label className="text-xs">Convidado *</Label>
               <Input value={agForm.nome} onChange={(e) => setAgForm({ ...agForm, nome: e.target.value })} />
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs">WhatsApp</Label>
               <Input value={agForm.whatsapp} onChange={(e) => setAgForm({ ...agForm, whatsapp: e.target.value })} />
             </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Instagram</Label>
+              <Input value={agForm.instagram} onChange={(e) => setAgForm({ ...agForm, instagram: e.target.value })} />
+            </div>
+            <div className="space-y-1.5 col-span-2">
+              <Label className="text-xs">Anfitrião *</Label>
+              <Select value={agForm.anfitriao_id} onValueChange={(v) => setAgForm({ ...agForm, anfitriao_id: v })}>
+                <SelectTrigger><SelectValue placeholder="Quem vai conduzir" /></SelectTrigger>
+                <SelectContent>
+                  {(anfitrioes ?? []).filter((a) => a.ativo).map((a) => (
+                    <SelectItem key={a.id} value={a.id}>{a.nome}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
             <div className="space-y-1.5">
               <Label className="text-xs">Tipo</Label>
               <Select value={agForm.tipo_id} onValueChange={(v) => setAgForm({ ...agForm, tipo_id: v })}>
