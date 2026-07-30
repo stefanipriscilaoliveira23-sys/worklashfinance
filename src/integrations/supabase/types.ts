@@ -1562,11 +1562,21 @@ export type Database = {
         Row: {
           ativo: boolean
           categoria: Database["public"]["Enums"]["produto_categoria"]
+          como_funciona: string | null
           custo_direto_fixo_mensal: number | null
           custo_direto_percentual: number | null
+          diferenciais: string | null
+          entregaveis: string | null
+          explicacao_comercial: string | null
           id: string
+          link_pagamento: string | null
+          modulos_aulas: string | null
           nome: string
+          o_que_e: string | null
           observacao: string | null
+          para_quem: string | null
+          para_quem_nao: string | null
+          persona: string | null
           plataformas: string[] | null
           preco_venda: number
           tipo: string | null
@@ -1574,11 +1584,21 @@ export type Database = {
         Insert: {
           ativo?: boolean
           categoria: Database["public"]["Enums"]["produto_categoria"]
+          como_funciona?: string | null
           custo_direto_fixo_mensal?: number | null
           custo_direto_percentual?: number | null
+          diferenciais?: string | null
+          entregaveis?: string | null
+          explicacao_comercial?: string | null
           id?: string
+          link_pagamento?: string | null
+          modulos_aulas?: string | null
           nome: string
+          o_que_e?: string | null
           observacao?: string | null
+          para_quem?: string | null
+          para_quem_nao?: string | null
+          persona?: string | null
           plataformas?: string[] | null
           preco_venda?: number
           tipo?: string | null
@@ -1586,11 +1606,21 @@ export type Database = {
         Update: {
           ativo?: boolean
           categoria?: Database["public"]["Enums"]["produto_categoria"]
+          como_funciona?: string | null
           custo_direto_fixo_mensal?: number | null
           custo_direto_percentual?: number | null
+          diferenciais?: string | null
+          entregaveis?: string | null
+          explicacao_comercial?: string | null
           id?: string
+          link_pagamento?: string | null
+          modulos_aulas?: string | null
           nome?: string
+          o_que_e?: string | null
           observacao?: string | null
+          para_quem?: string | null
+          para_quem_nao?: string | null
+          persona?: string | null
           plataformas?: string[] | null
           preco_venda?: number
           tipo?: string | null
