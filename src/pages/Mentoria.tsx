@@ -75,19 +75,24 @@ export default function Mentoria() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const pendencias = (mentoradas ?? []).filter((m) => !!m.motivo_cancelamento);
+  const doPipeline = (mentoradas ?? []).filter(
+    (m) => pipelineId === "todas" || m.pipeline_id === pipelineId
+  );
 
-  const filtradas = (mentoradas ?? []).filter(
+  const pendencias = doPipeline.filter((m) => !!m.motivo_cancelamento);
+
+  const filtradas = doPipeline.filter(
     (m) =>
       m.nome.toLowerCase().includes(busca.toLowerCase()) &&
       (!soPendencias || !!m.motivo_cancelamento)
   );
 
-  const ativas = (mentoradas ?? []).filter((m) => !["Concluída", "Cancelada", "Inativa"].includes(m.status_jornada));
-  const emRenovacao = (mentoradas ?? []).filter((m) => {
+  const ativas = doPipeline.filter((m) => !["Concluída", "Cancelada", "Inativa"].includes(m.status_jornada));
+  const emRenovacao = doPipeline.filter((m) => {
     const d = diasRestantes(m.data_termino);
     return d !== null && d <= 30 && d >= 0 && m.status_jornada !== "Cancelada";
   });
+
 
   useEffect(() => {
     if (!mentoradas || pendencias.length === 0) return;
