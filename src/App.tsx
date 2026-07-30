@@ -54,9 +54,18 @@ const App = () => (
               <Route path="/agenda" element={<Agenda />} />
 
               <Route path="/dashboard" element={<AdminRoute><Dashboard /></AdminRoute>} />
+              <Route path="/processos" element={<Processos />} />
+              <Route path="/biblioteca" element={<BibliotecaProcessos />} />
+              <Route path="/scripts" element={<Scripts />} />
+              <Route path="/produtos-cursos" element={<ProdutosCursos />} />
+              <Route path="/formularios" element={<Formularios />} />
+              <Route path="/dre" element={<AdminRoute><DRE /></AdminRoute>} />
+
+              <Route path="/dashboard" element={<AdminRoute><Dashboard /></AdminRoute>} />
               <Route path="/receitas" element={<Receitas />} />
               <Route path="/parcelas" element={<ParcelasMentoria />} />
               <Route path="/clientes" element={<Clientes />} />
+
               <Route path="/despesas-empresa" element={<AdminRoute><DespesasEmpresa /></AdminRoute>} />
               <Route path="/despesas-pessoal" element={<AdminRoute><DespesasPessoal /></AdminRoute>} />
               <Route path="/eventos" element={<AdminRoute><EventosEspeciais /></AdminRoute>} />
