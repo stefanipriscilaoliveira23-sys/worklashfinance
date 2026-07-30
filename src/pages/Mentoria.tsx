@@ -22,7 +22,17 @@ export default function Mentoria() {
   const [arrastando, setArrastando] = useState<string | null>(null);
   const [colunaAlvo, setColunaAlvo] = useState<string | null>(null);
   const [soPendencias, setSoPendencias] = useState(false);
+  const [pipelineId, setPipelineId] = useState<string>("todas");
 
+  const { data: pipelines } = useQuery({
+    queryKey: ["pipelines"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("pipelines").select("*").order("ordem", { ascending: true });
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
 
   const { data: mentoradas, isLoading } = useQuery({
     queryKey: ["mentoradas"],
@@ -43,6 +53,7 @@ export default function Mentoria() {
       return data ?? [];
     },
   });
+
 
   const progressoDe = (mentoradaId: string, etapa: string) => {
     const itens = (tarefas ?? []).filter((t) => t.mentorada_id === mentoradaId && t.etapa === etapa);
