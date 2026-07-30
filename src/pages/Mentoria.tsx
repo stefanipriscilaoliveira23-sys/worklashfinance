@@ -152,6 +152,7 @@ export default function Mentoria() {
                               }`}
                             >
                               <p className="text-sm font-medium truncate">{m.nome}</p>
+                              <TagsAluna tags={(m as any).tags} />
                               <p className="text-[11px] text-muted-foreground truncate">{m.programa}</p>
                               <p className="text-[11px] text-muted-foreground">
                                 {m.data_termino ? `Termina em ${formatDate(m.data_termino)}` : "Sem data de término"}
