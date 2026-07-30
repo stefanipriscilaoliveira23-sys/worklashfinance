@@ -461,7 +461,10 @@ export default function Clientes() {
                   </div>
                 )}
               </div>
+                </TabsContent>
+              </Tabs>
             </div>
+
           )}
         </SheetContent>
       </Sheet>
