@@ -969,6 +969,7 @@ export type Database = {
           status_cobranca: string | null
           status_jornada: string
           status_renovacao: string | null
+          tags: string[] | null
           telefone: string | null
           valor_mentoria: number | null
           vendedor: string | null
@@ -999,6 +1000,7 @@ export type Database = {
           status_cobranca?: string | null
           status_jornada?: string
           status_renovacao?: string | null
+          tags?: string[] | null
           telefone?: string | null
           valor_mentoria?: number | null
           vendedor?: string | null
@@ -1029,6 +1031,7 @@ export type Database = {
           status_cobranca?: string | null
           status_jornada?: string
           status_renovacao?: string | null
+          tags?: string[] | null
           telefone?: string | null
           valor_mentoria?: number | null
           vendedor?: string | null

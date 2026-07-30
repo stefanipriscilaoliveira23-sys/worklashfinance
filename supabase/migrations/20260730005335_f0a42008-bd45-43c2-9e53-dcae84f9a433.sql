@@ -1,0 +1,1 @@
+ALTER TABLE public.mentoradas ADD COLUMN IF NOT EXISTS tags text[];
