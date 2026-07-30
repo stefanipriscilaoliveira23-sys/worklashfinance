@@ -156,7 +156,7 @@ export default function Auth() {
         </div>
 
         <p className="mt-6 text-center text-xs text-muted-foreground">
-          Worklash Finance © {new Date().getFullYear()}
+          Escritório Worklash © {new Date().getFullYear()}
         </p>
       </div>
     </div>
