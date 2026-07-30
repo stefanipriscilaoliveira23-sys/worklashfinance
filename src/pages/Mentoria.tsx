@@ -117,10 +117,35 @@ export default function Mentoria() {
             <CardResumo titulo="Total cadastradas" valor={String((mentoradas ?? []).length)} />
           </div>
 
+          {pendencias.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setSoPendencias((v) => !v)}
+              className={`w-full rounded-xl border p-4 text-left transition-colors ${
+                soPendencias
+                  ? "border-destructive bg-destructive/10"
+                  : "border-destructive/40 bg-destructive/5 hover:bg-destructive/10"
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                <AlertTriangle className="h-4 w-4 text-destructive" />
+                <p className="text-sm font-semibold text-destructive">
+                  Pendências jurídicas / inadimplência ({pendencias.length})
+                </p>
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                {soPendencias
+                  ? "Mostrando apenas essas alunas. Clique para ver todas."
+                  : "Clique para filtrar e acompanhar essas alunas."}
+              </p>
+            </button>
+          )}
+
           <div className="relative max-w-sm">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input className="pl-9" placeholder="Buscar mentorada" value={busca} onChange={(e) => setBusca(e.target.value)} />
           </div>
+
 
           {isLoading ? (
             <div className="flex h-40 items-center justify-center">
