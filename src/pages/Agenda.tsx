@@ -290,6 +290,24 @@ export default function Agenda() {
     ? (agendamentos ?? []).filter((a) => a.data === diaSelecionado)
     : [];
 
+  // Lembrete diário das reuniões do dia (uma vez por dia por usuário)
+  useEffect(() => {
+    if (!agendamentos?.length) return;
+    const hoje = new Date().toISOString().slice(0, 10);
+    const doDia = agendamentos.filter((a) => a.data === hoje && a.status !== "Cancelado");
+    if (!doDia.length) return;
+    const chave = `agenda-lembrete-${hoje}`;
+    if (localStorage.getItem(chave)) return;
+    localStorage.setItem(chave, "1");
+    notificarProprio({
+      titulo: `${doDia.length} reunião(ões) hoje`,
+      descricao: doDia
+        .map((a) => `${a.hora_inicio?.slice(0, 5)} ${a.nome}`)
+        .join(" · "),
+      tipo: "agenda",
+      link_interno: "/agenda",
+    });
+  }, [agendamentos]);
 
 
   return (
