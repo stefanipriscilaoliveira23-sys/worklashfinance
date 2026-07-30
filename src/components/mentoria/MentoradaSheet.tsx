@@ -19,6 +19,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { Copy, Loader2, Plus, Trash2, Upload, FileText } from "lucide-react";
+import TagsAluna from "@/components/mentoria/TagsAluna";
 
 type Props = { id: string | null; onClose: () => void };
 
