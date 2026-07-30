@@ -545,19 +545,8 @@ export default function ProdutosMargem() {
                 </Select>
               </div>
               <div className="space-y-1.5">
-                <Label className="text-foreground/80">Custo Direto %</Label>
-                <Input type="number" step="0.1" value={prodForm.custo_direto_percentual || ""} onChange={e => setProdForm(f => ({ ...f, custo_direto_percentual: Number(e.target.value) }))} className="bg-secondary/50 border-border" />
-              </div>
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-foreground/80">Plataformas</Label>
-              <div className="flex flex-wrap gap-2">
-                {PLATAFORMAS.map(p => (
-                  <button key={p} type="button" onClick={() => setProdForm(f => ({ ...f, plataformas: f.plataformas.includes(p) ? f.plataformas.filter(x => x !== p) : [...f.plataformas, p] }))}
-                    className={`px-3 py-1.5 text-xs rounded-full border transition-colors ${prodForm.plataformas.includes(p) ? "bg-primary/20 border-primary text-primary" : "border-border text-muted-foreground hover:border-primary/50"}`}>
-                    {p}
-                  </button>
-                ))}
+                <Label className="text-foreground/80">Preço de venda (R$)</Label>
+                <Input type="number" step="0.01" value={prodForm.preco_venda || ""} onChange={e => setProdForm(f => ({ ...f, preco_venda: Number(e.target.value) }))} className="bg-secondary/50 border-border" />
               </div>
             </div>
             <div className="space-y-1.5">
@@ -565,6 +554,7 @@ export default function ProdutosMargem() {
               <Textarea value={prodForm.observacao} onChange={e => setProdForm(f => ({ ...f, observacao: e.target.value }))} className="bg-secondary/50 border-border" rows={2} />
             </div>
           </div>
+
           <DialogFooter>
             <Button variant="outline" onClick={closeProdForm} className="border-border">Cancelar</Button>
             <Button onClick={() => saveProd.mutate()} disabled={saveProd.isPending} className="gold-gradient text-primary-foreground">
