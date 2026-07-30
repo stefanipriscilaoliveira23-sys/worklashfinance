@@ -1568,6 +1568,7 @@ export type Database = {
           nome: string
           observacao: string | null
           plataformas: string[] | null
+          preco_venda: number
           tipo: string | null
         }
         Insert: {
@@ -1579,6 +1580,7 @@ export type Database = {
           nome: string
           observacao?: string | null
           plataformas?: string[] | null
+          preco_venda?: number
           tipo?: string | null
         }
         Update: {
@@ -1590,6 +1592,7 @@ export type Database = {
           nome?: string
           observacao?: string | null
           plataformas?: string[] | null
+          preco_venda?: number
           tipo?: string | null
         }
         Relationships: []
