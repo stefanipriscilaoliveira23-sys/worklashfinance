@@ -149,7 +149,18 @@ export default function Mentoria() {
                 {p.nome}
               </button>
             ))}
+            <button
+              type="button"
+              onClick={() => {
+                const nome = window.prompt("Nome da nova pipeline");
+                if (nome?.trim()) criarPipeline.mutate(nome.trim());
+              }}
+              className="rounded-full border border-dashed border-border px-3 py-1 text-xs font-medium text-muted-foreground hover:bg-surface-hover"
+            >
+              + Nova pipeline
+            </button>
           </div>
+
 
           <div className="grid gap-4 sm:grid-cols-3">
             <CardResumo titulo="Mentoradas ativas" valor={String(ativas.length)} />
