@@ -230,16 +230,17 @@ export default function Receitas() {
   // Only receitas (actual sales), filtered by date
   const salesEntries = filtered
     .filter(r => filterByDate(r.data, dateFilter))
-    .sort((a, b) => (a.data ?? "").localeCompare(b.data ?? ""));
+    .sort((a, b) => (b.data ?? "").localeCompare(a.data ?? ""));
 
   // Only parcelas, filtered by date
   const parcelasEntries = filteredParcelas
     .filter(r => filterByDate(r.data, dateFilter))
-    .sort((a, b) => (a.data ?? "").localeCompare(b.data ?? ""));
+    .sort((a, b) => (b.data ?? "").localeCompare(a.data ?? ""));
 
   // Merge for "Todas" tab
   const allEntries = [...salesEntries, ...parcelasEntries]
-    .sort((a, b) => (a.data ?? "").localeCompare(b.data ?? ""));
+    .sort((a, b) => (b.data ?? "").localeCompare(a.data ?? ""));
+
 
   // Tab filtering — category tabs show only sales, "parcelas" tab shows only parcelas
   const getTabData = () => {
