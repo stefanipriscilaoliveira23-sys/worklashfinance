@@ -6,6 +6,7 @@ import { formatCurrency, formatDate } from "@/lib/format";
 import { STATUS_JORNADA, diasRestantes, gerarTarefasDaEtapa } from "@/lib/mentoria";
 import MentoradaSheet from "@/components/mentoria/MentoradaSheet";
 import ProcessosTab from "@/components/mentoria/ProcessosTab";
+import TagsAluna from "@/components/mentoria/TagsAluna";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
