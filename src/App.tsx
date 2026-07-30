@@ -26,7 +26,14 @@ import Dividas from "./pages/Dividas";
 import Mentoria from "./pages/Mentoria";
 import Agenda from "./pages/Agenda";
 import AgendarPublico from "./pages/AgendarPublico";
+import Scripts from "./pages/Scripts";
+import ProdutosCursos from "./pages/ProdutosCursos";
+import Formularios from "./pages/Formularios";
+import BibliotecaProcessos from "./pages/BibliotecaProcessos";
+import Processos from "./pages/Processos";
+import DRE from "./pages/DRE";
 import NotFound from "./pages/NotFound";
+
 
 
 const queryClient = new QueryClient();
