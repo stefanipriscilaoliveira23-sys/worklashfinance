@@ -27,7 +27,6 @@ import Mentoria from "./pages/Mentoria";
 import Agenda from "./pages/Agenda";
 import AgendarPublico from "./pages/AgendarPublico";
 import Scripts from "./pages/Scripts";
-import ProdutosCursos from "./pages/ProdutosCursos";
 import Formularios from "./pages/Formularios";
 import BibliotecaProcessos from "./pages/BibliotecaProcessos";
 import Processos from "./pages/Processos";
@@ -57,7 +56,7 @@ const App = () => (
               <Route path="/processos" element={<Processos />} />
               <Route path="/biblioteca" element={<BibliotecaProcessos />} />
               <Route path="/scripts" element={<Scripts />} />
-              <Route path="/produtos-cursos" element={<ProdutosCursos />} />
+              <Route path="/produtos-cursos" element={<RoleRoute roles={["admin", "administrativo"]}><ProdutosMargem /></RoleRoute>} />
               <Route path="/formularios" element={<Formularios />} />
               <Route path="/dre" element={<AdminRoute><DRE /></AdminRoute>} />
 
