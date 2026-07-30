@@ -28,6 +28,7 @@ export default function ProcessosTab() {
   const [novaEtapa, setNovaEtapa] = useState<string | null>(null);
   const [form, setForm] = useState({ titulo: "", descricao: "" });
   const [arrastando, setArrastando] = useState<Processo | null>(null);
+  const [expandido, setExpandido] = useState<string | null>(null);
 
   const { data: processos, isLoading } = useQuery({
     queryKey: ["processos-etapa"],
