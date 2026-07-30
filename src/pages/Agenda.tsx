@@ -40,17 +40,46 @@ function proximosDias(n: number) {
   return out;
 }
 
+const AG_VAZIO = {
+  nome: "", whatsapp: "", instagram: "", tipo_id: "", anfitriao_id: "",
+  data: "", hora_inicio: "", observacoes: "", link_reuniao: "",
+};
+
 export default function Agenda() {
   const qc = useQueryClient();
+  const { user } = useAuth();
   const [showTipo, setShowTipo] = useState(false);
   const [showAgendar, setShowAgendar] = useState(false);
   const [tipoForm, setTipoForm] = useState({ nome: "", duracao_minutos: "60", descricao: "", titulo_pagina: "", subtitulo_pagina: "" });
-  const [agForm, setAgForm] = useState({ nome: "", whatsapp: "", tipo_id: "", data: "", hora_inicio: "", observacoes: "", link_reuniao: "" });
+  const [agForm, setAgForm] = useState({ ...AG_VAZIO });
   const [dispForm, setDispForm] = useState({ tipo_id: "", dia_semana: "1", hora_inicio: "09:00", hora_fim: "18:00" });
   const [bloqForm, setBloqForm] = useState({ data: "", hora_inicio: "", hora_fim: "", motivo: "" });
   const [visao, setVisao] = useState<"calendario" | "lista">("calendario");
   const [mesRef, setMesRef] = useState(() => { const h = new Date(); return new Date(h.getFullYear(), h.getMonth(), 1); });
   const [diaSelecionado, setDiaSelecionado] = useState<string | null>(null);
+
+  const { data: anfitrioes } = useQuery({
+    queryKey: ["anfitrioes"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("anfitrioes").select("*").order("nome");
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
+  const { data: perfis } = useQuery({
+    queryKey: ["perfis-equipe"],
+    queryFn: async () => {
+      const { data } = await supabase.from("profiles").select("user_id, email, display_name");
+      return data ?? [];
+    },
+  });
+
+  const nomeAnfitriao = (id: string | null | undefined) =>
+    (anfitrioes ?? []).find((a) => a.id === id)?.nome ?? "";
+  const nomeTipo = (id: string | null | undefined) =>
+    (tipos ?? []).find((t) => t.id === id)?.nome ?? "reunião";
+
 
   const { data: tipos } = useQuery({
     queryKey: ["agenda-tipos"],
