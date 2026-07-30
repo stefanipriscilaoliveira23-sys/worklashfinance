@@ -254,6 +254,7 @@ export default function MentoradaSheet({ id, onClose }: Props) {
                 {m.nome}
                 <Badge variant="secondary">{m.status_jornada}</Badge>
               </SheetTitle>
+              <TagsAluna tags={(m as any).tags} className="mt-0.5" />
               <p className="text-sm text-muted-foreground">
                 {m.programa} · {m.prazo_meses} meses
                 {restantes !== null && ` · ${restantes >= 0 ? `${restantes} dias restantes` : `encerrada há ${-restantes} dias`}`}
