@@ -1,16 +1,17 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { STATUS_JORNADA, diasRestantes, gerarTarefasDaEtapa } from "@/lib/mentoria";
+import { notificarProprio } from "@/lib/notificacoes";
 import MentoradaSheet from "@/components/mentoria/MentoradaSheet";
 import ProcessosTab from "@/components/mentoria/ProcessosTab";
 import TagsAluna from "@/components/mentoria/TagsAluna";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { GraduationCap, Loader2, Search } from "lucide-react";
+import { AlertTriangle, GraduationCap, Loader2, Search } from "lucide-react";
 
 const COLUNAS = STATUS_JORNADA;
 
@@ -20,6 +21,8 @@ export default function Mentoria() {
   const [busca, setBusca] = useState("");
   const [arrastando, setArrastando] = useState<string | null>(null);
   const [colunaAlvo, setColunaAlvo] = useState<string | null>(null);
+  const [soPendencias, setSoPendencias] = useState(false);
+
 
   const { data: mentoradas, isLoading } = useQuery({
     queryKey: ["mentoradas"],
@@ -61,8 +64,12 @@ export default function Mentoria() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const filtradas = (mentoradas ?? []).filter((m) =>
-    m.nome.toLowerCase().includes(busca.toLowerCase())
+  const pendencias = (mentoradas ?? []).filter((m) => !!m.motivo_cancelamento);
+
+  const filtradas = (mentoradas ?? []).filter(
+    (m) =>
+      m.nome.toLowerCase().includes(busca.toLowerCase()) &&
+      (!soPendencias || !!m.motivo_cancelamento)
   );
 
   const ativas = (mentoradas ?? []).filter((m) => !["Concluída", "Cancelada", "Inativa"].includes(m.status_jornada));
@@ -70,6 +77,21 @@ export default function Mentoria() {
     const d = diasRestantes(m.data_termino);
     return d !== null && d <= 30 && d >= 0 && m.status_jornada !== "Cancelada";
   });
+
+  useEffect(() => {
+    if (!mentoradas || pendencias.length === 0) return;
+    const chave = `mentoria-pendencias-${new Date().toISOString().slice(0, 10)}`;
+    if (localStorage.getItem(chave)) return;
+    localStorage.setItem(chave, "1");
+    const juridico = pendencias.filter((m) => (m.motivo_cancelamento ?? "").toLowerCase().includes("jur")).length;
+    notificarProprio({
+      titulo: `${pendencias.length} pendências jurídicas / inadimplência`,
+      descricao: `${juridico} no jurídico e ${pendencias.length - juridico} com parcelas em atraso. Acompanhe a cobrança.`,
+      tipo: "mentoria",
+      link_interno: "/mentoria",
+    });
+  }, [mentoradas, pendencias.length]);
+
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -95,10 +117,35 @@ export default function Mentoria() {
             <CardResumo titulo="Total cadastradas" valor={String((mentoradas ?? []).length)} />
           </div>
 
+          {pendencias.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setSoPendencias((v) => !v)}
+              className={`w-full rounded-xl border p-4 text-left transition-colors ${
+                soPendencias
+                  ? "border-destructive bg-destructive/10"
+                  : "border-destructive/40 bg-destructive/5 hover:bg-destructive/10"
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                <AlertTriangle className="h-4 w-4 text-destructive" />
+                <p className="text-sm font-semibold text-destructive">
+                  Pendências jurídicas / inadimplência ({pendencias.length})
+                </p>
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                {soPendencias
+                  ? "Mostrando apenas essas alunas. Clique para ver todas."
+                  : "Clique para filtrar e acompanhar essas alunas."}
+              </p>
+            </button>
+          )}
+
           <div className="relative max-w-sm">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input className="pl-9" placeholder="Buscar mentorada" value={busca} onChange={(e) => setBusca(e.target.value)} />
           </div>
+
 
           {isLoading ? (
             <div className="flex h-40 items-center justify-center">

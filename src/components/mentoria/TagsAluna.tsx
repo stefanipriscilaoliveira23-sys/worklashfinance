@@ -7,11 +7,20 @@ const CORES = [
   "bg-fuchsia-500/10 text-fuchsia-600 border-fuchsia-500/30",
 ];
 
+const ALERTA = "bg-destructive/15 text-destructive border-destructive/40";
+
+function normalizar(tag: string) {
+  return tag.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase();
+}
+
 function corDa(tag: string) {
+  const n = normalizar(tag);
+  if (n.includes("JURIDICO") || n.includes("INADIMPLENTE")) return ALERTA;
   let soma = 0;
   for (let i = 0; i < tag.length; i++) soma += tag.charCodeAt(i);
   return CORES[soma % CORES.length];
 }
+
 
 type Props = { tags?: string[] | null; className?: string };
 
