@@ -127,11 +127,36 @@ export default function Mentoria() {
         </TabsList>
 
         <TabsContent value="pipeline" className="space-y-4 pt-4">
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => setPipelineId("todas")}
+              className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
+                pipelineId === "todas" ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-surface-hover"
+              }`}
+            >
+              Todas
+            </button>
+            {(pipelines ?? []).map((p) => (
+              <button
+                key={p.id}
+                type="button"
+                onClick={() => setPipelineId(p.id)}
+                className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
+                  pipelineId === p.id ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-surface-hover"
+                }`}
+              >
+                {p.nome}
+              </button>
+            ))}
+          </div>
+
           <div className="grid gap-4 sm:grid-cols-3">
             <CardResumo titulo="Mentoradas ativas" valor={String(ativas.length)} />
             <CardResumo titulo="Renovação em até 30 dias" valor={String(emRenovacao.length)} />
-            <CardResumo titulo="Total cadastradas" valor={String((mentoradas ?? []).length)} />
+            <CardResumo titulo="Total cadastradas" valor={String(doPipeline.length)} />
           </div>
+
 
           {pendencias.length > 0 && (
             <button
