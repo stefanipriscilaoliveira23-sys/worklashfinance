@@ -56,7 +56,7 @@ const App = () => (
               <Route path="/processos" element={<Processos />} />
               <Route path="/biblioteca" element={<BibliotecaProcessos />} />
               <Route path="/scripts" element={<Scripts />} />
-              <Route path="/produtos-cursos" element={<RoleRoute roles={["admin", "administrativo"]}><ProdutosMargem /></RoleRoute>} />
+              <Route path="/produtos-cursos" element={<ProdutosMargem />} />
               <Route path="/formularios" element={<Formularios />} />
               <Route path="/dre" element={<AdminRoute><DRE /></AdminRoute>} />
 
@@ -68,7 +68,7 @@ const App = () => (
               <Route path="/despesas-empresa" element={<AdminRoute><DespesasEmpresa /></AdminRoute>} />
               <Route path="/despesas-pessoal" element={<AdminRoute><DespesasPessoal /></AdminRoute>} />
               <Route path="/eventos" element={<AdminRoute><EventosEspeciais /></AdminRoute>} />
-              <Route path="/produtos" element={<RoleRoute roles={["admin", "administrativo"]}><ProdutosMargem /></RoleRoute>} />
+              <Route path="/produtos" element={<ProdutosMargem />} />
               <Route path="/projecao" element={<AdminRoute><Projecao /></AdminRoute>} />
               <Route path="/pl-diario" element={<AdminRoute><PLDiario /></AdminRoute>} />
               <Route path="/cofrinho" element={<AdminRoute><Cofrinho /></AdminRoute>} />

@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth, isAdmin } from "@/contexts/AuthContext";
 import { formatCurrency, formatPercent, formatDate, getMonthRange, getDaysInMonth } from "@/lib/format";
 import { toast } from "sonner";
 import { Loader2, Package, TrendingUp, Users, BarChart3, PieChart as PieIcon, Plus, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
@@ -29,6 +29,7 @@ const CATEGORIAS: ProdutoCategoria[] = [
 
 export default function ProdutosMargem() {
   const { role } = useAuth();
+  const admin = isAdmin(role);
   const queryClient = useQueryClient();
   const [tab, setTab] = useState("catalogo");
   const [dateFilter, setDateFilter] = useState<DateFilter>({ type: "month", key: getCurrentMonthKey() });
@@ -272,10 +273,12 @@ export default function ProdutosMargem() {
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList className="bg-secondary/50 border border-border flex-wrap">
           <TabsTrigger value="catalogo"><Package className="h-3.5 w-3.5 mr-1.5" />Catálogo</TabsTrigger>
-          <TabsTrigger value="desempenho"><TrendingUp className="h-3.5 w-3.5 mr-1.5" />Desempenho</TabsTrigger>
-          <TabsTrigger value="ltv"><Users className="h-3.5 w-3.5 mr-1.5" />LTV e Ascensão</TabsTrigger>
-          <TabsTrigger value="cmv"><BarChart3 className="h-3.5 w-3.5 mr-1.5" />CMV</TabsTrigger>
-          <TabsTrigger value="rateio"><PieIcon className="h-3.5 w-3.5 mr-1.5" />Rateio de Despesas</TabsTrigger>
+          {admin && <>
+            <TabsTrigger value="desempenho"><TrendingUp className="h-3.5 w-3.5 mr-1.5" />Desempenho</TabsTrigger>
+            <TabsTrigger value="ltv"><Users className="h-3.5 w-3.5 mr-1.5" />LTV e Ascensão</TabsTrigger>
+            <TabsTrigger value="cmv"><BarChart3 className="h-3.5 w-3.5 mr-1.5" />CMV</TabsTrigger>
+            <TabsTrigger value="rateio"><PieIcon className="h-3.5 w-3.5 mr-1.5" />Rateio de Despesas</TabsTrigger>
+          </>}
         </TabsList>
 
         {/* CATÁLOGO */}
@@ -287,26 +290,26 @@ export default function ProdutosMargem() {
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead><tr className="border-b border-border bg-secondary/30">
-                  {["Produto", "Categoria", "Preço de Venda", "Preço Médio", "Margem Média %", "Vendas", "Ações"].map(h => (
+                  {(admin ? ["Produto", "Categoria", "Preço de Venda", "Preço Médio", "Margem Média %", "Vendas", "Ações"] : ["Produto", "Categoria", "Preço de Venda", "Ações"]).map(h => (
                     <th key={h} className={`p-3 text-xs font-medium text-muted-foreground ${["Preço de Venda", "Preço Médio", "Margem Média %", "Vendas"].includes(h) ? "text-right" : "text-left"}`}>{h}</th>
                   ))}
                 </tr></thead>
                 <tbody>
-                  {catalogData.length === 0 && <tr><td colSpan={7} className="p-12 text-center text-muted-foreground">Nenhum produto no catálogo</td></tr>}
+                  {catalogData.length === 0 && <tr><td colSpan={admin ? 7 : 4} className="p-12 text-center text-muted-foreground">Nenhum produto no catálogo</td></tr>}
                   {catalogData.map(p => (
                     <tr key={p.id} className="border-b border-border/50 hover:bg-surface-hover transition-colors">
                       <td className="p-3 font-medium">{p.nome}</td>
                       <td className="p-3 text-muted-foreground">{p.categoria}</td>
                       <td className="p-3 text-right text-muted-foreground">{formatCurrency((p as any).preco_venda ?? 0)}</td>
-                      <td className="p-3 text-right">{formatCurrency(p.precoMedio)}</td>
-                      <td className={`p-3 text-right font-medium ${p.margemPerc >= 70 ? "text-emerald-400" : "text-foreground"}`}>{formatPercent(p.margemPerc)}</td>
-                      <td className="p-3 text-right">
+                      {admin && <td className="p-3 text-right">{formatCurrency(p.precoMedio)}</td>}
+                      {admin && <td className={`p-3 text-right font-medium ${p.margemPerc >= 70 ? "text-emerald-400" : "text-foreground"}`}>{formatPercent(p.margemPerc)}</td>}
+                      {admin && <td className="p-3 text-right">
                         {p.vendas > 0 ? (
                           <button onClick={() => setShowCompradores({ nome: p.nome, compradores: p.compradores })} className="text-primary underline underline-offset-2 hover:text-primary/80 transition-colors cursor-pointer font-medium">{p.vendas}</button>
                         ) : (
                           <span className="text-muted-foreground">0</span>
                         )}
-                      </td>
+                      </td>}
                       <td className="p-3">
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild><button className="p-1.5 rounded hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors"><MoreHorizontal className="h-4 w-4" /></button></DropdownMenuTrigger>
@@ -336,7 +339,7 @@ export default function ProdutosMargem() {
                   ))}
                 </tr></thead>
                 <tbody>
-                  {desempenhoData.length === 0 && <tr><td colSpan={7} className="p-12 text-center text-muted-foreground">Nenhum produto no catálogo</td></tr>}
+                  {desempenhoData.length === 0 && <tr><td colSpan={admin ? 7 : 4} className="p-12 text-center text-muted-foreground">Nenhum produto no catálogo</td></tr>}
                   {desempenhoData.map((d, i) => (
                     <tr key={i} className={`border-b border-border/50 hover:bg-surface-hover transition-colors ${d.margemP >= 70 ? "bg-emerald-500/5" : ""} ${d.unidades === 0 ? "opacity-50" : ""}`}>
                       <td className="p-3 font-medium">{d.nome}</td>
@@ -384,7 +387,7 @@ export default function ProdutosMargem() {
                     ))}
                   </tr></thead>
                   <tbody>
-                    {ltvData.length === 0 && <tr><td colSpan={7} className="p-8 text-center text-muted-foreground">Sem produtos de entrada</td></tr>}
+                    {ltvData.length === 0 && <tr><td colSpan={admin ? 7 : 4} className="p-8 text-center text-muted-foreground">Sem produtos de entrada</td></tr>}
                     {ltvData.map((l, i) => (
                       <tr key={i} className="border-b border-border/50 hover:bg-surface-hover transition-colors">
                         <td className="p-3 font-medium">{l.nome}</td>
@@ -428,7 +431,7 @@ export default function ProdutosMargem() {
                     ))}
                   </tr></thead>
                   <tbody>
-                    {estoqueData.length === 0 && <tr><td colSpan={7} className="p-12 text-center text-muted-foreground">Nenhum lote</td></tr>}
+                    {estoqueData.length === 0 && <tr><td colSpan={admin ? 7 : 4} className="p-12 text-center text-muted-foreground">Nenhum lote</td></tr>}
                     {estoqueData.map((e, i) => (
                       <tr key={i} className="border-b border-border/50 hover:bg-surface-hover transition-colors">
                         <td className="p-3 font-medium">{e.nome}</td>
@@ -476,7 +479,7 @@ export default function ProdutosMargem() {
                     ))}
                   </tr></thead>
                   <tbody>
-                    {rateioData.length === 0 && <tr><td colSpan={7} className="p-12 text-center text-muted-foreground">Sem dados no mês</td></tr>}
+                    {rateioData.length === 0 && <tr><td colSpan={admin ? 7 : 4} className="p-12 text-center text-muted-foreground">Sem dados no mês</td></tr>}
                     {rateioData.map((r, i) => (
                       <tr key={i} className="border-b border-border/50 hover:bg-surface-hover transition-colors">
                         <td className="p-3 font-medium">{r.cat}</td>
