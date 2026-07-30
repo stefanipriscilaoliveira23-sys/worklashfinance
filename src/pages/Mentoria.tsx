@@ -6,6 +6,7 @@ import { formatCurrency, formatDate } from "@/lib/format";
 import { STATUS_JORNADA, diasRestantes, gerarTarefasDaEtapa } from "@/lib/mentoria";
 import MentoradaSheet from "@/components/mentoria/MentoradaSheet";
 import ProcessosTab from "@/components/mentoria/ProcessosTab";
+import TagsAluna from "@/components/mentoria/TagsAluna";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -152,6 +153,7 @@ export default function Mentoria() {
                               }`}
                             >
                               <p className="text-sm font-medium truncate">{m.nome}</p>
+                              <TagsAluna tags={(m as any).tags} />
                               <p className="text-[11px] text-muted-foreground truncate">{m.programa}</p>
                               <p className="text-[11px] text-muted-foreground">
                                 {m.data_termino ? `Termina em ${formatDate(m.data_termino)}` : "Sem data de término"}

@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import {
   Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
-import { GripVertical, Loader2, Pencil, Plus, Trash2, Users } from "lucide-react";
+import { ChevronDown, GripVertical, Loader2, Pencil, Plus, Trash2, Users } from "lucide-react";
 
 type Processo = {
   id: string;
@@ -28,6 +28,7 @@ export default function ProcessosTab() {
   const [novaEtapa, setNovaEtapa] = useState<string | null>(null);
   const [form, setForm] = useState({ titulo: "", descricao: "" });
   const [arrastando, setArrastando] = useState<Processo | null>(null);
+  const [expandido, setExpandido] = useState<string | null>(null);
 
   const { data: processos, isLoading } = useQuery({
     queryKey: ["processos-etapa"],
@@ -140,32 +141,48 @@ export default function ProcessosTab() {
               </div>
 
               <ul className="space-y-2">
-                {lista.map((p) => (
-                  <li
-                    key={p.id}
-                    draggable
-                    onDragStart={() => setArrastando(p)}
-                    onDragOver={(e) => e.preventDefault()}
-                    onDrop={(e) => { e.preventDefault(); soltarSobre(etapa, p); }}
-                    className="flex items-start gap-2 rounded-lg border border-border px-3 py-2"
-                  >
-                    <GripVertical className="h-4 w-4 mt-0.5 text-muted-foreground cursor-grab shrink-0" />
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm">{p.titulo}</p>
-                      {p.descricao && (
-                        <p className="text-[11px] text-muted-foreground whitespace-pre-wrap">{p.descricao}</p>
+                {lista.map((p) => {
+                  const aberto = expandido === p.id;
+                  return (
+                    <li
+                      key={p.id}
+                      draggable
+                      onDragStart={() => setArrastando(p)}
+                      onDragOver={(e) => e.preventDefault()}
+                      onDrop={(e) => { e.preventDefault(); soltarSobre(etapa, p); }}
+                      className="rounded-lg border border-border"
+                    >
+                      <button
+                        type="button"
+                        onClick={() => setExpandido(aberto ? null : p.id)}
+                        className="flex w-full items-center gap-2 px-3 py-2 text-left"
+                      >
+                        <GripVertical className="h-4 w-4 text-muted-foreground cursor-grab shrink-0" />
+                        <span className="min-w-0 flex-1 text-sm truncate">{p.titulo}</span>
+                        <ChevronDown className={`h-4 w-4 shrink-0 text-muted-foreground transition-transform ${aberto ? "rotate-180" : ""}`} />
+                      </button>
+                      {aberto && (
+                        <div className="border-t border-border px-3 py-2 space-y-2">
+                          {p.descricao ? (
+                            <p className="text-[11px] text-muted-foreground whitespace-pre-wrap">{p.descricao}</p>
+                          ) : (
+                            <p className="text-[11px] text-muted-foreground">Sem descrição.</p>
+                          )}
+                          <div className="flex justify-end gap-3">
+                            <button className="text-muted-foreground hover:text-primary"
+                              onClick={() => { setEditando(p); setForm({ titulo: p.titulo, descricao: p.descricao ?? "" }); }}>
+                              <Pencil className="h-3.5 w-3.5" />
+                            </button>
+                            <button className="text-muted-foreground hover:text-destructive"
+                              onClick={() => excluir.mutate(p.id)}>
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                        </div>
                       )}
-                    </div>
-                    <button className="text-muted-foreground hover:text-primary"
-                      onClick={() => { setEditando(p); setForm({ titulo: p.titulo, descricao: p.descricao ?? "" }); }}>
-                      <Pencil className="h-3.5 w-3.5" />
-                    </button>
-                    <button className="text-muted-foreground hover:text-destructive"
-                      onClick={() => excluir.mutate(p.id)}>
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
-                  </li>
-                ))}
+                    </li>
+                  );
+                })}
                 {lista.length === 0 && (
                   <li className="text-xs text-muted-foreground py-2">Nenhum processo nesta etapa.</li>
                 )}

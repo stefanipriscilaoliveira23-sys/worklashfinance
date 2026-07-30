@@ -19,6 +19,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { Copy, Loader2, Plus, Trash2, Upload, FileText } from "lucide-react";
+import TagsAluna from "@/components/mentoria/TagsAluna";
 
 type Props = { id: string | null; onClose: () => void };
 
@@ -254,6 +255,7 @@ export default function MentoradaSheet({ id, onClose }: Props) {
                 {m.nome}
                 <Badge variant="secondary">{m.status_jornada}</Badge>
               </SheetTitle>
+              <TagsAluna tags={(m as any).tags} className="mt-0.5" />
               <p className="text-sm text-muted-foreground">
                 {m.programa} · {m.prazo_meses} meses
                 {restantes !== null && ` · ${restantes >= 0 ? `${restantes} dias restantes` : `encerrada há ${-restantes} dias`}`}
