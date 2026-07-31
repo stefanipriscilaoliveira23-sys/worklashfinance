@@ -432,18 +432,28 @@ export default function MentoradaSheet({ id, onClose }: Props) {
                                 </p>
                               )}
                             </div>
+                            <button onClick={() => removerTarefa.mutate(t.id)}
+                              className="text-muted-foreground hover:text-destructive">
+                              <Trash2 className="h-4 w-4" />
+                            </button>
                           </li>
                         ))}
                         {daEtapa.length === 0 && (
                           <li className="text-sm text-muted-foreground">
-                            Nenhuma tarefa gerada para esta etapa. Configure em Mentoria, aba Processos.
+                            Nenhuma tarefa nesta etapa. Gere as tarefas padrão ou adicione uma abaixo.
                           </li>
                         )}
                       </ul>
+                      <div className="flex gap-2">
+                        <Input placeholder={`Nova tarefa em ${m.status_jornada}`} value={novaTarefa}
+                          onChange={(e) => setNovaTarefa(e.target.value)} />
+                        <Button onClick={() => addTarefa.mutate()}><Plus className="h-4 w-4" /></Button>
+                      </div>
                       <Button variant="outline" size="sm" onClick={() => gerarTarefas.mutate()}
                         disabled={gerarTarefas.isPending}>
                         Gerar tarefas da etapa
                       </Button>
+
                     </>
                   );
                 })()}
