@@ -385,6 +385,13 @@ export default function Mentoria() {
       </Tabs>
 
       <MentoradaSheet id={selecionada} onClose={() => setSelecionada(null)} />
+
+      <PipelineEditorDialog
+        pipeline={editandoPipeline}
+        open={!!editandoPipeline}
+        onClose={() => setEditandoPipeline(null)}
+      />
+
     </div>
   );
 }
