@@ -84,7 +84,7 @@ export default function ClienteSheet({ cliente, onClose, onEditContrato, onEditR
       const { error } = await supabase.from("clientes").update({
         nome: form.nome.trim(),
         email: form.email || null,
-        telefone: form.telefone || null,
+        telefone: form.whatsapp || null,
         whatsapp: form.whatsapp || null,
         instagram: form.instagram || null,
         observacao: form.observacao || null,
