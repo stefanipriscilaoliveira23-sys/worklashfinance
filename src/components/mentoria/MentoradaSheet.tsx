@@ -304,11 +304,13 @@ export default function MentoradaSheet({ id, onClose }: Props) {
               </SheetTitle>
               <TagsAluna
                 className="mt-0.5"
-                tags={[
-                  ...((((m as any).tags ?? []) as string[])),
-                  ...(inadimplente && !(((m as any).tags ?? []) as string[]).some((t) => t.toUpperCase().includes("INADIMPL"))
-                    ? ["INADIMPLENTE"] : []),
-                ]}
+                tags={(() => {
+                  const base = (parcelas ?? []).length > 0 && !inadimplente
+                    ? tagsDraft.filter((t) => !t.toUpperCase().includes("INADIMPL"))
+                    : tagsDraft;
+                  return inadimplente && !base.some((t) => t.toUpperCase().includes("INADIMPL"))
+                    ? [...base, "INADIMPLENTE"] : base;
+                })()}
               />
               <p className="text-sm text-muted-foreground">
                 {m.programa} · {m.prazo_meses} meses
