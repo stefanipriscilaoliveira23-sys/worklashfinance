@@ -58,6 +58,11 @@ export function NovaReceitaModal({ open, onClose }: { open: boolean; onClose: ()
   const [dataInicioMentoria, setDataInicioMentoria] = useState("");
   const [dataFimMentoria, setDataFimMentoria] = useState("");
   const [observacao, setObservacao] = useState("");
+  const [vendedor, setVendedor] = useState("");
+  const [descontoPercent, setDescontoPercent] = useState(0);
+  const [descontoValor, setDescontoValor] = useState(0);
+  const [freteValor, setFreteValor] = useState(0);
+
   const [origensVenda, setOrigensVenda] = useState<string[]>([]);
   const [produtoEntradaId, setProdutoEntradaId] = useState<string | null>(null);
 
