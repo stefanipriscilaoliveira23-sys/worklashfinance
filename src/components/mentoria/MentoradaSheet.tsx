@@ -98,16 +98,24 @@ export default function MentoradaSheet({ id, onClose }: Props) {
   });
 
   const { data: parcelas } = useQuery({
-    queryKey: ["mentorada-parcelas", m?.cliente_id],
-    enabled: !!m?.cliente_id,
+    queryKey: ["mentorada-parcelas", m?.cliente_id, m?.nome, m?.email],
+    enabled: !!m,
     queryFn: async () => {
-      const { data: contratos } = await supabase
-        .from("parcelas_mentoria").select("id, tipo_mentoria").eq("cliente_id", m!.cliente_id!);
-      const ids = (contratos ?? []).map((c) => c.id);
-      if (ids.length === 0) return [] as Record<string, any>[];
+      const ids = new Set<string>();
+      if (m?.cliente_id) {
+        const { data } = await supabase.from("parcelas_mentoria").select("id").eq("cliente_id", m.cliente_id);
+        (data ?? []).forEach((c) => ids.add(c.id));
+      }
+      const { data: porNome } = await supabase.from("parcelas_mentoria").select("id").ilike("cliente_nome", m!.nome);
+      (porNome ?? []).forEach((c) => ids.add(c.id));
+      if (m?.email) {
+        const { data: porEmail } = await supabase.from("parcelas_mentoria").select("id").eq("cliente_email", m.email);
+        (porEmail ?? []).forEach((c) => ids.add(c.id));
+      }
+      if (ids.size === 0) return [] as Record<string, any>[];
       const { data } = await supabase
         .from("parcelas_mentoria_detalhe").select("*")
-        .in("parcela_mentoria_id", ids)
+        .in("parcela_mentoria_id", [...ids])
         .order("data_vencimento", { ascending: true });
       return (data ?? []) as Record<string, any>[];
     },
