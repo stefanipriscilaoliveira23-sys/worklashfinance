@@ -90,6 +90,25 @@ export default function Clientes() {
   const total = pagina?.total ?? 0;
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
+  const filtrosAtivos = Boolean(buscaAtiva || (tagsFiltro && tagsFiltro.length) || produtoFiltro || dataDe || dataAte);
+
+  const { data: totalGeral } = useQuery({
+    queryKey: ["clientes-total-geral"],
+    queryFn: async () => {
+      const { count } = await supabase.from("clientes").select("id", { count: "exact", head: true });
+      return count ?? 0;
+    },
+  });
+
+  const { data: totalMentoradas } = useQuery({
+    queryKey: ["clientes-total-mentoradas"],
+    queryFn: async () => {
+      const { count } = await supabase.from("mentoradas").select("id", { count: "exact", head: true });
+      return count ?? 0;
+    },
+  });
+
+
 
   const { data: allContratos } = useQuery({
     queryKey: ["clientes-contratos-all"],
