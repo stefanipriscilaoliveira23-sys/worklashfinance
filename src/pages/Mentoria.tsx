@@ -216,14 +216,20 @@ export default function Mentoria() {
               <button
                 key={p.id}
                 type="button"
-                onClick={() => setPipelineId(p.id)}
-                className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
+                onClick={() => {
+                  if (pipelineId === p.id) setEditandoPipeline({ id: p.id, nome: p.nome });
+                  else setPipelineId(p.id);
+                }}
+                title={pipelineId === p.id ? "Clique novamente para editar etapas e tarefas" : p.nome}
+                className={`flex items-center gap-1 rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
                   pipelineId === p.id ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-surface-hover"
                 }`}
               >
                 {p.nome}
+                {pipelineId === p.id && <Settings2 className="h-3 w-3" />}
               </button>
             ))}
+
             <button
               type="button"
               onClick={() => {
