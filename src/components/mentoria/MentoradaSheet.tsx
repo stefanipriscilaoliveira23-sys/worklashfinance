@@ -97,6 +97,22 @@ export default function MentoradaSheet({ id, onClose }: Props) {
 
   });
 
+  const { data: parcelas } = useQuery({
+    queryKey: ["mentorada-parcelas", m?.cliente_id],
+    enabled: !!m?.cliente_id,
+    queryFn: async () => {
+      const { data: contratos } = await supabase
+        .from("parcelas_mentoria").select("id").eq("cliente_id", m!.cliente_id!);
+      const ids = (contratos ?? []).map((c) => c.id);
+      if (ids.length === 0) return [] as Record<string, any>[];
+      const { data } = await supabase
+        .from("parcelas_mentoria_detalhe").select("*")
+        .in("parcela_mentoria_id", ids)
+        .order("data_vencimento", { ascending: true });
+      return (data ?? []) as Record<string, any>[];
+    },
+  });
+
   const { data: modelos } = useQuery({
     queryKey: ["mensagens-modelo"],
     queryFn: async () => {
