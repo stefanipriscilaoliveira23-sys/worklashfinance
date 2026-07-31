@@ -356,9 +356,6 @@ export default function Mentoria() {
           )}
         </TabsContent>
 
-        <TabsContent value="processos" className="pt-4">
-          <ProcessosTab />
-        </TabsContent>
       </Tabs>
 
       <MentoradaSheet id={selecionada} onClose={() => setSelecionada(null)} />
