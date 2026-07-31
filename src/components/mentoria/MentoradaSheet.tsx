@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -18,8 +18,9 @@ import { Badge } from "@/components/ui/badge";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { Copy, Loader2, Plus, Trash2, Upload, FileText } from "lucide-react";
+import { Copy, Loader2, Plus, Save, Trash2, Upload, FileText } from "lucide-react";
 import TagsAluna from "@/components/mentoria/TagsAluna";
+import TagsEditor from "@/components/clientes/TagsEditor";
 
 type Props = { id: string | null; onClose: () => void };
 
@@ -28,6 +29,7 @@ export default function MentoradaSheet({ id, onClose }: Props) {
   const [novaNota, setNovaNota] = useState("");
   const [novaTarefa, setNovaTarefa] = useState("");
   const [uploading, setUploading] = useState(false);
+  const [tagsDraft, setTagsDraft] = useState<string[]>([]);
 
   const { data: m, isLoading } = useQuery({
     queryKey: ["mentorada", id],
@@ -38,6 +40,10 @@ export default function MentoradaSheet({ id, onClose }: Props) {
       return data;
     },
   });
+
+  useEffect(() => {
+    setTagsDraft([...new Set((((m as any)?.tags ?? []) as string[]))]);
+  }, [m?.id, (m as any)?.tags?.join?.("|")]);
 
   const { data: pipelines } = useQuery({
     queryKey: ["pipelines"],
@@ -98,16 +104,24 @@ export default function MentoradaSheet({ id, onClose }: Props) {
   });
 
   const { data: parcelas } = useQuery({
-    queryKey: ["mentorada-parcelas", m?.cliente_id],
-    enabled: !!m?.cliente_id,
+    queryKey: ["mentorada-parcelas", m?.cliente_id, m?.nome, m?.email],
+    enabled: !!m,
     queryFn: async () => {
-      const { data: contratos } = await supabase
-        .from("parcelas_mentoria").select("id, tipo_mentoria").eq("cliente_id", m!.cliente_id!);
-      const ids = (contratos ?? []).map((c) => c.id);
-      if (ids.length === 0) return [] as Record<string, any>[];
+      const ids = new Set<string>();
+      if (m?.cliente_id) {
+        const { data } = await supabase.from("parcelas_mentoria").select("id").eq("cliente_id", m.cliente_id);
+        (data ?? []).forEach((c) => ids.add(c.id));
+      }
+      const { data: porNome } = await supabase.from("parcelas_mentoria").select("id").ilike("cliente_nome", m!.nome);
+      (porNome ?? []).forEach((c) => ids.add(c.id));
+      if (m?.email) {
+        const { data: porEmail } = await supabase.from("parcelas_mentoria").select("id").eq("cliente_email", m.email);
+        (porEmail ?? []).forEach((c) => ids.add(c.id));
+      }
+      if (ids.size === 0) return [] as Record<string, any>[];
       const { data } = await supabase
         .from("parcelas_mentoria_detalhe").select("*")
-        .in("parcela_mentoria_id", ids)
+        .in("parcela_mentoria_id", [...ids])
         .order("data_vencimento", { ascending: true });
       return (data ?? []) as Record<string, any>[];
     },
@@ -290,11 +304,13 @@ export default function MentoradaSheet({ id, onClose }: Props) {
               </SheetTitle>
               <TagsAluna
                 className="mt-0.5"
-                tags={[
-                  ...((((m as any).tags ?? []) as string[])),
-                  ...(inadimplente && !(((m as any).tags ?? []) as string[]).some((t) => t.toUpperCase().includes("INADIMPL"))
-                    ? ["INADIMPLENTE"] : []),
-                ]}
+                tags={(() => {
+                  const base = (parcelas ?? []).length > 0 && !inadimplente
+                    ? tagsDraft.filter((t) => !t.toUpperCase().includes("INADIMPL"))
+                    : tagsDraft;
+                  return inadimplente && !base.some((t) => t.toUpperCase().includes("INADIMPL"))
+                    ? [...base, "INADIMPLENTE"] : base;
+                })()}
               />
               <p className="text-sm text-muted-foreground">
                 {m.programa} · {m.prazo_meses} meses
@@ -366,6 +382,10 @@ export default function MentoradaSheet({ id, onClose }: Props) {
                   <Label className="text-xs">Observação</Label>
                   <Textarea defaultValue={m.observacao ?? ""}
                     onBlur={(e) => e.target.value !== (m.observacao ?? "") && salvar.mutate({ observacao: e.target.value })} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Tags</Label>
+                  <TagsEditor tags={tagsDraft} onChange={setTagsDraft} />
                 </div>
                 {m.status_jornada === "Cancelada" && (
                   <div className="grid grid-cols-2 gap-3">
@@ -513,7 +533,15 @@ export default function MentoradaSheet({ id, onClose }: Props) {
                     </div>
                   )}
                   {(parcelas ?? []).length === 0 ? (
-                    <p className="text-sm text-muted-foreground">Nenhuma parcela encontrada.</p>
+                    <div className="space-y-2">
+                      <p className="text-sm text-muted-foreground">Nenhuma parcela encontrada.</p>
+                      {tagsDraft.some((t) => t.toUpperCase().includes("INADIMPL")) && (
+                        <p className="rounded-lg border border-destructive/40 bg-destructive/5 p-2 text-xs text-destructive">
+                          A tag INADIMPLENTE veio da importação, mas não existe contrato de mentoria lançado para esta aluna.
+                          Cadastre o contrato em Parcelas de mentoria para acompanhar os atrasos.
+                        </p>
+                      )}
+                    </div>
                   ) : (
                     <ul className="divide-y divide-border rounded-lg border border-border">
                       {(parcelas ?? []).map((p: Record<string, any>) => {
@@ -686,6 +714,13 @@ export default function MentoradaSheet({ id, onClose }: Props) {
                 </ul>
               </TabsContent>
             </Tabs>
+
+            <div className="sticky bottom-0 -mx-6 mt-4 border-t border-border bg-card px-6 py-3">
+              <Button className="w-full" disabled={salvar.isPending}
+                onClick={() => salvar.mutate({ tags: tagsDraft } as any)}>
+                <Save className="h-4 w-4 mr-2" /> {salvar.isPending ? "Salvando..." : "Salvar alterações"}
+              </Button>
+            </div>
           </>
         )}
       </SheetContent>

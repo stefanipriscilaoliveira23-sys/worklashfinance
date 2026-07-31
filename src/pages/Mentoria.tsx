@@ -55,32 +55,50 @@ export default function Mentoria() {
   });
 
   // Clientes com parcelas de mentoria em atraso (não quitadas e vencidas)
-  const { data: inadimplentes } = useQuery({
+  const { data: financeiro } = useQuery({
     queryKey: ["clientes-inadimplentes"],
     queryFn: async () => {
       const hoje = new Date().toISOString().slice(0, 10);
       const { data: contratos } = await supabase
         .from("parcelas_mentoria").select("id, cliente_id");
       const mapa = new Map<string, string>();
-      (contratos ?? []).forEach((c) => { if (c.cliente_id) mapa.set(c.id, c.cliente_id); });
+      const comContrato = new Set<string>();
+      (contratos ?? []).forEach((c) => {
+        if (c.cliente_id) { mapa.set(c.id, c.cliente_id); comContrato.add(c.cliente_id); }
+      });
       const ids = [...mapa.keys()];
-      if (!ids.length) return new Set<string>();
+      const inadimplentes = new Set<string>();
+      if (!ids.length) return { inadimplentes, comContrato };
       const { data: det } = await supabase
         .from("parcelas_mentoria_detalhe")
         .select("parcela_mentoria_id, status, data_vencimento")
         .in("parcela_mentoria_id", ids);
-      const set = new Set<string>();
       (det ?? []).forEach((d: any) => {
         const atrasada = d.status === "Atraso" || (d.status !== "Quitado" && d.data_vencimento && d.data_vencimento < hoje);
         const cid = mapa.get(d.parcela_mentoria_id);
-        if (atrasada && cid) set.add(cid);
+        if (atrasada && cid) inadimplentes.add(cid);
       });
-      return set;
+      return { inadimplentes, comContrato };
     },
   });
+  const inadimplentes = financeiro?.inadimplentes;
+  const comContrato = financeiro?.comContrato;
 
 
 
+  // Mostra INADIMPLENTE apenas quando há parcela vencida de verdade.
+  // Se a aluna já tem contrato lançado e está em dia, a tag antiga da importação é ocultada.
+  const tagsExibidas = (m: any) => {
+    const tags = ((m.tags ?? []) as string[]);
+    const atrasada = !!m.cliente_id && !!inadimplentes?.has(m.cliente_id);
+    const temContrato = !!m.cliente_id && !!comContrato?.has(m.cliente_id);
+    const base = temContrato && !atrasada
+      ? tags.filter((t) => !t.toUpperCase().includes("INADIMPL"))
+      : tags;
+    return atrasada && !base.some((t) => t.toUpperCase().includes("INADIMPL"))
+      ? [...base, "INADIMPLENTE"]
+      : base;
+  };
 
   const progressoDe = (mentoradaId: string, etapa: string) => {
     const itens = (tarefas ?? []).filter((t) => t.mentorada_id === mentoradaId && t.etapa === etapa);
@@ -291,14 +309,8 @@ export default function Mentoria() {
                               }`}
                             >
                               <p className="text-sm font-medium truncate">{m.nome}</p>
-                              <TagsAluna
-                                tags={[
-                                  ...(((m as any).tags ?? []) as string[]),
-                                  ...(m.cliente_id && inadimplentes?.has(m.cliente_id) &&
-                                    !(((m as any).tags ?? []) as string[]).some((t) => t.toUpperCase().includes("INADIMPL"))
-                                    ? ["INADIMPLENTE"] : []),
-                                ]}
-                              />
+                              <TagsAluna tags={tagsExibidas(m)} />
+
 
                               <p className="text-[11px] text-muted-foreground truncate">{m.programa}</p>
                               <p className="text-[11px] text-muted-foreground">
