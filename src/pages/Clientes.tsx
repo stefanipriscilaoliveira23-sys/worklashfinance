@@ -60,7 +60,7 @@ export default function Clientes() {
     queryKey: ["clientes-produtos-opcoes"],
     queryFn: async () => {
       const { data } = await supabase.from("produtos_catalogo").select("nome").order("nome");
-      return (data ?? []).map((p: any) => p.nome as string);
+      return [...new Set((data ?? []).map((p: any) => p.nome as string).filter(Boolean))];
     },
   });
 
@@ -363,8 +363,8 @@ export default function Clientes() {
                         <span className="text-xs text-muted-foreground">—</span>
                       ) : (
                         <div className="flex flex-wrap gap-1">
-                          {((c as any).tags as string[]).slice(0, 3).map(t => (
-                            <span key={t} className="rounded-full border border-border bg-secondary/50 px-1.5 py-0.5 text-[10px] text-muted-foreground">{t}</span>
+                          {[...new Set((c as any).tags as string[])].slice(0, 3).map((t, i) => (
+                            <span key={`${t}-${i}`} className="rounded-full border border-border bg-secondary/50 px-1.5 py-0.5 text-[10px] text-muted-foreground">{t}</span>
                           ))}
                           {((c as any).tags as string[]).length > 3 && (
                             <span className="text-[10px] text-muted-foreground">+{((c as any).tags as string[]).length - 3}</span>
