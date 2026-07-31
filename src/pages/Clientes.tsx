@@ -90,6 +90,25 @@ export default function Clientes() {
   const total = pagina?.total ?? 0;
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
+  const filtrosAtivos = Boolean(buscaAtiva || (tagsFiltro && tagsFiltro.length) || produtoFiltro || dataDe || dataAte);
+
+  const { data: totalGeral } = useQuery({
+    queryKey: ["clientes-total-geral"],
+    queryFn: async () => {
+      const { count } = await supabase.from("clientes").select("id", { count: "exact", head: true });
+      return count ?? 0;
+    },
+  });
+
+  const { data: totalMentoradas } = useQuery({
+    queryKey: ["clientes-total-mentoradas"],
+    queryFn: async () => {
+      const { count } = await supabase.from("mentoradas").select("id", { count: "exact", head: true });
+      return count ?? 0;
+    },
+  });
+
+
 
   const { data: allContratos } = useQuery({
     queryKey: ["clientes-contratos-all"],
@@ -206,46 +225,29 @@ export default function Clientes() {
       </div>
 
       {/* Metrics */}
-      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
-        {Object.entries(metrics.mentoriaTypes).map(([tipo, qtd]) => (
-          <Card key={tipo} className="border-border bg-card">
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+        <Card className="border-border bg-card">
+          <CardContent className="p-3">
+            <p className="text-[10px] uppercase text-muted-foreground tracking-wider">Total de clientes</p>
+            <p className="text-lg font-bold text-foreground">{(totalGeral ?? 0).toLocaleString("pt-BR")}</p>
+          </CardContent>
+        </Card>
+        <Card className="border-border bg-card">
+          <CardContent className="p-3">
+            <p className="text-[10px] uppercase text-muted-foreground tracking-wider">Mentoradas</p>
+            <p className="text-lg font-bold text-primary">{(totalMentoradas ?? 0).toLocaleString("pt-BR")}</p>
+          </CardContent>
+        </Card>
+        {filtrosAtivos && (
+          <Card className="border-primary/30 bg-primary/5">
             <CardContent className="p-3">
-              <p className="text-[10px] uppercase text-muted-foreground tracking-wider truncate">{tipo}</p>
-              <p className="text-lg font-bold text-foreground">{qtd}</p>
+              <p className="text-[10px] uppercase text-primary tracking-wider">Filtradas</p>
+              <p className="text-lg font-bold text-primary">{total.toLocaleString("pt-BR")}</p>
             </CardContent>
           </Card>
-        ))}
-        <Card className="border-destructive/20 bg-destructive/5">
-          <CardContent className="p-3">
-            <p className="text-[10px] uppercase text-destructive tracking-wider">Com atraso</p>
-            <p className="text-lg font-bold text-destructive">{metrics.atrasados}</p>
-          </CardContent>
-        </Card>
-        <Card className="border-border bg-card">
-          <CardContent className="p-3">
-            <p className="text-[10px] uppercase text-muted-foreground tracking-wider">Pagando</p>
-            <p className="text-lg font-bold text-foreground">{metrics.pagando}</p>
-          </CardContent>
-        </Card>
-        <Card className="border-border bg-card">
-          <CardContent className="p-3">
-            <p className="text-[10px] uppercase text-muted-foreground tracking-wider">Vencidas</p>
-            <p className="text-lg font-bold text-foreground">{metrics.vencidas}</p>
-          </CardContent>
-        </Card>
-        <Card className="border-border bg-card">
-          <CardContent className="p-3">
-            <p className="text-[10px] uppercase text-muted-foreground tracking-wider">Vencem este mês</p>
-            <p className="text-lg font-bold text-primary">{metrics.vencemEsteMes}</p>
-          </CardContent>
-        </Card>
-        <Card className="border-border bg-card">
-          <CardContent className="p-3">
-            <p className="text-[10px] uppercase text-muted-foreground tracking-wider">Quitadas (ativas)</p>
-            <p className="text-lg font-bold text-emerald-400">{metrics.quitadasAtivas}</p>
-          </CardContent>
-        </Card>
+        )}
       </div>
+
 
       {/* Filtros */}
       <div className="space-y-3 rounded-xl border border-border bg-card p-3">
