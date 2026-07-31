@@ -6,13 +6,13 @@ import { formatCurrency, formatDate } from "@/lib/format";
 import { STATUS_JORNADA, diasRestantes, gerarTarefasDaEtapa } from "@/lib/mentoria";
 import { notificarProprio } from "@/lib/notificacoes";
 import MentoradaSheet from "@/components/mentoria/MentoradaSheet";
+import PipelineEditorDialog from "@/components/mentoria/PipelineEditorDialog";
 import TagsAluna from "@/components/mentoria/TagsAluna";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { AlertTriangle, GraduationCap, Loader2, Search } from "lucide-react";
+import { AlertTriangle, GraduationCap, Loader2, Search, Settings2 } from "lucide-react";
 
-const COLUNAS = STATUS_JORNADA;
 
 export default function Mentoria() {
   const qc = useQueryClient();
@@ -22,6 +22,7 @@ export default function Mentoria() {
   const [colunaAlvo, setColunaAlvo] = useState<string | null>(null);
   const [soPendencias, setSoPendencias] = useState(false);
   const [pipelineId, setPipelineId] = useState<string>("todas");
+  const [editandoPipeline, setEditandoPipeline] = useState<{ id: string; nome: string } | null>(null);
 
   const { data: pipelines } = useQuery({
     queryKey: ["pipelines"],
@@ -32,6 +33,24 @@ export default function Mentoria() {
       return data ?? [];
     },
   });
+
+  const { data: etapasPipeline } = useQuery({
+    queryKey: ["pipeline-etapas", pipelineId],
+    enabled: pipelineId !== "todas",
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("pipeline_etapas" as any).select("nome, ordem")
+        .eq("pipeline_id", pipelineId).order("ordem", { ascending: true });
+      if (error) throw error;
+      return (data ?? []) as unknown as { nome: string; ordem: number }[];
+    },
+  });
+
+  const COLUNAS: string[] =
+    pipelineId !== "todas" && etapasPipeline?.length
+      ? etapasPipeline.map((e) => e.nome)
+      : [...STATUS_JORNADA];
+
 
   const { data: mentoradas, isLoading } = useQuery({
     queryKey: ["mentoradas"],
@@ -108,8 +127,10 @@ export default function Mentoria() {
     mutationFn: async ({ id, etapa }: { id: string; etapa: string }) => {
       const { error } = await supabase.from("mentoradas").update({ status_jornada: etapa }).eq("id", id);
       if (error) throw error;
-      await gerarTarefasDaEtapa(id, etapa);
+      const aluna = (mentoradas ?? []).find((m) => m.id === id);
+      await gerarTarefasDaEtapa(id, etapa, aluna?.pipeline_id ?? null);
     },
+
     onSuccess: (_d, v) => {
       qc.invalidateQueries({ queryKey: ["mentoradas"] });
       qc.invalidateQueries({ queryKey: ["mentorada-tarefas-todas"] });
@@ -197,14 +218,20 @@ export default function Mentoria() {
               <button
                 key={p.id}
                 type="button"
-                onClick={() => setPipelineId(p.id)}
-                className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
+                onClick={() => {
+                  if (pipelineId === p.id) setEditandoPipeline({ id: p.id, nome: p.nome });
+                  else setPipelineId(p.id);
+                }}
+                title={pipelineId === p.id ? "Clique novamente para editar etapas e tarefas" : p.nome}
+                className={`flex items-center gap-1 rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
                   pipelineId === p.id ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-surface-hover"
                 }`}
               >
                 {p.nome}
+                {pipelineId === p.id && <Settings2 className="h-3 w-3" />}
               </button>
             ))}
+
             <button
               type="button"
               onClick={() => {
@@ -358,6 +385,13 @@ export default function Mentoria() {
       </Tabs>
 
       <MentoradaSheet id={selecionada} onClose={() => setSelecionada(null)} />
+
+      <PipelineEditorDialog
+        pipeline={editandoPipeline}
+        open={!!editandoPipeline}
+        onClose={() => setEditandoPipeline(null)}
+      />
+
     </div>
   );
 }

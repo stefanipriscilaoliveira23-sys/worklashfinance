@@ -33,6 +33,8 @@ export default function Receitas() {
   const [editReceita, setEditReceita] = useState<any>(null);
   const [showFaturadoDetalhe, setShowFaturadoDetalhe] = useState(false);
   const [search, setSearch] = useState("");
+  const [filtroVendedor, setFiltroVendedor] = useState("all");
+
   const [filtroPlataforma, setFiltroPlataforma] = useState("all");
   const [filtroProduto, setFiltroProduto] = useState("all");
   const [filtroImportado, setFiltroImportado] = useState<"all" | "importado" | "manual">("all");
@@ -203,11 +205,15 @@ export default function Receitas() {
     };
   });
 
+  const vendedores = [...new Set(allReceitas.map((r: any) => r.vendedor).filter(Boolean))].sort() as string[];
+
   const filtered = allReceitas.filter((r) => {
     if (filtroPlataforma !== "all" && r.plataforma !== filtroPlataforma) return false;
     if (filtroProduto !== "all" && r.produto_nome !== filtroProduto) return false;
+    if (filtroVendedor !== "all" && ((r as any).vendedor ?? "") !== filtroVendedor) return false;
     if (filtroImportado === "importado" && !(r as any).importado) return false;
     if (filtroImportado === "manual" && (r as any).importado) return false;
+
     if (search) {
       const s = search.toLowerCase();
       return r.produto_nome.toLowerCase().includes(s) || (r.cliente_nome ?? "").toLowerCase().includes(s) || (r.cliente_email ?? "").toLowerCase().includes(s);
@@ -351,13 +357,14 @@ export default function Receitas() {
     <table className="w-full text-sm">
       <thead>
         <tr className="border-b border-border bg-secondary/30">
-          {["Data", "Produto", "Origem", "Cliente", "Bruto", "Taxa", "Líquido", "Ações"].map(h => (
+          {["Data", "Produto", "Origem", "Cliente", "Vendedor", "Bruto", "Taxa", "Líquido", "Ações"].map(h => (
             <th key={h} className={`p-3 text-xs font-medium text-muted-foreground ${["Bruto", "Taxa", "Líquido"].includes(h) ? "text-right" : "text-left"}`}>{h}</th>
           ))}
         </tr>
       </thead>
       <tbody>
-        {tabData.length === 0 && <tr><td colSpan={8} className="p-12 text-center text-muted-foreground">Nenhuma receita encontrada</td></tr>}
+        {tabData.length === 0 && <tr><td colSpan={9} className="p-12 text-center text-muted-foreground">Nenhuma receita encontrada</td></tr>}
+
         {tabData.map((r: any) => {
           const isParcela = !!r.is_parcela;
           return (
@@ -377,6 +384,8 @@ export default function Receitas() {
                   : "—"}
               </td>
               <td className="p-3 truncate max-w-[120px]">{r.cliente_nome || "—"}</td>
+              <td className="p-3 text-muted-foreground text-xs truncate max-w-[110px]">{r.vendedor || "—"}</td>
+
               <td className="p-3 text-right">{formatCurrency(r.valor_bruto)}</td>
               <td className="p-3 text-right text-muted-foreground">{formatCurrency(r.taxa_plataforma_valor ?? 0)}</td>
               <td className="p-3 text-right text-primary">{formatCurrency(r.valor_liquido ?? r.valor_bruto)}</td>
@@ -624,7 +633,15 @@ export default function Receitas() {
             {(produtosCatalogo ?? []).map(p => <SelectItem key={p.id} value={p.nome}>{p.nome}</SelectItem>)}
           </SelectContent>
         </Select>
+        <Select value={filtroVendedor} onValueChange={setFiltroVendedor}>
+          <SelectTrigger className="w-[170px] bg-secondary/50 border-border"><SelectValue placeholder="Vendedor" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todos vendedores</SelectItem>
+            {vendedores.map(v => <SelectItem key={v} value={v}>{v}</SelectItem>)}
+          </SelectContent>
+        </Select>
       </div>
+
 
       {/* Tabs + Tabela */}
       <Tabs value={tab} onValueChange={setTab}>

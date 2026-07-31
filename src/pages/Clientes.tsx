@@ -4,7 +4,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { toast } from "sonner";
-import { Search, Loader2, ChevronRight, Users, Plus, MoreHorizontal, Pencil, Trash2, AlertTriangle, CheckCircle2, Clock, DollarSign } from "lucide-react";
+import { Search, Loader2, ChevronRight, Users, Plus, MoreHorizontal, Pencil, Trash2, AlertTriangle, CheckCircle2, Clock, DollarSign, Download } from "lucide-react";
+import { exportCsv } from "@/lib/exportCsv";
+
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -159,6 +161,39 @@ export default function Clientes() {
 
   const filtered = clientes;
 
+  const [exportando, setExportando] = useState(false);
+  const exportarClientes = async () => {
+    setExportando(true);
+    try {
+      const { data, error } = await (supabase as any).rpc("buscar_clientes", {
+        p_busca: buscaAtiva || null,
+        p_tags: tagsFiltro.length ? tagsFiltro : null,
+        p_produto: produtoFiltro || null,
+        p_de: dataDe || null,
+        p_ate: dataAte || null,
+        p_limit: 100000,
+        p_offset: 0,
+      });
+      if (error) throw error;
+      const rows = (data ?? []) as any[];
+      exportCsv(
+        `clientes-${new Date().toISOString().split("T")[0]}.csv`,
+        ["Nome", "Email", "WhatsApp", "Telefone", "Instagram", "CPF", "Tags", "Observação", "Cadastro"],
+        rows.map((c) => [
+          c.nome, c.email ?? "", c.whatsapp ?? c.telefone ?? "", c.telefone ?? "",
+          c.instagram ?? "", c.cpf ?? "", (c.tags ?? []).join(" | "),
+          (c.observacao ?? "").replace(/\n/g, " "), formatDate(c.created_at),
+        ]),
+      );
+      toast.success(`${rows.length} cliente(s) exportado(s)`);
+    } catch (e: any) {
+      toast.error(e.message ?? "Erro ao exportar");
+    } finally {
+      setExportando(false);
+    }
+  };
+
+
 
   // Metrics
   const metrics = useMemo(() => {
@@ -215,9 +250,14 @@ export default function Clientes() {
             {total.toLocaleString("pt-BR")} cliente{total !== 1 ? "s" : ""}
           </Badge>
 
+          <Button variant="outline" className="border-border" onClick={exportarClientes} disabled={exportando}>
+            {exportando ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Download className="h-4 w-4 mr-2" />}
+            Exportar {filtrosAtivos ? "filtrados" : "tudo"}
+          </Button>
           <Button variant="outline" className="border-border" onClick={() => setShowTags(true)}>
             <Plus className="h-4 w-4 mr-2" /> Tags
           </Button>
+
           <Button onClick={() => { setEditCliente(null); setShowForm(true); }} className="gold-gradient text-primary-foreground">
             <Plus className="h-4 w-4 mr-2" /> Nova cliente
           </Button>

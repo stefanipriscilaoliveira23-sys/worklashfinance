@@ -17,11 +17,13 @@ export const PROGRAMAS = ["Educadora Outsider", "Digital Beauty", "Mentoria Indi
 export const FORMAS_PAGAMENTO = ["Pix", "Cartão de crédito", "Boleto", "Transferência", "Dinheiro"];
 
 /** Gera as tarefas configuradas de uma etapa para uma mentorada, sem duplicar. */
-export async function gerarTarefasDaEtapa(mentoradaId: string, etapa: string): Promise<number> {
-  const { data: processos } = await supabase
-    .from("processos_etapa").select("*").eq("etapa", etapa).eq("ativo", true)
-    .order("ordem", { ascending: true });
+export async function gerarTarefasDaEtapa(mentoradaId: string, etapa: string, pipelineId?: string | null): Promise<number> {
+  let q = supabase
+    .from("processos_etapa").select("*").eq("etapa", etapa).eq("ativo", true);
+  if (pipelineId) q = q.eq("pipeline_id", pipelineId);
+  const { data: processos } = await q.order("ordem", { ascending: true });
   if (!processos?.length) return 0;
+
 
   const { data: existentes } = await supabase
     .from("mentorada_tarefas").select("processo_id, titulo")

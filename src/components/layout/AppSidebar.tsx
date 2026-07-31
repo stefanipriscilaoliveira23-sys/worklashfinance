@@ -48,7 +48,6 @@ const setores: Setor[] = [
     setor: "Mentoria",
     items: [
       { title: "Mentoria", url: "/mentoria", icon: GraduationCap },
-      { title: "Processos", url: "/processos", icon: ListChecks },
       { title: "Biblioteca de POP", url: "/biblioteca", icon: BookOpen },
     ],
   },
