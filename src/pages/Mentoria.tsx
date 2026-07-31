@@ -86,6 +86,19 @@ export default function Mentoria() {
 
 
 
+  // Mostra INADIMPLENTE apenas quando há parcela vencida de verdade.
+  // Se a aluna já tem contrato lançado e está em dia, a tag antiga da importação é ocultada.
+  const tagsExibidas = (m: any) => {
+    const tags = ((m.tags ?? []) as string[]);
+    const atrasada = !!m.cliente_id && !!inadimplentes?.has(m.cliente_id);
+    const temContrato = !!m.cliente_id && !!comContrato?.has(m.cliente_id);
+    const base = temContrato && !atrasada
+      ? tags.filter((t) => !t.toUpperCase().includes("INADIMPL"))
+      : tags;
+    return atrasada && !base.some((t) => t.toUpperCase().includes("INADIMPL"))
+      ? [...base, "INADIMPLENTE"]
+      : base;
+  };
 
   const progressoDe = (mentoradaId: string, etapa: string) => {
     const itens = (tarefas ?? []).filter((t) => t.mentorada_id === mentoradaId && t.etapa === etapa);
