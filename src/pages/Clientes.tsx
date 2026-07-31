@@ -161,11 +161,8 @@ export default function Clientes() {
     setEditCliente(c); setShowForm(true);
   };
 
-  const filtered = (clientes ?? []).filter(c => {
-    if (!search) return true;
-    const s = search.toLowerCase();
-    return c.nome.toLowerCase().includes(s) || (c.email ?? "").toLowerCase().includes(s);
-  });
+  const filtered = clientes;
+
 
   // Metrics
   const metrics = useMemo(() => {
@@ -219,8 +216,9 @@ export default function Clientes() {
         </div>
         <div className="flex items-center gap-3">
           <Badge variant="outline" className="text-muted-foreground border-border">
-            {filtered.length} cliente{filtered.length !== 1 ? "s" : ""}
+            {total.toLocaleString("pt-BR")} cliente{total !== 1 ? "s" : ""}
           </Badge>
+
           <Button onClick={() => { setEditCliente(null); setShowForm(true); }} className="gold-gradient text-primary-foreground">
             <Plus className="h-4 w-4 mr-2" /> Nova cliente
           </Button>
