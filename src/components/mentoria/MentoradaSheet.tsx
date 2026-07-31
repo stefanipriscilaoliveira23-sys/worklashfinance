@@ -324,7 +324,7 @@ export default function MentoradaSheet({ id, onClose }: Props) {
                 <TabsTrigger value="tarefas">Tarefas</TabsTrigger>
                 <TabsTrigger value="financeiro">Financeiro</TabsTrigger>
 
-                <TabsTrigger value="onboarding">Onboarding</TabsTrigger>
+                
                 <TabsTrigger value="acompanhamento">Acompanhamento</TabsTrigger>
                 <TabsTrigger value="renovacao">Renovação</TabsTrigger>
                 <TabsTrigger value="documentos">Documentos</TabsTrigger>
@@ -337,7 +337,7 @@ export default function MentoradaSheet({ id, onClose }: Props) {
                   <Campo label="Nome" value={m.nome} onSave={(v) => salvar.mutate({ nome: v })} />
                   <Campo label="Instagram" value={m.instagram} onSave={(v) => salvar.mutate({ instagram: v })} />
                   <Campo label="E-mail" value={m.email} onSave={(v) => salvar.mutate({ email: v })} />
-                  <Campo label="Telefone" value={m.telefone} onSave={(v) => salvar.mutate({ telefone: v })} />
+                  <Campo label="WhatsApp" value={m.telefone} onSave={(v) => salvar.mutate({ telefone: v })} />
                   <Campo label="CPF" value={m.cpf} onSave={(v) => salvar.mutate({ cpf: v })} />
                   <div className="space-y-1.5">
                     <Label className="text-xs">Programa</Label>
@@ -452,39 +452,68 @@ export default function MentoradaSheet({ id, onClose }: Props) {
               {/* FINANCEIRO */}
 
               <TabsContent value="financeiro" className="space-y-4 pt-4">
-                <div className="grid grid-cols-2 gap-3">
-                  <Campo label="Valor da mentoria" type="number" value={m.valor_mentoria != null ? String(m.valor_mentoria) : ""}
-                    onSave={(v) => salvar.mutate({ valor_mentoria: Number(v) || 0 })} />
-                  <Campo label="Próxima parcela" type="date" value={m.proxima_parcela}
-                    onSave={(v) => salvar.mutate({ proxima_parcela: v || null })} />
-                  <div className="space-y-1.5">
-                    <Label className="text-xs">Status de cobrança</Label>
-                    <Select value={m.status_cobranca ?? "Em dia"} onValueChange={(v) => salvar.mutate({ status_cobranca: v })}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        {["Em dia", "Aguardando pagamento", "Em atraso", "Quitada"].map((s) =>
-                          <SelectItem key={s} value={s}>{s}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs">Formas de pagamento</Label>
-                  <div className="flex flex-wrap gap-3">
-                    {FORMAS_PAGAMENTO.map((f) => {
-                      const atual = m.forma_pagamento ?? [];
-                      const marcado = atual.includes(f);
-                      return (
-                        <label key={f} className="flex items-center gap-2 text-sm">
-                          <Checkbox checked={marcado} onCheckedChange={(c) => salvar.mutate({
-                            forma_pagamento: c ? [...atual, f] : atual.filter((x) => x !== f),
-                          })} />
-                          {f}
-                        </label>
-                      );
-                    })}
-                  </div>
-                </div>
+                {(() => {
+                  const lista = (parcelas ?? []) as Record<string, any>[];
+                  const emAberto = lista.filter((p) => p.status !== "Quitado");
+                  const proxima = emAberto
+                    .filter((p) => p.data_vencimento && p.data_vencimento >= hojeISO)
+                    .sort((a, b) => String(a.data_vencimento).localeCompare(String(b.data_vencimento)))[0];
+                  const statusCobranca = lista.length === 0
+                    ? "Sem parcelas lançadas"
+                    : parcelasAtrasadas.length > 0
+                      ? "Em atraso"
+                      : emAberto.length === 0
+                        ? "Quitada"
+                        : proxima
+                          ? "Aguardando pagamento"
+                          : "Em dia";
+                  const formas = [...new Set(
+                    (receitas ?? []).flatMap((r: Record<string, any>) => {
+                      const f = r.formas_pagamento ?? r.forma_pagamento ?? r.plataforma;
+                      if (Array.isArray(f)) return f;
+                      return f ? [String(f)] : [];
+                    }).filter(Boolean) as string[]
+                  )];
+                  return (
+                    <>
+                      <div className="grid grid-cols-3 gap-3">
+                        <div className="rounded-lg border border-border p-3">
+                          <p className="text-[11px] text-muted-foreground">Valor da mentoria</p>
+                          <p className="text-sm font-semibold">{formatCurrency(m.valor_mentoria ?? 0)}</p>
+                        </div>
+                        <div className="rounded-lg border border-border p-3">
+                          <p className="text-[11px] text-muted-foreground">Próxima parcela</p>
+                          <p className="text-sm font-semibold">
+                            {proxima ? formatDate(proxima.data_vencimento) : "—"}
+                          </p>
+                          {proxima && (
+                            <p className="text-[11px] text-muted-foreground">
+                              {formatCurrency(proxima.valor_real ?? proxima.valor_sugerido ?? 0)}
+                            </p>
+                          )}
+                        </div>
+                        <div className="rounded-lg border border-border p-3">
+                          <p className="text-[11px] text-muted-foreground">Status de cobrança</p>
+                          <p className={`text-sm font-semibold ${
+                            statusCobranca === "Em atraso" ? "text-destructive"
+                              : statusCobranca === "Quitada" ? "text-emerald-500" : ""
+                          }`}>{statusCobranca}</p>
+                        </div>
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs">Formas de pagamento (do lançamento na receita)</Label>
+                        {formas.length === 0 ? (
+                          <p className="text-sm text-muted-foreground">Nenhuma forma registrada no financeiro.</p>
+                        ) : (
+                          <div className="flex flex-wrap gap-1.5">
+                            {formas.map((f) => <Badge key={f} variant="outline" className="text-[11px]">{f}</Badge>)}
+                          </div>
+                        )}
+                      </div>
+                    </>
+                  );
+                })()}
+
                 <div>
                   <p className="text-xs font-medium text-muted-foreground mb-2">
                     Lançamentos no financeiro {m.cliente_id ? "" : "(vincule um cliente para ver)"}
@@ -570,29 +599,8 @@ export default function MentoradaSheet({ id, onClose }: Props) {
 
               </TabsContent>
 
-              {/* ONBOARDING */}
-              <TabsContent value="onboarding" className="space-y-3 pt-4">
-                <ul className="space-y-2">
-                  {(tarefas ?? []).map((t) => (
-                    <li key={t.id} className="flex items-start gap-2 rounded-lg border border-border px-3 py-2">
-                      <Checkbox className="mt-0.5" checked={t.concluida}
-                        onCheckedChange={(c) => toggleTarefa.mutate({ tid: t.id, valor: !!c })} />
-                      <div className="min-w-0 flex-1">
-                        <p className={`text-sm ${t.concluida ? "line-through text-muted-foreground" : ""}`}>{t.titulo}</p>
-                        <p className="text-[11px] text-muted-foreground">{t.categoria}</p>
-                      </div>
-                      <button onClick={() => removerTarefa.mutate(t.id)}
-                        className="text-muted-foreground hover:text-destructive">
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-                <div className="flex gap-2">
-                  <Input placeholder="Nova tarefa" value={novaTarefa} onChange={(e) => setNovaTarefa(e.target.value)} />
-                  <Button onClick={() => addTarefa.mutate()}><Plus className="h-4 w-4" /></Button>
-                </div>
-              </TabsContent>
+
+
 
               {/* ACOMPANHAMENTO */}
               <TabsContent value="acompanhamento" className="space-y-3 pt-4">
