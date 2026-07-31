@@ -6,13 +6,13 @@ import { formatCurrency, formatDate } from "@/lib/format";
 import { STATUS_JORNADA, diasRestantes, gerarTarefasDaEtapa } from "@/lib/mentoria";
 import { notificarProprio } from "@/lib/notificacoes";
 import MentoradaSheet from "@/components/mentoria/MentoradaSheet";
+import PipelineEditorDialog from "@/components/mentoria/PipelineEditorDialog";
 import TagsAluna from "@/components/mentoria/TagsAluna";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { AlertTriangle, GraduationCap, Loader2, Search } from "lucide-react";
+import { AlertTriangle, GraduationCap, Loader2, Search, Settings2 } from "lucide-react";
 
-const COLUNAS = STATUS_JORNADA;
 
 export default function Mentoria() {
   const qc = useQueryClient();
