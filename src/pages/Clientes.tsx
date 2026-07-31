@@ -267,9 +267,63 @@ export default function Clientes() {
         </Card>
       </div>
 
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input placeholder="Buscar por nome ou email..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9 bg-secondary/50 border-border" />
+      {/* Filtros */}
+      <div className="space-y-3 rounded-xl border border-border bg-card p-3">
+        <div className="flex flex-col lg:flex-row gap-3">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input placeholder="Buscar por nome, email, telefone ou @instagram..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9 bg-secondary/50 border-border" />
+          </div>
+          <div className="flex flex-wrap gap-3">
+            <div className="flex items-center gap-2">
+              <Label className="text-xs text-muted-foreground whitespace-nowrap">Produto</Label>
+              <select
+                value={produtoFiltro}
+                onChange={e => setProdutoFiltro(e.target.value)}
+                className="h-9 rounded-md border border-border bg-secondary/50 px-2 text-sm max-w-[180px]"
+              >
+                <option value="">Todos</option>
+                {(produtoOptions ?? []).map(p => <option key={p} value={p}>{p}</option>)}
+              </select>
+            </div>
+            <div className="flex items-center gap-2">
+              <Label className="text-xs text-muted-foreground whitespace-nowrap">Cadastro</Label>
+              <Input type="date" value={dataDe} onChange={e => setDataDe(e.target.value)} className="h-9 w-[140px] bg-secondary/50 border-border text-xs" />
+              <span className="text-xs text-muted-foreground">até</span>
+              <Input type="date" value={dataAte} onChange={e => setDataAte(e.target.value)} className="h-9 w-[140px] bg-secondary/50 border-border text-xs" />
+            </div>
+          </div>
+        </div>
+
+        <div className="flex items-start gap-2">
+          <Label className="text-xs text-muted-foreground pt-1.5 whitespace-nowrap">Tags</Label>
+          <div className="flex-1">
+            <select
+              value=""
+              onChange={e => { const v = e.target.value; if (v && !tagsFiltro.includes(v)) setTagsFiltro(t => [...t, v]); }}
+              className="h-9 rounded-md border border-border bg-secondary/50 px-2 text-sm max-w-full"
+            >
+              <option value="">Adicionar tag ao filtro...</option>
+              {(tagOptions ?? []).map(t => <option key={t.tag} value={t.tag}>{t.tag} ({t.total})</option>)}
+            </select>
+            {tagsFiltro.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 mt-2">
+                {tagsFiltro.map(t => (
+                  <button key={t} onClick={() => setTagsFiltro(x => x.filter(y => y !== t))}
+                    className="rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-[11px] text-primary hover:bg-primary/20">
+                    {t} ✕
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+          {(tagsFiltro.length > 0 || produtoFiltro || dataDe || dataAte || search) && (
+            <Button variant="outline" size="sm" className="border-border"
+              onClick={() => { setTagsFiltro([]); setProdutoFiltro(""); setDataDe(""); setDataAte(""); setSearch(""); }}>
+              Limpar filtros
+            </Button>
+          )}
+        </div>
       </div>
 
       <div className="rounded-xl border border-border bg-card overflow-hidden">
@@ -284,6 +338,7 @@ export default function Clientes() {
                   <th className="p-3 text-xs font-medium text-muted-foreground text-left">Email</th>
                   <th className="p-3 text-xs font-medium text-muted-foreground text-left">WhatsApp</th>
                   <th className="p-3 text-xs font-medium text-muted-foreground text-left">Instagram</th>
+                  <th className="p-3 text-xs font-medium text-muted-foreground text-left">Tags</th>
                   <th className="p-3 text-xs font-medium text-muted-foreground text-left">Cadastro</th>
                   <th className="p-3 text-xs font-medium text-muted-foreground text-left">Ações</th>
                   <th className="p-3 text-xs font-medium text-muted-foreground text-left"></th>
@@ -291,7 +346,7 @@ export default function Clientes() {
               </thead>
               <tbody>
                 {filtered.length === 0 && (
-                  <tr><td colSpan={7} className="p-12 text-center text-muted-foreground">Nenhum cliente encontrado</td></tr>
+                  <tr><td colSpan={8} className="p-12 text-center text-muted-foreground">Nenhum cliente encontrado</td></tr>
                 )}
                 {filtered.map(c => (
                   <tr
@@ -303,6 +358,20 @@ export default function Clientes() {
                     <td className="p-3 text-muted-foreground text-xs">{c.email || "—"}</td>
                     <td className="p-3 text-muted-foreground text-xs">{(c as any).whatsapp || "—"}</td>
                     <td className="p-3 text-muted-foreground text-xs">{(c as any).instagram || "—"}</td>
+                    <td className="p-3 max-w-[260px]">
+                      {((c as any).tags ?? []).length === 0 ? (
+                        <span className="text-xs text-muted-foreground">—</span>
+                      ) : (
+                        <div className="flex flex-wrap gap-1">
+                          {((c as any).tags as string[]).slice(0, 3).map(t => (
+                            <span key={t} className="rounded-full border border-border bg-secondary/50 px-1.5 py-0.5 text-[10px] text-muted-foreground">{t}</span>
+                          ))}
+                          {((c as any).tags as string[]).length > 3 && (
+                            <span className="text-[10px] text-muted-foreground">+{((c as any).tags as string[]).length - 3}</span>
+                          )}
+                        </div>
+                      )}
+                    </td>
                     <td className="p-3 text-muted-foreground text-xs">{formatDate(c.criado_em)}</td>
                     <td className="p-3" onClick={e => e.stopPropagation()}>
                       <DropdownMenu>
@@ -320,7 +389,30 @@ export default function Clientes() {
             </table>
           )}
         </div>
+
+        {/* Paginação */}
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 border-t border-border p-3">
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <span>Mostrar</span>
+            <select
+              value={pageSize}
+              onChange={e => setPageSize(Number(e.target.value))}
+              className="h-8 rounded-md border border-border bg-secondary/50 px-2 text-xs"
+            >
+              {[20, 50, 100].map(n => <option key={n} value={n}>{n}</option>)}
+            </select>
+            <span>por página · {total.toLocaleString("pt-BR")} no total {isFetching && "· carregando..."}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" className="border-border" disabled={page <= 1} onClick={() => setPage(1)}>«</Button>
+            <Button variant="outline" size="sm" className="border-border" disabled={page <= 1} onClick={() => setPage(p => p - 1)}>Anterior</Button>
+            <span className="text-xs text-muted-foreground">Página {page} de {totalPages}</span>
+            <Button variant="outline" size="sm" className="border-border" disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}>Próxima</Button>
+            <Button variant="outline" size="sm" className="border-border" disabled={page >= totalPages} onClick={() => setPage(totalPages)}>»</Button>
+          </div>
+        </div>
       </div>
+
 
       {/* Client detail sheet */}
       <Sheet open={!!selectedCliente} onOpenChange={() => setSelectedCliente(null)}>
