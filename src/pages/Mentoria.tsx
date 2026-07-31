@@ -180,8 +180,8 @@ export default function Mentoria() {
       <Tabs defaultValue="pipeline">
         <TabsList>
           <TabsTrigger value="pipeline">Pipeline</TabsTrigger>
-          <TabsTrigger value="processos">Processos</TabsTrigger>
         </TabsList>
+
 
         <TabsContent value="pipeline" className="space-y-4 pt-4">
           <div className="flex flex-wrap gap-2">
