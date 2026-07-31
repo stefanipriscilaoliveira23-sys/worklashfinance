@@ -313,9 +313,20 @@ export default function Mentoria() {
 
 
                               <p className="text-[11px] text-muted-foreground truncate">{m.programa}</p>
-                              <p className="text-[11px] text-muted-foreground">
-                                {m.data_termino ? `Termina em ${formatDate(m.data_termino)}` : "Sem data de término"}
+                              <p className={`text-[11px] ${
+                                dias === null ? "text-muted-foreground"
+                                  : dias < 0 ? "text-destructive"
+                                  : dias <= 30 ? "text-amber-500" : "text-muted-foreground"
+                              }`}>
+                                {dias === null
+                                  ? "Sem data de término"
+                                  : dias < 0
+                                    ? `Encerrada há ${Math.abs(dias)} dias`
+                                    : dias === 0
+                                      ? "Termina hoje"
+                                      : `Faltam ${dias} dias para terminar`}
                               </p>
+
                               {m.valor_mentoria ? (
                                 <p className="text-[11px] font-medium mt-1">{formatCurrency(m.valor_mentoria)}</p>
                               ) : null}
