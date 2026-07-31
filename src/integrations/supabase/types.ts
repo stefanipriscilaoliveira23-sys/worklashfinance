@@ -1858,6 +1858,30 @@ export type Database = {
         }
         Relationships: []
       }
+      tags_catalogo: {
+        Row: {
+          cor: string | null
+          created_at: string
+          id: string
+          nome: string
+          updated_at: string
+        }
+        Insert: {
+          cor?: string | null
+          created_at?: string
+          id?: string
+          nome: string
+          updated_at?: string
+        }
+        Update: {
+          cor?: string | null
+          created_at?: string
+          id?: string
+          nome?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           id: string
@@ -1938,6 +1962,8 @@ export type Database = {
         }
         Returns: boolean
       }
+      norm_fone: { Args: { t: string }; Returns: string }
+      norm_txt: { Args: { t: string }; Returns: string }
     }
     Enums: {
       app_role: "admin" | "operacional" | "vendedor" | "administrativo"
