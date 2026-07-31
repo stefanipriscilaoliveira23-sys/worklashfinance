@@ -253,6 +253,11 @@ export function NovaReceitaModal({ open, onClose }: { open: boolean; onClose: ()
         produto_entrada_id: produtoEntradaId,
         is_ascensao: origensVenda.includes("Ascensão"),
         observacao: obsCompleta,
+        vendedor: vendedor || alunaVendedor || null,
+        desconto_percentual: descontoPercent || null,
+        desconto_valor: descontoValor || null,
+        frete_valor: freteValor || null,
+
         lancado_por: user?.id,
         valor_contrato: isMentoria ? valorContrato : null,
         data_inicio_mentoria: dataInicioMentoria || null,
