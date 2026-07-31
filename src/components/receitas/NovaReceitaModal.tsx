@@ -910,10 +910,45 @@ export function NovaReceitaModal({ open, onClose }: { open: boolean; onClose: ()
               </div>
             </div>
 
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-foreground/80">Vendedor</Label>
+                <Input value={vendedor} onChange={(e) => setVendedor(e.target.value)} placeholder="Quem vendeu" className="bg-secondary/50 border-border" />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-foreground/80">Desconto (%)</Label>
+                <Input type="number" step="0.01" value={descontoPercent || ""}
+                  onChange={(e) => {
+                    const p = Number(e.target.value);
+                    setDescontoPercent(p);
+                    setDescontoValor(Number(((valorRecebido * p) / 100).toFixed(2)));
+                  }}
+                  className="bg-secondary/50 border-border" />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-foreground/80">Desconto (R$)</Label>
+                <Input type="number" step="0.01" value={descontoValor || ""}
+                  onChange={(e) => {
+                    const v = Number(e.target.value);
+                    setDescontoValor(v);
+                    setDescontoPercent(valorRecebido > 0 ? Number(((v / valorRecebido) * 100).toFixed(2)) : 0);
+                  }}
+                  className="bg-secondary/50 border-border" />
+              </div>
+            </div>
+
+            {(categoria ?? "").toLowerCase().includes("f") && (categoria ?? "").toLowerCase().includes("sic") && (
+              <div className="space-y-1.5">
+                <Label className="text-foreground/80">Frete (R$)</Label>
+                <Input type="number" step="0.01" value={freteValor || ""} onChange={(e) => setFreteValor(Number(e.target.value))} className="bg-secondary/50 border-border" />
+              </div>
+            )}
+
             <div className="space-y-1.5">
               <Label className="text-foreground/80">Observação</Label>
               <Textarea value={observacao} onChange={(e) => setObservacao(e.target.value)} className="bg-secondary/50 border-border" rows={2} />
             </div>
+
 
             <div className="flex justify-end gap-2 pt-2">
               <Button variant="outline" onClick={onClose} className="border-border text-muted-foreground">Cancelar</Button>
