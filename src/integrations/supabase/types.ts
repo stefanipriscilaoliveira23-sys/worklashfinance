@@ -1890,6 +1890,36 @@ export type Database = {
       }
       atualizar_despesas_atrasadas: { Args: never; Returns: undefined }
       atualizar_parcelas_atrasadas: { Args: never; Returns: undefined }
+      buscar_clientes: {
+        Args: {
+          p_ate?: string
+          p_busca?: string
+          p_de?: string
+          p_limit?: number
+          p_offset?: number
+          p_produto?: string
+          p_tags?: string[]
+        }
+        Returns: {
+          criado_em: string
+          email: string
+          id: string
+          instagram: string
+          nome: string
+          observacao: string
+          tags: string[]
+          telefone: string
+          total_count: number
+          whatsapp: string
+        }[]
+      }
+      clientes_tags: {
+        Args: never
+        Returns: {
+          tag: string
+          total: number
+        }[]
+      }
       criar_agendamento_publico: {
         Args: {
           _data: string
