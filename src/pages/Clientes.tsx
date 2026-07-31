@@ -132,7 +132,7 @@ export default function Clientes() {
       });
       if (error) throw error;
     },
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["clientes"] }); toast.success("Cliente criada"); closeForm(); },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["clientes-busca"] }); toast.success("Cliente criada"); closeForm(); },
     onError: (e: any) => toast.error(e.message),
   });
 
@@ -145,13 +145,13 @@ export default function Clientes() {
       }).eq("id", editCliente.id);
       if (error) throw error;
     },
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["clientes"] }); toast.success("Cliente atualizada"); closeForm(); },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["clientes-busca"] }); toast.success("Cliente atualizada"); closeForm(); },
     onError: (e: any) => toast.error(e.message),
   });
 
   const deleteCliente = useMutation({
     mutationFn: async (id: string) => { const { error } = await supabase.from("clientes").delete().eq("id", id); if (error) throw error; },
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["clientes"] }); toast.success("Cliente excluída"); },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["clientes-busca"] }); toast.success("Cliente excluída"); },
     onError: () => toast.error("Erro ao excluir — apenas administradores"),
   });
 
