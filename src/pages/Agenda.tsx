@@ -445,10 +445,10 @@ export default function Agenda() {
                   ) : (
                     <ul className="space-y-2">
                       {itens.map((a) => (
-                        <li key={a.id} className="flex flex-wrap items-center gap-3 rounded-lg border border-border px-3 py-2">
+                        <li key={a.id} className={`flex flex-wrap items-center gap-3 rounded-lg border border-border px-3 py-2 ${corStatus(a.status).borda}`}>
                           <span className="text-sm font-medium w-28">{a.hora_inicio?.slice(0, 5)} — {a.hora_fim?.slice(0, 5)}</span>
-                          <span className="text-sm flex-1 min-w-0 truncate">{a.nome}</span>
-                          <Badge variant="outline" className="text-[10px]">{a.origem}</Badge>
+                          <span className={`text-sm flex-1 min-w-0 truncate ${a.status === "Cancelado" ? "line-through text-muted-foreground" : ""}`}>{a.nome}</span>
+                          <Badge variant="outline" className={`text-[10px] ${corStatus(a.status).badge}`}>{a.status}</Badge>
                           <Select value={a.status} onValueChange={(v) => mudarStatus.mutate({ id: a.id, status: v })}>
                             <SelectTrigger className="h-7 w-36 text-[11px]"><SelectValue /></SelectTrigger>
                             <SelectContent>
@@ -456,8 +456,16 @@ export default function Agenda() {
                                 <SelectItem key={s} value={s}>{s}</SelectItem>)}
                             </SelectContent>
                           </Select>
+                          <button
+                            onClick={() => pedirExclusao(a.id, a.nome)}
+                            title="Excluir agendamento"
+                            className="text-muted-foreground hover:text-destructive"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
                         </li>
                       ))}
+
                     </ul>
                   )}
                 </div>
