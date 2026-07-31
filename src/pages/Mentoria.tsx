@@ -296,14 +296,8 @@ export default function Mentoria() {
                               }`}
                             >
                               <p className="text-sm font-medium truncate">{m.nome}</p>
-                              <TagsAluna
-                                tags={[
-                                  ...(((m as any).tags ?? []) as string[]),
-                                  ...(m.cliente_id && inadimplentes?.has(m.cliente_id) &&
-                                    !(((m as any).tags ?? []) as string[]).some((t) => t.toUpperCase().includes("INADIMPL"))
-                                    ? ["INADIMPLENTE"] : []),
-                                ]}
-                              />
+                              <TagsAluna tags={tagsExibidas(m)} />
+
 
                               <p className="text-[11px] text-muted-foreground truncate">{m.programa}</p>
                               <p className="text-[11px] text-muted-foreground">
