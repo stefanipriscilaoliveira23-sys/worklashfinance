@@ -203,11 +203,15 @@ export default function Receitas() {
     };
   });
 
+  const vendedores = [...new Set(allReceitas.map((r: any) => r.vendedor).filter(Boolean))].sort() as string[];
+
   const filtered = allReceitas.filter((r) => {
     if (filtroPlataforma !== "all" && r.plataforma !== filtroPlataforma) return false;
     if (filtroProduto !== "all" && r.produto_nome !== filtroProduto) return false;
+    if (filtroVendedor !== "all" && ((r as any).vendedor ?? "") !== filtroVendedor) return false;
     if (filtroImportado === "importado" && !(r as any).importado) return false;
     if (filtroImportado === "manual" && (r as any).importado) return false;
+
     if (search) {
       const s = search.toLowerCase();
       return r.produto_nome.toLowerCase().includes(s) || (r.cliente_nome ?? "").toLowerCase().includes(s) || (r.cliente_email ?? "").toLowerCase().includes(s);
