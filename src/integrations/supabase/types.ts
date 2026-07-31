@@ -1507,6 +1507,38 @@ export type Database = {
           },
         ]
       }
+      pipeline_etapas: {
+        Row: {
+          created_at: string
+          id: string
+          nome: string
+          ordem: number
+          pipeline_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          nome: string
+          ordem?: number
+          pipeline_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          nome?: string
+          ordem?: number
+          pipeline_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pipeline_etapas_pipeline_id_fkey"
+            columns: ["pipeline_id"]
+            isOneToOne: false
+            referencedRelation: "pipelines"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pipelines: {
         Row: {
           created_at: string
@@ -1536,6 +1568,7 @@ export type Database = {
           etapa: string
           id: string
           ordem: number
+          pipeline_id: string | null
           titulo: string
           updated_at: string
         }
@@ -1546,6 +1579,7 @@ export type Database = {
           etapa: string
           id?: string
           ordem?: number
+          pipeline_id?: string | null
           titulo: string
           updated_at?: string
         }
@@ -1556,10 +1590,19 @@ export type Database = {
           etapa?: string
           id?: string
           ordem?: number
+          pipeline_id?: string | null
           titulo?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "processos_etapa_pipeline_id_fkey"
+            columns: ["pipeline_id"]
+            isOneToOne: false
+            referencedRelation: "pipelines"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       produtos_catalogo: {
         Row: {
@@ -1717,7 +1760,10 @@ export type Database = {
           data: string
           data_fim_mentoria: string | null
           data_inicio_mentoria: string | null
+          desconto_percentual: number | null
+          desconto_valor: number | null
           forma_pagamento: string | null
+          frete_valor: number | null
           id: string
           importado: boolean
           is_ascensao: boolean | null
@@ -1742,6 +1788,7 @@ export type Database = {
           valor_contrato: number | null
           valor_em_brl: number | null
           valor_liquido: number | null
+          vendedor: string | null
         }
         Insert: {
           cliente_email?: string | null
@@ -1751,7 +1798,10 @@ export type Database = {
           data: string
           data_fim_mentoria?: string | null
           data_inicio_mentoria?: string | null
+          desconto_percentual?: number | null
+          desconto_valor?: number | null
           forma_pagamento?: string | null
+          frete_valor?: number | null
           id?: string
           importado?: boolean
           is_ascensao?: boolean | null
@@ -1776,6 +1826,7 @@ export type Database = {
           valor_contrato?: number | null
           valor_em_brl?: number | null
           valor_liquido?: number | null
+          vendedor?: string | null
         }
         Update: {
           cliente_email?: string | null
@@ -1785,7 +1836,10 @@ export type Database = {
           data?: string
           data_fim_mentoria?: string | null
           data_inicio_mentoria?: string | null
+          desconto_percentual?: number | null
+          desconto_valor?: number | null
           forma_pagamento?: string | null
+          frete_valor?: number | null
           id?: string
           importado?: boolean
           is_ascensao?: boolean | null
@@ -1810,6 +1864,7 @@ export type Database = {
           valor_contrato?: number | null
           valor_em_brl?: number | null
           valor_liquido?: number | null
+          vendedor?: string | null
         }
         Relationships: [
           {
