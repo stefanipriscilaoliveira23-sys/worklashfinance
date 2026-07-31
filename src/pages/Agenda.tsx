@@ -24,6 +24,17 @@ import { CalendarDays, ChevronLeft, ChevronRight, Copy, Loader2, Plus, Trash2 } 
 
 const DIAS = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
 
+/** Cor por status da reunião. */
+const CORES_STATUS: Record<string, { badge: string; borda: string; ponto: string }> = {
+  Pendente: { badge: "bg-amber-500/10 text-amber-500 border-amber-500/30", borda: "border-l-4 border-l-amber-500", ponto: "bg-amber-500" },
+  Confirmado: { badge: "bg-blue-500/10 text-blue-500 border-blue-500/30", borda: "border-l-4 border-l-blue-500", ponto: "bg-blue-500" },
+  Realizado: { badge: "bg-emerald-500/10 text-emerald-500 border-emerald-500/30", borda: "border-l-4 border-l-emerald-500", ponto: "bg-emerald-500" },
+  Cancelado: { badge: "bg-destructive/10 text-destructive border-destructive/30", borda: "border-l-4 border-l-destructive", ponto: "bg-destructive" },
+  "Não compareceu": { badge: "bg-muted text-muted-foreground border-border", borda: "border-l-4 border-l-muted-foreground/40", ponto: "bg-muted-foreground/60" },
+};
+const corStatus = (s?: string | null) =>
+  CORES_STATUS[s ?? ""] ?? { badge: "bg-muted text-muted-foreground border-border", borda: "", ponto: "bg-muted-foreground/50" };
+
 function slugify(s: string) {
   return s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
     .replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
