@@ -215,9 +215,14 @@ export default function Clientes() {
             {total.toLocaleString("pt-BR")} cliente{total !== 1 ? "s" : ""}
           </Badge>
 
+          <Button variant="outline" className="border-border" onClick={exportarClientes} disabled={exportando}>
+            {exportando ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Download className="h-4 w-4 mr-2" />}
+            Exportar {filtrosAtivos ? "filtrados" : "tudo"}
+          </Button>
           <Button variant="outline" className="border-border" onClick={() => setShowTags(true)}>
             <Plus className="h-4 w-4 mr-2" /> Tags
           </Button>
+
           <Button onClick={() => { setEditCliente(null); setShowForm(true); }} className="gold-gradient text-primary-foreground">
             <Plus className="h-4 w-4 mr-2" /> Nova cliente
           </Button>
