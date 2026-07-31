@@ -411,14 +411,20 @@ export default function Agenda() {
                       </span>
                       {itens.length > 0 && (
                         <div className="mt-1 space-y-1">
-                          <Badge variant="secondary" className="text-[10px] w-full justify-center">
-                            {itens.length} {itens.length === 1 ? "reunião" : "reuniões"}
-                          </Badge>
-                          <p className="text-[10px] text-muted-foreground truncate">
-                            {itens[0].hora_inicio?.slice(0, 5)} {itens[0].nome}
-                          </p>
+                          {itens.slice(0, 3).map((it) => (
+                            <p key={it.id} className="flex items-center gap-1 text-[10px] text-muted-foreground truncate">
+                              <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${corStatus(it.status).ponto}`} />
+                              <span className={`truncate ${it.status === "Cancelado" ? "line-through" : ""}`}>
+                                {it.hora_inicio?.slice(0, 5)} {it.nome}
+                              </span>
+                            </p>
+                          ))}
+                          {itens.length > 3 && (
+                            <p className="text-[10px] text-muted-foreground">+{itens.length - 3}</p>
+                          )}
                         </div>
                       )}
+
                     </button>
                   );
                 })}
