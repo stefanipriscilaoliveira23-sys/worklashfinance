@@ -698,14 +698,24 @@ export default function Agenda() {
           </DialogHeader>
           <ul className="space-y-2">
             {itensDoDia.map((a) => (
-              <li key={a.id} className="rounded-lg border border-border px-3 py-2 space-y-1">
+              <li key={a.id} className={`rounded-lg border border-border px-3 py-2 space-y-1 ${corStatus(a.status).borda}`}>
                 <div className="flex items-center justify-between gap-2">
                   <span className="text-sm font-medium">
                     {a.hora_inicio?.slice(0, 5)} às {a.hora_fim?.slice(0, 5)}
                   </span>
-                  <Badge variant="outline" className="text-[10px]">{a.status}</Badge>
+                  <div className="flex items-center gap-2">
+                    <Badge variant="outline" className={`text-[10px] ${corStatus(a.status).badge}`}>{a.status}</Badge>
+                    <button
+                      onClick={() => pedirExclusao(a.id, a.nome)}
+                      title="Excluir agendamento"
+                      className="text-muted-foreground hover:text-destructive"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
                 </div>
-                <p className="text-sm">{a.nome}</p>
+                <p className={`text-sm ${a.status === "Cancelado" ? "line-through text-muted-foreground" : ""}`}>{a.nome}</p>
+
                 {a.anfitriao_id && (
                   <p className="text-xs text-muted-foreground">Anfitrião: {nomeAnfitriao(a.anfitriao_id)}</p>
                 )}
