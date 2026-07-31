@@ -102,7 +102,7 @@ export default function MentoradaSheet({ id, onClose }: Props) {
     enabled: !!m?.cliente_id,
     queryFn: async () => {
       const { data: contratos } = await supabase
-        .from("parcelas_mentoria").select("id").eq("cliente_id", m!.cliente_id!);
+        .from("parcelas_mentoria").select("id, tipo_mentoria").eq("cliente_id", m!.cliente_id!);
       const ids = (contratos ?? []).map((c) => c.id);
       if (ids.length === 0) return [] as Record<string, any>[];
       const { data } = await supabase
@@ -112,6 +112,13 @@ export default function MentoradaSheet({ id, onClose }: Props) {
       return (data ?? []) as Record<string, any>[];
     },
   });
+
+  const hojeISO = new Date().toISOString().slice(0, 10);
+  const estaAtrasada = (p: Record<string, any>) =>
+    p.status === "Atraso" || (p.status !== "Quitado" && !!p.data_vencimento && p.data_vencimento < hojeISO);
+  const parcelasAtrasadas = (parcelas ?? []).filter(estaAtrasada);
+  const inadimplente = parcelasAtrasadas.length > 0;
+
 
   const { data: modelos } = useQuery({
     queryKey: ["mensagens-modelo"],
