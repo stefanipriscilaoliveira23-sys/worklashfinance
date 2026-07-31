@@ -531,7 +531,15 @@ export default function MentoradaSheet({ id, onClose }: Props) {
                     </div>
                   )}
                   {(parcelas ?? []).length === 0 ? (
-                    <p className="text-sm text-muted-foreground">Nenhuma parcela encontrada.</p>
+                    <div className="space-y-2">
+                      <p className="text-sm text-muted-foreground">Nenhuma parcela encontrada.</p>
+                      {tagsDraft.some((t) => t.toUpperCase().includes("INADIMPL")) && (
+                        <p className="rounded-lg border border-destructive/40 bg-destructive/5 p-2 text-xs text-destructive">
+                          A tag INADIMPLENTE veio da importação, mas não existe contrato de mentoria lançado para esta aluna.
+                          Cadastre o contrato em Parcelas de mentoria para acompanhar os atrasos.
+                        </p>
+                      )}
+                    </div>
                   ) : (
                     <ul className="divide-y divide-border rounded-lg border border-border">
                       {(parcelas ?? []).map((p: Record<string, any>) => {
