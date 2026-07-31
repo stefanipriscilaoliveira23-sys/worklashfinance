@@ -982,6 +982,33 @@ export type Database = {
         }
         Relationships: []
       }
+      import_contatos: {
+        Row: {
+          digits: string | null
+          email: string | null
+          id: number
+          nome: string | null
+          tags: string[] | null
+          telefone: string | null
+        }
+        Insert: {
+          digits?: string | null
+          email?: string | null
+          id?: number
+          nome?: string | null
+          tags?: string[] | null
+          telefone?: string | null
+        }
+        Update: {
+          digits?: string | null
+          email?: string | null
+          id?: number
+          nome?: string | null
+          tags?: string[] | null
+          telefone?: string | null
+        }
+        Relationships: []
+      }
       mensagens_modelo: {
         Row: {
           created_at: string
