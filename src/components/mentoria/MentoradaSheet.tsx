@@ -288,7 +288,14 @@ export default function MentoradaSheet({ id, onClose }: Props) {
                 {m.nome}
                 <Badge variant="secondary">{m.status_jornada}</Badge>
               </SheetTitle>
-              <TagsAluna tags={(m as any).tags} className="mt-0.5" />
+              <TagsAluna
+                className="mt-0.5"
+                tags={[
+                  ...((((m as any).tags ?? []) as string[])),
+                  ...(inadimplente && !(((m as any).tags ?? []) as string[]).some((t) => t.toUpperCase().includes("INADIMPL"))
+                    ? ["INADIMPLENTE"] : []),
+                ]}
+              />
               <p className="text-sm text-muted-foreground">
                 {m.programa} · {m.prazo_meses} meses
                 {restantes !== null && ` · ${restantes >= 0 ? `${restantes} dias restantes` : `encerrada há ${-restantes} dias`}`}
