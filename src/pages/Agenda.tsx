@@ -267,6 +267,24 @@ export default function Agenda() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["agendamentos"] }),
   });
 
+  const excluirAgendamento = useMutation({
+    mutationFn: async (id: string) => {
+      await supabase.from("agendamento_tarefas").delete().eq("agendamento_id", id);
+      const { error } = await supabase.from("agendamentos").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["agendamentos"] });
+      toast.success("Agendamento excluído");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const pedirExclusao = (id: string, nome: string) => {
+    if (window.confirm(`Excluir definitivamente o agendamento de ${nome}?`)) excluirAgendamento.mutate(id);
+  };
+
+
   const dias = proximosDias(14);
   const porDia = dias.map((d) => ({
     data: d,
