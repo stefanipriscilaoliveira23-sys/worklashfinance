@@ -6,7 +6,6 @@ import { formatCurrency, formatDate } from "@/lib/format";
 import { STATUS_JORNADA, diasRestantes, gerarTarefasDaEtapa } from "@/lib/mentoria";
 import { notificarProprio } from "@/lib/notificacoes";
 import MentoradaSheet from "@/components/mentoria/MentoradaSheet";
-import ProcessosTab from "@/components/mentoria/ProcessosTab";
 import TagsAluna from "@/components/mentoria/TagsAluna";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -180,8 +179,8 @@ export default function Mentoria() {
       <Tabs defaultValue="pipeline">
         <TabsList>
           <TabsTrigger value="pipeline">Pipeline</TabsTrigger>
-          <TabsTrigger value="processos">Processos</TabsTrigger>
         </TabsList>
+
 
         <TabsContent value="pipeline" className="space-y-4 pt-4">
           <div className="flex flex-wrap gap-2">
@@ -313,9 +312,20 @@ export default function Mentoria() {
 
 
                               <p className="text-[11px] text-muted-foreground truncate">{m.programa}</p>
-                              <p className="text-[11px] text-muted-foreground">
-                                {m.data_termino ? `Termina em ${formatDate(m.data_termino)}` : "Sem data de término"}
+                              <p className={`text-[11px] ${
+                                dias === null ? "text-muted-foreground"
+                                  : dias < 0 ? "text-destructive"
+                                  : dias <= 30 ? "text-amber-500" : "text-muted-foreground"
+                              }`}>
+                                {dias === null
+                                  ? "Sem data de término"
+                                  : dias < 0
+                                    ? `Encerrada há ${Math.abs(dias)} dias`
+                                    : dias === 0
+                                      ? "Termina hoje"
+                                      : `Faltam ${dias} dias para terminar`}
                               </p>
+
                               {m.valor_mentoria ? (
                                 <p className="text-[11px] font-medium mt-1">{formatCurrency(m.valor_mentoria)}</p>
                               ) : null}
@@ -345,9 +355,6 @@ export default function Mentoria() {
           )}
         </TabsContent>
 
-        <TabsContent value="processos" className="pt-4">
-          <ProcessosTab />
-        </TabsContent>
       </Tabs>
 
       <MentoradaSheet id={selecionada} onClose={() => setSelecionada(null)} />

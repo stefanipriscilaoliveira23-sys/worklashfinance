@@ -24,6 +24,17 @@ import { CalendarDays, ChevronLeft, ChevronRight, Copy, Loader2, Plus, Trash2 } 
 
 const DIAS = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
 
+/** Cor por status da reunião. */
+const CORES_STATUS: Record<string, { badge: string; borda: string; ponto: string }> = {
+  Pendente: { badge: "bg-amber-500/10 text-amber-500 border-amber-500/30", borda: "border-l-4 border-l-amber-500", ponto: "bg-amber-500" },
+  Confirmado: { badge: "bg-blue-500/10 text-blue-500 border-blue-500/30", borda: "border-l-4 border-l-blue-500", ponto: "bg-blue-500" },
+  Realizado: { badge: "bg-emerald-500/10 text-emerald-500 border-emerald-500/30", borda: "border-l-4 border-l-emerald-500", ponto: "bg-emerald-500" },
+  Cancelado: { badge: "bg-destructive/10 text-destructive border-destructive/30", borda: "border-l-4 border-l-destructive", ponto: "bg-destructive" },
+  "Não compareceu": { badge: "bg-muted text-muted-foreground border-border", borda: "border-l-4 border-l-muted-foreground/40", ponto: "bg-muted-foreground/60" },
+};
+const corStatus = (s?: string | null) =>
+  CORES_STATUS[s ?? ""] ?? { badge: "bg-muted text-muted-foreground border-border", borda: "", ponto: "bg-muted-foreground/50" };
+
 function slugify(s: string) {
   return s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
     .replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
@@ -267,6 +278,24 @@ export default function Agenda() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["agendamentos"] }),
   });
 
+  const excluirAgendamento = useMutation({
+    mutationFn: async (id: string) => {
+      await supabase.from("agendamento_tarefas").delete().eq("agendamento_id", id);
+      const { error } = await supabase.from("agendamentos").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["agendamentos"] });
+      toast.success("Agendamento excluído");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const pedirExclusao = (id: string, nome: string) => {
+    if (window.confirm(`Excluir definitivamente o agendamento de ${nome}?`)) excluirAgendamento.mutate(id);
+  };
+
+
   const dias = proximosDias(14);
   const porDia = dias.map((d) => ({
     data: d,
@@ -382,14 +411,20 @@ export default function Agenda() {
                       </span>
                       {itens.length > 0 && (
                         <div className="mt-1 space-y-1">
-                          <Badge variant="secondary" className="text-[10px] w-full justify-center">
-                            {itens.length} {itens.length === 1 ? "reunião" : "reuniões"}
-                          </Badge>
-                          <p className="text-[10px] text-muted-foreground truncate">
-                            {itens[0].hora_inicio?.slice(0, 5)} {itens[0].nome}
-                          </p>
+                          {itens.slice(0, 3).map((it) => (
+                            <p key={it.id} className="flex items-center gap-1 text-[10px] text-muted-foreground truncate">
+                              <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${corStatus(it.status).ponto}`} />
+                              <span className={`truncate ${it.status === "Cancelado" ? "line-through" : ""}`}>
+                                {it.hora_inicio?.slice(0, 5)} {it.nome}
+                              </span>
+                            </p>
+                          ))}
+                          {itens.length > 3 && (
+                            <p className="text-[10px] text-muted-foreground">+{itens.length - 3}</p>
+                          )}
                         </div>
                       )}
+
                     </button>
                   );
                 })}
@@ -410,10 +445,10 @@ export default function Agenda() {
                   ) : (
                     <ul className="space-y-2">
                       {itens.map((a) => (
-                        <li key={a.id} className="flex flex-wrap items-center gap-3 rounded-lg border border-border px-3 py-2">
+                        <li key={a.id} className={`flex flex-wrap items-center gap-3 rounded-lg border border-border px-3 py-2 ${corStatus(a.status).borda}`}>
                           <span className="text-sm font-medium w-28">{a.hora_inicio?.slice(0, 5)} — {a.hora_fim?.slice(0, 5)}</span>
-                          <span className="text-sm flex-1 min-w-0 truncate">{a.nome}</span>
-                          <Badge variant="outline" className="text-[10px]">{a.origem}</Badge>
+                          <span className={`text-sm flex-1 min-w-0 truncate ${a.status === "Cancelado" ? "line-through text-muted-foreground" : ""}`}>{a.nome}</span>
+                          <Badge variant="outline" className={`text-[10px] ${corStatus(a.status).badge}`}>{a.status}</Badge>
                           <Select value={a.status} onValueChange={(v) => mudarStatus.mutate({ id: a.id, status: v })}>
                             <SelectTrigger className="h-7 w-36 text-[11px]"><SelectValue /></SelectTrigger>
                             <SelectContent>
@@ -421,8 +456,16 @@ export default function Agenda() {
                                 <SelectItem key={s} value={s}>{s}</SelectItem>)}
                             </SelectContent>
                           </Select>
+                          <button
+                            onClick={() => pedirExclusao(a.id, a.nome)}
+                            title="Excluir agendamento"
+                            className="text-muted-foreground hover:text-destructive"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
                         </li>
                       ))}
+
                     </ul>
                   )}
                 </div>
@@ -655,14 +698,24 @@ export default function Agenda() {
           </DialogHeader>
           <ul className="space-y-2">
             {itensDoDia.map((a) => (
-              <li key={a.id} className="rounded-lg border border-border px-3 py-2 space-y-1">
+              <li key={a.id} className={`rounded-lg border border-border px-3 py-2 space-y-1 ${corStatus(a.status).borda}`}>
                 <div className="flex items-center justify-between gap-2">
                   <span className="text-sm font-medium">
                     {a.hora_inicio?.slice(0, 5)} às {a.hora_fim?.slice(0, 5)}
                   </span>
-                  <Badge variant="outline" className="text-[10px]">{a.status}</Badge>
+                  <div className="flex items-center gap-2">
+                    <Badge variant="outline" className={`text-[10px] ${corStatus(a.status).badge}`}>{a.status}</Badge>
+                    <button
+                      onClick={() => pedirExclusao(a.id, a.nome)}
+                      title="Excluir agendamento"
+                      className="text-muted-foreground hover:text-destructive"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
                 </div>
-                <p className="text-sm">{a.nome}</p>
+                <p className={`text-sm ${a.status === "Cancelado" ? "line-through text-muted-foreground" : ""}`}>{a.nome}</p>
+
                 {a.anfitriao_id && (
                   <p className="text-xs text-muted-foreground">Anfitrião: {nomeAnfitriao(a.anfitriao_id)}</p>
                 )}

@@ -44,8 +44,9 @@ export default function ClienteSheet({ cliente, onClose, onEditContrato, onEditR
   useEffect(() => {
     if (!cliente) return;
     setForm({
-      nome: cliente.nome ?? "", email: cliente.email ?? "", telefone: cliente.telefone ?? "",
-      whatsapp: cliente.whatsapp ?? "", instagram: cliente.instagram ?? "", observacao: cliente.observacao ?? "",
+      nome: cliente.nome ?? "", email: cliente.email ?? "", telefone: "",
+      whatsapp: cliente.whatsapp || cliente.telefone || "",
+      instagram: cliente.instagram ?? "", observacao: cliente.observacao ?? "",
     });
     setTags([...new Set((cliente.tags ?? []) as string[])]);
   }, [cliente?.id]);
@@ -83,7 +84,7 @@ export default function ClienteSheet({ cliente, onClose, onEditContrato, onEditR
       const { error } = await supabase.from("clientes").update({
         nome: form.nome.trim(),
         email: form.email || null,
-        telefone: form.telefone || null,
+        telefone: form.whatsapp || null,
         whatsapp: form.whatsapp || null,
         instagram: form.instagram || null,
         observacao: form.observacao || null,
@@ -151,13 +152,10 @@ export default function ClienteSheet({ cliente, onClose, onEditContrato, onEditR
                     <Input value={form.email} onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))} className="bg-secondary/50 border-border" />
                   </div>
                   <div className="space-y-1.5">
-                    <Label className="text-xs">Telefone</Label>
-                    <Input value={form.telefone} onChange={(e) => setForm((f) => ({ ...f, telefone: e.target.value }))} className="bg-secondary/50 border-border" />
-                  </div>
-                  <div className="space-y-1.5">
                     <Label className="text-xs">WhatsApp</Label>
                     <Input value={form.whatsapp} onChange={(e) => setForm((f) => ({ ...f, whatsapp: e.target.value }))} className="bg-secondary/50 border-border" />
                   </div>
+
                   <div className="space-y-1.5">
                     <Label className="text-xs">Instagram</Label>
                     <Input value={form.instagram} onChange={(e) => setForm((f) => ({ ...f, instagram: e.target.value }))} className="bg-secondary/50 border-border" />

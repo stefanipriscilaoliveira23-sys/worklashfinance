@@ -64,7 +64,7 @@ export default function BibliotecaProcessos() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2">
-            <BookOpen className="h-6 w-6 text-primary" /> Biblioteca de Processos
+            <BookOpen className="h-6 w-6 text-primary" /> Biblioteca de POP
           </h1>
           <p className="text-sm text-muted-foreground">Como cada coisa é feita aqui dentro, documentada em um só lugar.</p>
         </div>
