@@ -358,6 +358,7 @@ export type Database = {
           instagram: string | null
           nome: string
           observacao: string | null
+          tags: string[] | null
           telefone: string | null
           whatsapp: string | null
         }
@@ -368,6 +369,7 @@ export type Database = {
           instagram?: string | null
           nome: string
           observacao?: string | null
+          tags?: string[] | null
           telefone?: string | null
           whatsapp?: string | null
         }
@@ -378,6 +380,7 @@ export type Database = {
           instagram?: string | null
           nome?: string
           observacao?: string | null
+          tags?: string[] | null
           telefone?: string | null
           whatsapp?: string | null
         }
@@ -1708,6 +1711,7 @@ export type Database = {
       receitas: {
         Row: {
           cliente_email: string | null
+          cliente_id: string | null
           cliente_nome: string | null
           criado_em: string
           data: string
@@ -1741,6 +1745,7 @@ export type Database = {
         }
         Insert: {
           cliente_email?: string | null
+          cliente_id?: string | null
           cliente_nome?: string | null
           criado_em?: string
           data: string
@@ -1774,6 +1779,7 @@ export type Database = {
         }
         Update: {
           cliente_email?: string | null
+          cliente_id?: string | null
           cliente_nome?: string | null
           criado_em?: string
           data?: string
@@ -1806,6 +1812,13 @@ export type Database = {
           valor_liquido?: number | null
         }
         Relationships: [
+          {
+            foreignKeyName: "receitas_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "clientes"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "receitas_produto_id_fkey"
             columns: ["produto_id"]

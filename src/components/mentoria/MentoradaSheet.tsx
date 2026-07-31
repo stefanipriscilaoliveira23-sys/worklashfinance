@@ -97,6 +97,22 @@ export default function MentoradaSheet({ id, onClose }: Props) {
 
   });
 
+  const { data: parcelas } = useQuery({
+    queryKey: ["mentorada-parcelas", m?.cliente_id],
+    enabled: !!m?.cliente_id,
+    queryFn: async () => {
+      const { data: contratos } = await supabase
+        .from("parcelas_mentoria").select("id").eq("cliente_id", m!.cliente_id!);
+      const ids = (contratos ?? []).map((c) => c.id);
+      if (ids.length === 0) return [] as Record<string, any>[];
+      const { data } = await supabase
+        .from("parcelas_mentoria_detalhe").select("*")
+        .in("parcela_mentoria_id", ids)
+        .order("data_vencimento", { ascending: true });
+      return (data ?? []) as Record<string, any>[];
+    },
+  });
+
   const { data: modelos } = useQuery({
     queryKey: ["mensagens-modelo"],
     queryFn: async () => {
@@ -445,13 +461,34 @@ export default function MentoradaSheet({ id, onClose }: Props) {
                     <ul className="divide-y divide-border rounded-lg border border-border">
                       {(receitas ?? []).map((r: Record<string, any>) => (
                         <li key={r.id} className="flex items-center justify-between px-3 py-2 text-sm">
-                          <span className="truncate">{formatDate(r.data)} · {r.produto ?? r.descricao ?? "Receita"}</span>
-                          <span className="font-medium">{formatCurrency(r.valor_liquido ?? r.valor ?? 0)}</span>
+                          <span className="truncate">{formatDate(r.data)} · {r.produto_nome ?? r.produto ?? r.descricao ?? "Receita"}</span>
+                          <span className="font-medium">{formatCurrency(r.valor_liquido ?? r.valor_bruto ?? 0)}</span>
                         </li>
                       ))}
                     </ul>
                   )}
                 </div>
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground mb-2">Parcelas da mentoria</p>
+                  {(parcelas ?? []).length === 0 ? (
+                    <p className="text-sm text-muted-foreground">Nenhuma parcela encontrada.</p>
+                  ) : (
+                    <ul className="divide-y divide-border rounded-lg border border-border">
+                      {(parcelas ?? []).map((p: Record<string, any>) => (
+                        <li key={p.id} className="flex items-center justify-between px-3 py-2 text-sm">
+                          <span className="truncate">
+                            {p.numero_parcela}ª · {formatDate(p.data_vencimento)}
+                          </span>
+                          <span className="flex items-center gap-2">
+                            <span className="text-xs text-muted-foreground">{p.status}</span>
+                            <span className="font-medium">{formatCurrency(p.valor_real ?? p.valor_sugerido ?? 0)}</span>
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+
               </TabsContent>
 
               {/* ONBOARDING */}
