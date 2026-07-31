@@ -125,7 +125,9 @@ export default function ClienteSheet({ cliente, onClose, onEditContrato, onEditR
                   </span>
                 )}
               </SheetTitle>
-              <p className="text-xs text-muted-foreground">Cliente desde {formatDate(cliente.criado_em)}</p>
+              {cliente.criado_em && (
+                <p className="text-xs text-muted-foreground">Cliente desde {formatDate(String(cliente.criado_em).slice(0, 10))}</p>
+              )}
             </SheetHeader>
 
             <Tabs defaultValue="perfil">
