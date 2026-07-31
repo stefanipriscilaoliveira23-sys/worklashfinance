@@ -288,7 +288,7 @@ export default function Mentoria() {
                         <p className="text-sm font-semibold">{coluna}</p>
                         <Badge variant="secondary">{itens.length}</Badge>
                       </div>
-                      <div className="space-y-2 min-h-[80px]">
+                      <div className="space-y-2 min-h-[80px] max-h-[60vh] overflow-y-auto pr-1 thin-scroll">
                         {itens.map((m) => {
                           const dias = diasRestantes(m.data_termino);
                           const { total, feitas } = progressoDe(m.id, m.status_jornada);
