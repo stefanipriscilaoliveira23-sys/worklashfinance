@@ -630,7 +630,15 @@ export default function Receitas() {
             {(produtosCatalogo ?? []).map(p => <SelectItem key={p.id} value={p.nome}>{p.nome}</SelectItem>)}
           </SelectContent>
         </Select>
+        <Select value={filtroVendedor} onValueChange={setFiltroVendedor}>
+          <SelectTrigger className="w-[170px] bg-secondary/50 border-border"><SelectValue placeholder="Vendedor" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todos vendedores</SelectItem>
+            {vendedores.map(v => <SelectItem key={v} value={v}>{v}</SelectItem>)}
+          </SelectContent>
+        </Select>
       </div>
+
 
       {/* Tabs + Tabela */}
       <Tabs value={tab} onValueChange={setTab}>
