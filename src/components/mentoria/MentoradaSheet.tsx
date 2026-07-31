@@ -29,6 +29,7 @@ export default function MentoradaSheet({ id, onClose }: Props) {
   const [novaNota, setNovaNota] = useState("");
   const [novaTarefa, setNovaTarefa] = useState("");
   const [uploading, setUploading] = useState(false);
+  const [tagsDraft, setTagsDraft] = useState<string[]>([]);
 
   const { data: m, isLoading } = useQuery({
     queryKey: ["mentorada", id],
@@ -39,6 +40,10 @@ export default function MentoradaSheet({ id, onClose }: Props) {
       return data;
     },
   });
+
+  useEffect(() => {
+    setTagsDraft([...new Set((((m as any)?.tags ?? []) as string[]))]);
+  }, [m?.id, (m as any)?.tags?.join?.("|")]);
 
   const { data: pipelines } = useQuery({
     queryKey: ["pipelines"],
