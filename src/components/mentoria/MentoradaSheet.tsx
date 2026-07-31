@@ -203,7 +203,8 @@ export default function MentoradaSheet({ id, onClose }: Props) {
       if (!novaTarefa.trim()) throw new Error("Descreva a tarefa");
       const { error } = await supabase.from("mentorada_tarefas").insert({
         mentorada_id: id!, titulo: novaTarefa.trim(),
-        categoria: "Ação da equipe", ordem: (tarefas?.length ?? 0) + 1,
+        categoria: "Ação da equipe", etapa: m?.status_jornada ?? null,
+        ordem: (tarefas?.length ?? 0) + 1,
       });
       if (error) throw error;
     },
