@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -18,8 +18,9 @@ import { Badge } from "@/components/ui/badge";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { Copy, Loader2, Plus, Trash2, Upload, FileText } from "lucide-react";
+import { Copy, Loader2, Plus, Save, Trash2, Upload, FileText } from "lucide-react";
 import TagsAluna from "@/components/mentoria/TagsAluna";
+import TagsEditor from "@/components/clientes/TagsEditor";
 
 type Props = { id: string | null; onClose: () => void };
 
@@ -374,6 +375,10 @@ export default function MentoradaSheet({ id, onClose }: Props) {
                   <Label className="text-xs">Observação</Label>
                   <Textarea defaultValue={m.observacao ?? ""}
                     onBlur={(e) => e.target.value !== (m.observacao ?? "") && salvar.mutate({ observacao: e.target.value })} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Tags</Label>
+                  <TagsEditor tags={tagsDraft} onChange={setTagsDraft} />
                 </div>
                 {m.status_jornada === "Cancelada" && (
                   <div className="grid grid-cols-2 gap-3">
