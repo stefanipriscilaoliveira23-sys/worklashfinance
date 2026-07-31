@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Copy } from "lucide-react";
+import { ChevronDown, ChevronUp, Copy, MessageSquareText } from "lucide-react";
 import { useEffect, useState } from "react";
 
 type Props = {
@@ -55,6 +55,7 @@ export default function ReuniaoDetalhe({ agendamentoId, anfitriao, convidado, ho
   });
 
   const copiar = (t: string) => { navigator.clipboard.writeText(t); toast.success("Mensagem copiada"); };
+  const [abertas, setAbertas] = useState(false);
 
   return (
     <div className="space-y-3 pt-2">
@@ -70,21 +71,32 @@ export default function ReuniaoDetalhe({ agendamentoId, anfitriao, convidado, ho
         </div>
       )}
 
-      <div className="space-y-1.5">
-        <Label className="text-xs">Mensagem para o anfitrião</Label>
-        <Textarea rows={3} value={msgAnfitriao} onChange={(e) => setMsgAnfitriao(e.target.value)} />
-        <Button size="sm" variant="outline" onClick={() => copiar(msgAnfitriao)}>
-          <Copy className="h-3.5 w-3.5 mr-1" /> Copiar
-        </Button>
-      </div>
+      <Button size="sm" variant="outline" onClick={() => setAbertas((v) => !v)}>
+        <MessageSquareText className="h-3.5 w-3.5 mr-1" />
+        Mensagens
+        {abertas ? <ChevronUp className="h-3.5 w-3.5 ml-1" /> : <ChevronDown className="h-3.5 w-3.5 ml-1" />}
+      </Button>
 
-      <div className="space-y-1.5">
-        <Label className="text-xs">Mensagem para o convidado</Label>
-        <Textarea rows={3} value={msgConvidado} onChange={(e) => setMsgConvidado(e.target.value)} />
-        <Button size="sm" variant="outline" onClick={() => copiar(msgConvidado)}>
-          <Copy className="h-3.5 w-3.5 mr-1" /> Copiar
-        </Button>
-      </div>
+      {abertas && (
+        <div className="space-y-3">
+          <div className="space-y-1.5">
+            <Label className="text-xs">Mensagem para o anfitrião</Label>
+            <Textarea rows={3} value={msgAnfitriao} onChange={(e) => setMsgAnfitriao(e.target.value)} />
+            <Button size="sm" variant="outline" onClick={() => copiar(msgAnfitriao)}>
+              <Copy className="h-3.5 w-3.5 mr-1" /> Copiar
+            </Button>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label className="text-xs">Mensagem para o convidado</Label>
+            <Textarea rows={3} value={msgConvidado} onChange={(e) => setMsgConvidado(e.target.value)} />
+            <Button size="sm" variant="outline" onClick={() => copiar(msgConvidado)}>
+              <Copy className="h-3.5 w-3.5 mr-1" /> Copiar
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
+
