@@ -102,7 +102,7 @@ export default function MentoradaSheet({ id, onClose }: Props) {
     enabled: !!m?.cliente_id,
     queryFn: async () => {
       const { data: contratos } = await supabase
-        .from("parcelas_mentoria").select("id").eq("cliente_id", m!.cliente_id!);
+        .from("parcelas_mentoria").select("id, tipo_mentoria").eq("cliente_id", m!.cliente_id!);
       const ids = (contratos ?? []).map((c) => c.id);
       if (ids.length === 0) return [] as Record<string, any>[];
       const { data } = await supabase
@@ -112,6 +112,13 @@ export default function MentoradaSheet({ id, onClose }: Props) {
       return (data ?? []) as Record<string, any>[];
     },
   });
+
+  const hojeISO = new Date().toISOString().slice(0, 10);
+  const estaAtrasada = (p: Record<string, any>) =>
+    p.status === "Atraso" || (p.status !== "Quitado" && !!p.data_vencimento && p.data_vencimento < hojeISO);
+  const parcelasAtrasadas = (parcelas ?? []).filter(estaAtrasada);
+  const inadimplente = parcelasAtrasadas.length > 0;
+
 
   const { data: modelos } = useQuery({
     queryKey: ["mensagens-modelo"],
@@ -281,7 +288,14 @@ export default function MentoradaSheet({ id, onClose }: Props) {
                 {m.nome}
                 <Badge variant="secondary">{m.status_jornada}</Badge>
               </SheetTitle>
-              <TagsAluna tags={(m as any).tags} className="mt-0.5" />
+              <TagsAluna
+                className="mt-0.5"
+                tags={[
+                  ...((((m as any).tags ?? []) as string[])),
+                  ...(inadimplente && !(((m as any).tags ?? []) as string[]).some((t) => t.toUpperCase().includes("INADIMPL"))
+                    ? ["INADIMPLENTE"] : []),
+                ]}
+              />
               <p className="text-sm text-muted-foreground">
                 {m.programa} · {m.prazo_meses} meses
                 {restantes !== null && ` · ${restantes >= 0 ? `${restantes} dias restantes` : `encerrada há ${-restantes} dias`}`}
@@ -469,25 +483,62 @@ export default function MentoradaSheet({ id, onClose }: Props) {
                   )}
                 </div>
                 <div>
-                  <p className="text-xs font-medium text-muted-foreground mb-2">Parcelas da mentoria</p>
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-xs font-medium text-muted-foreground">Parcelas da mentoria</p>
+                    {inadimplente && (
+                      <span className="rounded-full border border-destructive/40 bg-destructive/15 px-2 py-0.5 text-[10px] font-semibold uppercase text-destructive">
+                        Inadimplente · {parcelasAtrasadas.length} em atraso
+                      </span>
+                    )}
+                  </div>
+                  {inadimplente && (
+                    <div className="mb-3 rounded-lg border border-destructive/40 bg-destructive/5 p-3">
+                      <p className="text-xs font-semibold text-destructive mb-2">Parcelas em atraso</p>
+                      <ul className="space-y-1">
+                        {parcelasAtrasadas.map((p) => {
+                          const dias = Math.floor(
+                            (new Date(hojeISO + "T00:00:00").getTime() - new Date(p.data_vencimento + "T00:00:00").getTime()) / 86400000
+                          );
+                          return (
+                            <li key={p.id} className="flex items-center justify-between text-xs">
+                              <span>{p.numero_parcela}ª · venceu em {formatDate(p.data_vencimento)} ({dias} dias)</span>
+                              <span className="font-medium text-destructive">{formatCurrency(p.valor_real ?? p.valor_sugerido ?? 0)}</span>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                      <p className="mt-2 text-xs text-destructive">
+                        Total em atraso: {formatCurrency(parcelasAtrasadas.reduce((s, p) => s + (p.valor_real ?? p.valor_sugerido ?? 0), 0))}
+                      </p>
+                    </div>
+                  )}
                   {(parcelas ?? []).length === 0 ? (
                     <p className="text-sm text-muted-foreground">Nenhuma parcela encontrada.</p>
                   ) : (
                     <ul className="divide-y divide-border rounded-lg border border-border">
-                      {(parcelas ?? []).map((p: Record<string, any>) => (
-                        <li key={p.id} className="flex items-center justify-between px-3 py-2 text-sm">
-                          <span className="truncate">
-                            {p.numero_parcela}ª · {formatDate(p.data_vencimento)}
-                          </span>
-                          <span className="flex items-center gap-2">
-                            <span className="text-xs text-muted-foreground">{p.status}</span>
-                            <span className="font-medium">{formatCurrency(p.valor_real ?? p.valor_sugerido ?? 0)}</span>
-                          </span>
-                        </li>
-                      ))}
+                      {(parcelas ?? []).map((p: Record<string, any>) => {
+                        const atrasada = estaAtrasada(p);
+                        return (
+                          <li key={p.id} className={`flex items-center justify-between px-3 py-2 text-sm ${atrasada ? "bg-destructive/5" : ""}`}>
+                            <span className="truncate flex items-center gap-2">
+                              {p.numero_parcela}ª · {formatDate(p.data_vencimento)}
+                              {atrasada && (
+                                <span className="rounded-full border border-destructive/40 bg-destructive/15 px-1.5 py-0.5 text-[9px] font-semibold uppercase text-destructive">
+                                  Atraso
+                                </span>
+                              )}
+                            </span>
+                            <span className="flex items-center gap-2">
+                              <span className="text-xs text-muted-foreground">{atrasada ? "Em atraso" : p.status}</span>
+                              <span className="font-medium">{formatCurrency(p.valor_real ?? p.valor_sugerido ?? 0)}</span>
+                            </span>
+                          </li>
+                        );
+                      })}
                     </ul>
                   )}
                 </div>
+
 
               </TabsContent>
 

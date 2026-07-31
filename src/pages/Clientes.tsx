@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -25,6 +25,13 @@ export default function Clientes() {
   const { role } = useAuth();
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
+  const [buscaAtiva, setBuscaAtiva] = useState("");
+  const [tagsFiltro, setTagsFiltro] = useState<string[]>([]);
+  const [produtoFiltro, setProdutoFiltro] = useState("");
+  const [dataDe, setDataDe] = useState("");
+  const [dataAte, setDataAte] = useState("");
+  const [pageSize, setPageSize] = useState(50);
+  const [page, setPage] = useState(1);
   const [selectedCliente, setSelectedCliente] = useState<Tables<"clientes"> | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [editCliente, setEditCliente] = useState<Tables<"clientes"> | null>(null);
@@ -32,14 +39,54 @@ export default function Clientes() {
   const [editContrato, setEditContrato] = useState<Tables<"parcelas_mentoria"> | null>(null);
   const [editReceita, setEditReceita] = useState<any>(null);
 
-  const { data: clientes, isLoading } = useQuery({
-    queryKey: ["clientes"],
+  // debounce da busca
+  useEffect(() => {
+    const t = setTimeout(() => { setBuscaAtiva(search); setPage(1); }, 350);
+    return () => clearTimeout(t);
+  }, [search]);
+
+  useEffect(() => { setPage(1); }, [tagsFiltro, produtoFiltro, dataDe, dataAte, pageSize]);
+
+  const { data: tagOptions } = useQuery({
+    queryKey: ["clientes-tags"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("clientes").select("*").order("nome");
+      const { data, error } = await (supabase as any).rpc("clientes_tags");
       if (error) throw error;
-      return data;
+      return (data ?? []) as { tag: string; total: number }[];
     },
   });
+
+  const { data: produtoOptions } = useQuery({
+    queryKey: ["clientes-produtos-opcoes"],
+    queryFn: async () => {
+      const { data } = await supabase.from("produtos_catalogo").select("nome").order("nome");
+      return [...new Set((data ?? []).map((p: any) => p.nome as string).filter(Boolean))];
+    },
+  });
+
+  const { data: pagina, isLoading, isFetching } = useQuery({
+    queryKey: ["clientes-busca", buscaAtiva, tagsFiltro, produtoFiltro, dataDe, dataAte, page, pageSize],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any).rpc("buscar_clientes", {
+        p_busca: buscaAtiva || null,
+        p_tags: tagsFiltro.length ? tagsFiltro : null,
+        p_produto: produtoFiltro || null,
+        p_de: dataDe || null,
+        p_ate: dataAte || null,
+        p_limit: pageSize,
+        p_offset: (page - 1) * pageSize,
+      });
+      if (error) throw error;
+      const rows = (data ?? []) as any[];
+      return { rows, total: rows.length ? Number(rows[0].total_count) : 0 };
+    },
+    placeholderData: (prev: any) => prev,
+  });
+
+  const clientes = pagina?.rows ?? [];
+  const total = pagina?.total ?? 0;
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+
 
   const { data: allContratos } = useQuery({
     queryKey: ["clientes-contratos-all"],
@@ -85,7 +132,7 @@ export default function Clientes() {
       });
       if (error) throw error;
     },
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["clientes"] }); toast.success("Cliente criada"); closeForm(); },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["clientes-busca"] }); toast.success("Cliente criada"); closeForm(); },
     onError: (e: any) => toast.error(e.message),
   });
 
@@ -98,13 +145,13 @@ export default function Clientes() {
       }).eq("id", editCliente.id);
       if (error) throw error;
     },
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["clientes"] }); toast.success("Cliente atualizada"); closeForm(); },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["clientes-busca"] }); toast.success("Cliente atualizada"); closeForm(); },
     onError: (e: any) => toast.error(e.message),
   });
 
   const deleteCliente = useMutation({
     mutationFn: async (id: string) => { const { error } = await supabase.from("clientes").delete().eq("id", id); if (error) throw error; },
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["clientes"] }); toast.success("Cliente excluída"); },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["clientes-busca"] }); toast.success("Cliente excluída"); },
     onError: () => toast.error("Erro ao excluir — apenas administradores"),
   });
 
@@ -114,11 +161,8 @@ export default function Clientes() {
     setEditCliente(c); setShowForm(true);
   };
 
-  const filtered = (clientes ?? []).filter(c => {
-    if (!search) return true;
-    const s = search.toLowerCase();
-    return c.nome.toLowerCase().includes(s) || (c.email ?? "").toLowerCase().includes(s);
-  });
+  const filtered = clientes;
+
 
   // Metrics
   const metrics = useMemo(() => {
@@ -172,8 +216,9 @@ export default function Clientes() {
         </div>
         <div className="flex items-center gap-3">
           <Badge variant="outline" className="text-muted-foreground border-border">
-            {filtered.length} cliente{filtered.length !== 1 ? "s" : ""}
+            {total.toLocaleString("pt-BR")} cliente{total !== 1 ? "s" : ""}
           </Badge>
+
           <Button onClick={() => { setEditCliente(null); setShowForm(true); }} className="gold-gradient text-primary-foreground">
             <Plus className="h-4 w-4 mr-2" /> Nova cliente
           </Button>
@@ -222,9 +267,63 @@ export default function Clientes() {
         </Card>
       </div>
 
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input placeholder="Buscar por nome ou email..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9 bg-secondary/50 border-border" />
+      {/* Filtros */}
+      <div className="space-y-3 rounded-xl border border-border bg-card p-3">
+        <div className="flex flex-col lg:flex-row gap-3">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input placeholder="Buscar por nome, email, telefone ou @instagram..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9 bg-secondary/50 border-border" />
+          </div>
+          <div className="flex flex-wrap gap-3">
+            <div className="flex items-center gap-2">
+              <Label className="text-xs text-muted-foreground whitespace-nowrap">Produto</Label>
+              <select
+                value={produtoFiltro}
+                onChange={e => setProdutoFiltro(e.target.value)}
+                className="h-9 rounded-md border border-border bg-secondary/50 px-2 text-sm max-w-[180px]"
+              >
+                <option value="">Todos</option>
+                {(produtoOptions ?? []).map(p => <option key={p} value={p}>{p}</option>)}
+              </select>
+            </div>
+            <div className="flex items-center gap-2">
+              <Label className="text-xs text-muted-foreground whitespace-nowrap">Cadastro</Label>
+              <Input type="date" value={dataDe} onChange={e => setDataDe(e.target.value)} className="h-9 w-[140px] bg-secondary/50 border-border text-xs" />
+              <span className="text-xs text-muted-foreground">até</span>
+              <Input type="date" value={dataAte} onChange={e => setDataAte(e.target.value)} className="h-9 w-[140px] bg-secondary/50 border-border text-xs" />
+            </div>
+          </div>
+        </div>
+
+        <div className="flex items-start gap-2">
+          <Label className="text-xs text-muted-foreground pt-1.5 whitespace-nowrap">Tags</Label>
+          <div className="flex-1">
+            <select
+              value=""
+              onChange={e => { const v = e.target.value; if (v && !tagsFiltro.includes(v)) setTagsFiltro(t => [...t, v]); }}
+              className="h-9 rounded-md border border-border bg-secondary/50 px-2 text-sm max-w-full"
+            >
+              <option value="">Adicionar tag ao filtro...</option>
+              {(tagOptions ?? []).map(t => <option key={t.tag} value={t.tag}>{t.tag} ({t.total})</option>)}
+            </select>
+            {tagsFiltro.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 mt-2">
+                {tagsFiltro.map(t => (
+                  <button key={t} onClick={() => setTagsFiltro(x => x.filter(y => y !== t))}
+                    className="rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-[11px] text-primary hover:bg-primary/20">
+                    {t} ✕
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+          {(tagsFiltro.length > 0 || produtoFiltro || dataDe || dataAte || search) && (
+            <Button variant="outline" size="sm" className="border-border"
+              onClick={() => { setTagsFiltro([]); setProdutoFiltro(""); setDataDe(""); setDataAte(""); setSearch(""); }}>
+              Limpar filtros
+            </Button>
+          )}
+        </div>
       </div>
 
       <div className="rounded-xl border border-border bg-card overflow-hidden">
@@ -239,6 +338,7 @@ export default function Clientes() {
                   <th className="p-3 text-xs font-medium text-muted-foreground text-left">Email</th>
                   <th className="p-3 text-xs font-medium text-muted-foreground text-left">WhatsApp</th>
                   <th className="p-3 text-xs font-medium text-muted-foreground text-left">Instagram</th>
+                  <th className="p-3 text-xs font-medium text-muted-foreground text-left">Tags</th>
                   <th className="p-3 text-xs font-medium text-muted-foreground text-left">Cadastro</th>
                   <th className="p-3 text-xs font-medium text-muted-foreground text-left">Ações</th>
                   <th className="p-3 text-xs font-medium text-muted-foreground text-left"></th>
@@ -246,7 +346,7 @@ export default function Clientes() {
               </thead>
               <tbody>
                 {filtered.length === 0 && (
-                  <tr><td colSpan={7} className="p-12 text-center text-muted-foreground">Nenhum cliente encontrado</td></tr>
+                  <tr><td colSpan={8} className="p-12 text-center text-muted-foreground">Nenhum cliente encontrado</td></tr>
                 )}
                 {filtered.map(c => (
                   <tr
@@ -258,6 +358,20 @@ export default function Clientes() {
                     <td className="p-3 text-muted-foreground text-xs">{c.email || "—"}</td>
                     <td className="p-3 text-muted-foreground text-xs">{(c as any).whatsapp || "—"}</td>
                     <td className="p-3 text-muted-foreground text-xs">{(c as any).instagram || "—"}</td>
+                    <td className="p-3 max-w-[260px]">
+                      {((c as any).tags ?? []).length === 0 ? (
+                        <span className="text-xs text-muted-foreground">—</span>
+                      ) : (
+                        <div className="flex flex-wrap gap-1">
+                          {[...new Set((c as any).tags as string[])].slice(0, 3).map((t, i) => (
+                            <span key={`${t}-${i}`} className="rounded-full border border-border bg-secondary/50 px-1.5 py-0.5 text-[10px] text-muted-foreground">{t}</span>
+                          ))}
+                          {((c as any).tags as string[]).length > 3 && (
+                            <span className="text-[10px] text-muted-foreground">+{((c as any).tags as string[]).length - 3}</span>
+                          )}
+                        </div>
+                      )}
+                    </td>
                     <td className="p-3 text-muted-foreground text-xs">{formatDate(c.criado_em)}</td>
                     <td className="p-3" onClick={e => e.stopPropagation()}>
                       <DropdownMenu>
@@ -275,7 +389,30 @@ export default function Clientes() {
             </table>
           )}
         </div>
+
+        {/* Paginação */}
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 border-t border-border p-3">
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <span>Mostrar</span>
+            <select
+              value={pageSize}
+              onChange={e => setPageSize(Number(e.target.value))}
+              className="h-8 rounded-md border border-border bg-secondary/50 px-2 text-xs"
+            >
+              {[20, 50, 100].map(n => <option key={n} value={n}>{n}</option>)}
+            </select>
+            <span>por página · {total.toLocaleString("pt-BR")} no total {isFetching && "· carregando..."}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" className="border-border" disabled={page <= 1} onClick={() => setPage(1)}>«</Button>
+            <Button variant="outline" size="sm" className="border-border" disabled={page <= 1} onClick={() => setPage(p => p - 1)}>Anterior</Button>
+            <span className="text-xs text-muted-foreground">Página {page} de {totalPages}</span>
+            <Button variant="outline" size="sm" className="border-border" disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}>Próxima</Button>
+            <Button variant="outline" size="sm" className="border-border" disabled={page >= totalPages} onClick={() => setPage(totalPages)}>»</Button>
+          </div>
+        </div>
       </div>
+
 
       {/* Client detail sheet */}
       <Sheet open={!!selectedCliente} onOpenChange={() => setSelectedCliente(null)}>
