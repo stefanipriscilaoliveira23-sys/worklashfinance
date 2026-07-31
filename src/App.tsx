@@ -28,7 +28,6 @@ import AgendarPublico from "./pages/AgendarPublico";
 import Scripts from "./pages/Scripts";
 import Formularios from "./pages/Formularios";
 import BibliotecaProcessos from "./pages/BibliotecaProcessos";
-import Processos from "./pages/Processos";
 import DRE from "./pages/DRE";
 import NotFound from "./pages/NotFound";
 
@@ -52,7 +51,6 @@ const App = () => (
               <Route path="/agenda" element={<Agenda />} />
 
               <Route path="/dashboard" element={<AdminRoute><Dashboard /></AdminRoute>} />
-              <Route path="/processos" element={<Processos />} />
               <Route path="/biblioteca" element={<BibliotecaProcessos />} />
               <Route path="/scripts" element={<Scripts />} />
               <Route path="/produtos-cursos" element={<ProdutosMargem />} />
