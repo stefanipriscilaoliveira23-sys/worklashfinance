@@ -54,6 +54,33 @@ export default function Mentoria() {
     },
   });
 
+  // Clientes com parcelas de mentoria em atraso (não quitadas e vencidas)
+  const { data: inadimplentes } = useQuery({
+    queryKey: ["clientes-inadimplentes"],
+    queryFn: async () => {
+      const hoje = new Date().toISOString().slice(0, 10);
+      const { data: contratos } = await supabase
+        .from("parcelas_mentoria").select("id, cliente_id");
+      const mapa = new Map<string, string>();
+      (contratos ?? []).forEach((c) => { if (c.cliente_id) mapa.set(c.id, c.cliente_id); });
+      const ids = [...mapa.keys()];
+      if (!ids.length) return new Set<string>();
+      const { data: det } = await supabase
+        .from("parcelas_mentoria_detalhe")
+        .select("parcela_mentoria_id, status, data_vencimento")
+        .in("parcela_mentoria_id", ids);
+      const set = new Set<string>();
+      (det ?? []).forEach((d: any) => {
+        const atrasada = d.status === "Atraso" || (d.status !== "Quitado" && d.data_vencimento && d.data_vencimento < hoje);
+        const cid = mapa.get(d.parcela_mentoria_id);
+        if (atrasada && cid) set.add(cid);
+      });
+      return set;
+    },
+  });
+
+
+
 
   const progressoDe = (mentoradaId: string, etapa: string) => {
     const itens = (tarefas ?? []).filter((t) => t.mentorada_id === mentoradaId && t.etapa === etapa);
