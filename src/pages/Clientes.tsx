@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -25,6 +25,13 @@ export default function Clientes() {
   const { role } = useAuth();
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
+  const [buscaAtiva, setBuscaAtiva] = useState("");
+  const [tagsFiltro, setTagsFiltro] = useState<string[]>([]);
+  const [produtoFiltro, setProdutoFiltro] = useState("");
+  const [dataDe, setDataDe] = useState("");
+  const [dataAte, setDataAte] = useState("");
+  const [pageSize, setPageSize] = useState(50);
+  const [page, setPage] = useState(1);
   const [selectedCliente, setSelectedCliente] = useState<Tables<"clientes"> | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [editCliente, setEditCliente] = useState<Tables<"clientes"> | null>(null);
@@ -32,14 +39,54 @@ export default function Clientes() {
   const [editContrato, setEditContrato] = useState<Tables<"parcelas_mentoria"> | null>(null);
   const [editReceita, setEditReceita] = useState<any>(null);
 
-  const { data: clientes, isLoading } = useQuery({
-    queryKey: ["clientes"],
+  // debounce da busca
+  useEffect(() => {
+    const t = setTimeout(() => { setBuscaAtiva(search); setPage(1); }, 350);
+    return () => clearTimeout(t);
+  }, [search]);
+
+  useEffect(() => { setPage(1); }, [tagsFiltro, produtoFiltro, dataDe, dataAte, pageSize]);
+
+  const { data: tagOptions } = useQuery({
+    queryKey: ["clientes-tags"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("clientes").select("*").order("nome");
+      const { data, error } = await (supabase as any).rpc("clientes_tags");
       if (error) throw error;
-      return data;
+      return (data ?? []) as { tag: string; total: number }[];
     },
   });
+
+  const { data: produtoOptions } = useQuery({
+    queryKey: ["clientes-produtos-opcoes"],
+    queryFn: async () => {
+      const { data } = await supabase.from("produtos_catalogo").select("nome").order("nome");
+      return (data ?? []).map((p: any) => p.nome as string);
+    },
+  });
+
+  const { data: pagina, isLoading, isFetching } = useQuery({
+    queryKey: ["clientes-busca", buscaAtiva, tagsFiltro, produtoFiltro, dataDe, dataAte, page, pageSize],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any).rpc("buscar_clientes", {
+        p_busca: buscaAtiva || null,
+        p_tags: tagsFiltro.length ? tagsFiltro : null,
+        p_produto: produtoFiltro || null,
+        p_de: dataDe || null,
+        p_ate: dataAte || null,
+        p_limit: pageSize,
+        p_offset: (page - 1) * pageSize,
+      });
+      if (error) throw error;
+      const rows = (data ?? []) as any[];
+      return { rows, total: rows.length ? Number(rows[0].total_count) : 0 };
+    },
+    placeholderData: (prev: any) => prev,
+  });
+
+  const clientes = pagina?.rows ?? [];
+  const total = pagina?.total ?? 0;
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+
 
   const { data: allContratos } = useQuery({
     queryKey: ["clientes-contratos-all"],
