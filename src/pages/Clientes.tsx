@@ -16,7 +16,9 @@ import { Card, CardContent } from "@/components/ui/card";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import EditarContratoDialog from "@/components/parcelas/EditarContratoDialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ClienteInteracoes, ClienteDocumentos } from "@/components/clientes/ClienteExtras";
+import ClienteSheet from "@/components/clientes/ClienteSheet";
+import GerenciarTagsDialog from "@/components/clientes/GerenciarTagsDialog";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 import { EditarReceitaModal } from "@/components/receitas/EditarReceitaModal";
 import type { Tables } from "@/integrations/supabase/types";
@@ -38,6 +40,7 @@ export default function Clientes() {
   const [form, setForm] = useState({ nome: "", email: "", telefone: "", whatsapp: "", instagram: "", observacao: "" });
   const [editContrato, setEditContrato] = useState<Tables<"parcelas_mentoria"> | null>(null);
   const [editReceita, setEditReceita] = useState<any>(null);
+  const [showTags, setShowTags] = useState(false);
 
   // debounce da busca
   useEffect(() => {
@@ -96,32 +99,6 @@ export default function Clientes() {
     },
   });
 
-  const { data: contratos } = useQuery({
-    queryKey: ["cliente-contratos", selectedCliente?.id, selectedCliente?.nome],
-    enabled: !!selectedCliente,
-    queryFn: async () => {
-      // Match by cliente_id OR by cliente_nome (many imported contracts only have nome)
-      const { data: byId } = await supabase.from("parcelas_mentoria").select("*, parcelas_mentoria_detalhe(*)").eq("cliente_id", selectedCliente!.id).order("criado_em", { ascending: false });
-      const { data: byNome } = await supabase.from("parcelas_mentoria").select("*, parcelas_mentoria_detalhe(*)").eq("cliente_nome", selectedCliente!.nome).is("cliente_id", null).order("criado_em", { ascending: false });
-      const merged = [...(byId ?? []), ...(byNome ?? [])];
-      // Deduplicate by id
-      const seen = new Set<string>();
-      return merged.filter((c: any) => { if (seen.has(c.id)) return false; seen.add(c.id); return true; }) as any[];
-    },
-  });
-
-  const { data: receitas } = useQuery({
-    queryKey: ["cliente-receitas", selectedCliente?.nome, selectedCliente?.email],
-    enabled: !!selectedCliente,
-    queryFn: async () => {
-      // Match by nome OR email
-      let query = supabase.from("receitas").select("*").order("data", { ascending: false });
-      const conditions = [`cliente_nome.eq.${selectedCliente!.nome}`];
-      if (selectedCliente!.email) conditions.push(`cliente_email.eq.${selectedCliente!.email}`);
-      const { data } = await query.or(conditions.join(","));
-      return data ?? [];
-    },
-  });
 
   const criarCliente = useMutation({
     mutationFn: async () => {
@@ -219,6 +196,9 @@ export default function Clientes() {
             {total.toLocaleString("pt-BR")} cliente{total !== 1 ? "s" : ""}
           </Badge>
 
+          <Button variant="outline" className="border-border" onClick={() => setShowTags(true)}>
+            <Plus className="h-4 w-4 mr-2" /> Tags
+          </Button>
           <Button onClick={() => { setEditCliente(null); setShowForm(true); }} className="gold-gradient text-primary-foreground">
             <Plus className="h-4 w-4 mr-2" /> Nova cliente
           </Button>
@@ -358,18 +338,30 @@ export default function Clientes() {
                     <td className="p-3 text-muted-foreground text-xs">{c.email || "—"}</td>
                     <td className="p-3 text-muted-foreground text-xs">{(c as any).whatsapp || "—"}</td>
                     <td className="p-3 text-muted-foreground text-xs">{(c as any).instagram || "—"}</td>
-                    <td className="p-3 max-w-[260px]">
+                    <td className="p-3 max-w-[260px]" onClick={e => e.stopPropagation()}>
                       {((c as any).tags ?? []).length === 0 ? (
                         <span className="text-xs text-muted-foreground">—</span>
                       ) : (
-                        <div className="flex flex-wrap gap-1">
-                          {[...new Set((c as any).tags as string[])].slice(0, 3).map((t, i) => (
-                            <span key={`${t}-${i}`} className="rounded-full border border-border bg-secondary/50 px-1.5 py-0.5 text-[10px] text-muted-foreground">{t}</span>
-                          ))}
-                          {((c as any).tags as string[]).length > 3 && (
-                            <span className="text-[10px] text-muted-foreground">+{((c as any).tags as string[]).length - 3}</span>
-                          )}
-                        </div>
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <button className="flex flex-wrap gap-1 text-left">
+                              {[...new Set((c as any).tags as string[])].slice(0, 3).map((t, i) => (
+                                <span key={`${t}-${i}`} className="rounded-full border border-border bg-secondary/50 px-1.5 py-0.5 text-[10px] text-muted-foreground hover:border-primary/40 hover:text-primary">{t}</span>
+                              ))}
+                              {[...new Set((c as any).tags as string[])].length > 3 && (
+                                <span className="text-[10px] text-primary">+{[...new Set((c as any).tags as string[])].length - 3}</span>
+                              )}
+                            </button>
+                          </PopoverTrigger>
+                          <PopoverContent align="start" className="max-h-72 w-72 overflow-y-auto bg-card border-border">
+                            <p className="text-xs font-semibold mb-2">Tags de {c.nome}</p>
+                            <div className="flex flex-wrap gap-1">
+                              {[...new Set((c as any).tags as string[])].map((t, i) => (
+                                <span key={`${t}-${i}`} className="rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-[10px] text-primary">{t}</span>
+                              ))}
+                            </div>
+                          </PopoverContent>
+                        </Popover>
                       )}
                     </td>
                     <td className="p-3 text-muted-foreground text-xs">{formatDate(c.criado_em)}</td>
@@ -414,200 +406,15 @@ export default function Clientes() {
       </div>
 
 
-      {/* Client detail sheet */}
-      <Sheet open={!!selectedCliente} onOpenChange={() => setSelectedCliente(null)}>
-        <SheetContent side="right" className="w-full sm:max-w-xl bg-card border-border overflow-y-auto">
-          {selectedCliente && (
-            <div className="space-y-6">
-              <SheetHeader>
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <SheetTitle className="text-foreground">{selectedCliente.nome}</SheetTitle>
-                    <div className="space-y-1 mt-1">
-                      <p className="text-sm text-muted-foreground">{selectedCliente.email || "Sem email"}</p>
-                      {(selectedCliente as any).whatsapp && <p className="text-xs text-muted-foreground">📱 {(selectedCliente as any).whatsapp}</p>}
-                      {(selectedCliente as any).instagram && <p className="text-xs text-muted-foreground">📸 {(selectedCliente as any).instagram}</p>}
-                      {selectedCliente.observacao && <p className="text-xs text-muted-foreground italic mt-2">{selectedCliente.observacao}</p>}
-                    </div>
-                  </div>
+      {/* Ficha completa da cliente */}
+      <ClienteSheet
+        cliente={selectedCliente as any}
+        onClose={() => setSelectedCliente(null)}
+        onEditContrato={(c) => setEditContrato(c)}
+        onEditReceita={(r) => setEditReceita(r)}
+      />
 
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="h-8 text-xs border-primary/30 text-primary hover:bg-primary/10"
-                    onClick={() => openEdit(selectedCliente)}
-                  >
-                    <Pencil className="h-3 w-3 mr-1" />
-                    Editar perfil
-                  </Button>
-                </div>
-              </SheetHeader>
-
-              <Tabs defaultValue="compras">
-                <TabsList className="flex flex-wrap h-auto">
-                  <TabsTrigger value="compras">Compras</TabsTrigger>
-                  <TabsTrigger value="interacoes">Interações</TabsTrigger>
-                  <TabsTrigger value="documentos">Documentos</TabsTrigger>
-                </TabsList>
-
-                <TabsContent value="interacoes" className="pt-4">
-                  <ClienteInteracoes clienteId={selectedCliente.id} />
-                </TabsContent>
-
-                <TabsContent value="documentos" className="pt-4">
-                  <ClienteDocumentos clienteId={selectedCliente.id} />
-                </TabsContent>
-
-                <TabsContent value="compras" className="space-y-6 pt-4">
-              {/* Total gasto */}
-              <div className="rounded-lg border border-border bg-secondary/20 p-4">
-                <p className="text-xs text-muted-foreground uppercase">Total gasto conosco</p>
-                <p className="text-xl font-bold text-primary">{formatCurrency(
-                  (receitas ?? []).reduce((s, r) => s + (r.valor_bruto ?? 0), 0) +
-                  (contratos ?? []).reduce((s: number, c: any) => s + ((c.parcelas_mentoria_detalhe ?? []).filter((d: any) => d.status === "Quitado").reduce((a: number, d: any) => a + (d.valor_real ?? d.valor_sugerido ?? 0), 0)), 0)
-                )}</p>
-              </div>
-
-
-              {/* Contracts */}
-              <div>
-                <h3 className="text-sm font-semibold text-foreground mb-3">Contratos de Mentoria</h3>
-                {(contratos ?? []).length === 0 ? (
-                  <p className="text-xs text-muted-foreground">Nenhum contrato encontrado</p>
-                ) : (
-                  <div className="space-y-3">
-                    {(contratos ?? []).map((contrato: any) => {
-                      const detalhes = contrato.parcelas_mentoria_detalhe ?? [];
-                      const totalPago = detalhes.reduce((acc: number, d: any) => acc + (d.valor_pago_parcial ?? 0), 0);
-                      const saldoRestante = detalhes.reduce((acc: number, d: any) => acc + (d.saldo_parcela ?? 0), 0);
-                      const parcelasQuitadas = detalhes.filter((d: any) => d.status === "Quitado").length;
-                      const today = new Date().toISOString().split("T")[0];
-                      
-                      // Mentoria status
-                      const fimPrevista = contrato.data_fim_prevista;
-                      const vencida = fimPrevista && fimPrevista < today;
-                      const diasParaFim = fimPrevista ? Math.ceil((new Date(fimPrevista + "T00:00:00").getTime() - new Date().getTime()) / 86400000) : null;
-                      
-                      // Next parcela
-                      const proxParcela = detalhes.filter((d: any) => d.status !== "Quitado" && d.data_vencimento >= today).sort((a: any, b: any) => a.data_vencimento.localeCompare(b.data_vencimento))[0];
-                      const diasProxParcela = proxParcela ? Math.ceil((new Date(proxParcela.data_vencimento + "T00:00:00").getTime() - new Date().getTime()) / 86400000) : null;
-
-                      return (
-                        <div key={contrato.id} className="rounded-lg border border-border bg-secondary/20 p-4 space-y-3">
-                          <div className="flex items-center justify-between">
-                            <div>
-                             <p className="text-sm font-medium text-foreground">{contrato.tipo_mentoria}</p>
-                              <p className="text-xs text-muted-foreground">Início: {formatDate(contrato.data_inicio)}</p>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                className="h-7 w-7 p-0 text-muted-foreground hover:text-primary"
-                                onClick={(e) => { e.stopPropagation(); setEditContrato(contrato); }}
-                              >
-                                <Pencil className="h-3 w-3" />
-                              </Button>
-                            <Badge variant="outline" className={
-                              contrato.status_geral === "Quitado" ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" :
-                              contrato.status_geral === "Atraso" ? "bg-destructive/10 text-destructive border-destructive/20" :
-                              "bg-yellow-500/10 text-yellow-400 border-yellow-500/20"
-                            }>
-                              {contrato.status_geral}
-                            </Badge>
-                            </div>
-                          </div>
-                          {/* Mentoria timing */}
-                          <div className="rounded-lg bg-secondary/30 p-2 space-y-1">
-                            {fimPrevista && (
-                              <div className="flex items-center gap-2 text-xs">
-                                {vencida ? (
-                                  <><AlertTriangle className="h-3 w-3 text-destructive" /><span className="text-destructive">Vencida há {Math.abs(diasParaFim!)} dias ({formatDate(fimPrevista)})</span></>
-                                ) : (
-                                  <><Clock className="h-3 w-3 text-primary" /><span className="text-primary">Vence em {diasParaFim} dias ({formatDate(fimPrevista)})</span></>
-                                )}
-                              </div>
-                            )}
-                            {proxParcela && (
-                              <div className="flex items-center gap-2 text-xs">
-                                <DollarSign className="h-3 w-3 text-muted-foreground" />
-                                <span className="text-muted-foreground">Próx. parcela em {diasProxParcela} dia{diasProxParcela !== 1 ? "s" : ""} ({formatDate(proxParcela.data_vencimento)})</span>
-                              </div>
-                            )}
-                          </div>
-
-                          <div className="grid grid-cols-2 gap-2 text-xs">
-                            <div><span className="text-muted-foreground">Valor Total: </span><span className="text-foreground">{formatCurrency(contrato.valor_total)}</span></div>
-                            <div><span className="text-muted-foreground">Entrada: </span><span className="text-foreground">{formatCurrency(contrato.entrada_valor)}</span></div>
-                            <div><span className="text-muted-foreground">Total Pago: </span><span className="text-emerald-400">{formatCurrency(totalPago + (contrato.entrada_valor ?? 0))}</span></div>
-                            <div><span className="text-muted-foreground">Saldo: </span><span className="text-primary">{formatCurrency(saldoRestante)}</span></div>
-                            <div><span className="text-muted-foreground">Parcelas: </span><span className="text-foreground">{parcelasQuitadas}/{detalhes.length}</span></div>
-                          </div>
-
-                          {/* Individual parcels */}
-                          <div className="space-y-1 pt-2 border-t border-border/50">
-                            {detalhes.sort((a: any, b: any) => a.numero_parcela - b.numero_parcela).map((d: any) => (
-                              <div key={d.id} className="flex items-center justify-between text-xs py-1">
-                                <div className="flex items-center gap-2">
-                                  <span className="text-primary font-medium">#{d.numero_parcela}</span>
-                                  <span className="text-muted-foreground">{formatDate(d.data_vencimento)}</span>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                  <span className="text-foreground">{formatCurrency(d.valor_real ?? d.valor_sugerido)}</span>
-                                  <Badge variant="outline" className={`text-[10px] py-0 ${
-                                    d.status === "Quitado" ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" :
-                                    d.status === "Atraso" ? "bg-destructive/10 text-destructive border-destructive/20" :
-                                    "bg-yellow-500/10 text-yellow-400 border-yellow-500/20"
-                                  }`}>
-                                    {d.status}
-                                  </Badge>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-
-              {/* Receitas */}
-              <div>
-                <h3 className="text-sm font-semibold text-foreground mb-3">Receitas</h3>
-                {(receitas ?? []).length === 0 ? (
-                  <p className="text-xs text-muted-foreground">Nenhuma receita encontrada</p>
-                ) : (
-                  <div className="space-y-2">
-                    {(receitas ?? []).map(r => (
-                      <div key={r.id} className="rounded-lg border border-border bg-secondary/20 p-3 flex items-center justify-between">
-                        <div>
-                          <p className="text-sm text-foreground">{r.produto_nome}</p>
-                          <p className="text-xs text-muted-foreground">{formatDate(r.data)} • {r.plataforma}</p>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm font-medium text-emerald-400">{formatCurrency(r.valor_bruto)}</span>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="h-7 w-7 p-0 text-muted-foreground hover:text-primary"
-                            onClick={(e) => { e.stopPropagation(); setEditReceita(r); }}
-                          >
-                            <Pencil className="h-3 w-3" />
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-                </TabsContent>
-              </Tabs>
-            </div>
-
-          )}
-        </SheetContent>
-      </Sheet>
+      <GerenciarTagsDialog open={showTags} onOpenChange={setShowTags} podeExcluir={role === "admin"} />
 
       {/* Add/Edit dialog */}
       <Dialog open={showForm} onOpenChange={() => closeForm()}>
