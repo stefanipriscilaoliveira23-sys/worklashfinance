@@ -704,6 +704,13 @@ export default function MentoradaSheet({ id, onClose }: Props) {
                 </ul>
               </TabsContent>
             </Tabs>
+
+            <div className="sticky bottom-0 -mx-6 mt-4 border-t border-border bg-card px-6 py-3">
+              <Button className="w-full" disabled={salvar.isPending}
+                onClick={() => salvar.mutate({ tags: tagsDraft } as any)}>
+                <Save className="h-4 w-4 mr-2" /> {salvar.isPending ? "Salvando..." : "Salvar alterações"}
+              </Button>
+            </div>
           </>
         )}
       </SheetContent>
