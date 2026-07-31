@@ -127,8 +127,10 @@ export default function Mentoria() {
     mutationFn: async ({ id, etapa }: { id: string; etapa: string }) => {
       const { error } = await supabase.from("mentoradas").update({ status_jornada: etapa }).eq("id", id);
       if (error) throw error;
-      await gerarTarefasDaEtapa(id, etapa);
+      const aluna = (mentoradas ?? []).find((m) => m.id === id);
+      await gerarTarefasDaEtapa(id, etapa, aluna?.pipeline_id ?? null);
     },
+
     onSuccess: (_d, v) => {
       qc.invalidateQueries({ queryKey: ["mentoradas"] });
       qc.invalidateQueries({ queryKey: ["mentorada-tarefas-todas"] });
