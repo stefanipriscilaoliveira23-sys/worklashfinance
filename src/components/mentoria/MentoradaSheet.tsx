@@ -663,7 +663,14 @@ export default function MentoradaSheet({ id, onClose }: Props) {
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1.5">
                     <Label className="text-xs">Status da renovação</Label>
-                    <Select value={m.status_renovacao ?? "Não venceu"} onValueChange={(v) => salvar.mutate({ status_renovacao: v })}>
+                    <Select
+                      value={
+                        ["Inativa", "Cancelada"].includes(m.status_jornada)
+                          ? "Não renovou"
+                          : m.status_renovacao ?? (restantes !== null && restantes >= 0 ? "Não venceu" : "Não venceu")
+                      }
+                      onValueChange={(v) => salvar.mutate({ status_renovacao: v })}
+                    >
                       <SelectTrigger><SelectValue /></SelectTrigger>
                       <SelectContent>
                         {["Não venceu", "Em conversa", "Renovou", "Não renovou"].map((s) =>
