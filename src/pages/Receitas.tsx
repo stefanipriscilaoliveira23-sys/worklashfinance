@@ -33,6 +33,8 @@ export default function Receitas() {
   const [editReceita, setEditReceita] = useState<any>(null);
   const [showFaturadoDetalhe, setShowFaturadoDetalhe] = useState(false);
   const [search, setSearch] = useState("");
+  const [filtroVendedor, setFiltroVendedor] = useState("all");
+
   const [filtroPlataforma, setFiltroPlataforma] = useState("all");
   const [filtroProduto, setFiltroProduto] = useState("all");
   const [filtroImportado, setFiltroImportado] = useState<"all" | "importado" | "manual">("all");
