@@ -5,7 +5,10 @@ export function formatCurrency(value: number | null | undefined, currency = "BRL
 
 export function formatDate(dateStr: string | null | undefined): string {
   if (!dateStr) return "—";
-  const d = new Date(dateStr + "T00:00:00");
+  // Aceita tanto "YYYY-MM-DD" quanto timestamps completos
+  const isDateOnly = /^\d{4}-\d{2}-\d{2}$/.test(dateStr);
+  const d = new Date(isDateOnly ? dateStr + "T00:00:00" : dateStr);
+  if (isNaN(d.getTime())) return "—";
   return d.toLocaleDateString("pt-BR");
 }
 

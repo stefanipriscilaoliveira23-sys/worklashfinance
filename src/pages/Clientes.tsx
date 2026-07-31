@@ -336,7 +336,7 @@ export default function Clientes() {
                   >
                     <td className="p-3 font-medium">{c.nome}</td>
                     <td className="p-3 text-muted-foreground text-xs">{c.email || "—"}</td>
-                    <td className="p-3 text-muted-foreground text-xs">{(c as any).whatsapp || "—"}</td>
+                    <td className="p-3 text-muted-foreground text-xs">{(c as any).whatsapp || c.telefone || "—"}</td>
                     <td className="p-3 text-muted-foreground text-xs">{(c as any).instagram || "—"}</td>
                     <td className="p-3 max-w-[260px]" onClick={e => e.stopPropagation()}>
                       {((c as any).tags ?? []).length === 0 ? (
