@@ -358,6 +358,7 @@ export type Database = {
           instagram: string | null
           nome: string
           observacao: string | null
+          tags: string[] | null
           telefone: string | null
           whatsapp: string | null
         }
@@ -368,6 +369,7 @@ export type Database = {
           instagram?: string | null
           nome: string
           observacao?: string | null
+          tags?: string[] | null
           telefone?: string | null
           whatsapp?: string | null
         }
@@ -378,6 +380,7 @@ export type Database = {
           instagram?: string | null
           nome?: string
           observacao?: string | null
+          tags?: string[] | null
           telefone?: string | null
           whatsapp?: string | null
         }
