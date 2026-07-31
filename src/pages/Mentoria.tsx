@@ -22,6 +22,7 @@ export default function Mentoria() {
   const [colunaAlvo, setColunaAlvo] = useState<string | null>(null);
   const [soPendencias, setSoPendencias] = useState(false);
   const [pipelineId, setPipelineId] = useState<string>("todas");
+  const [editandoPipeline, setEditandoPipeline] = useState<{ id: string; nome: string } | null>(null);
 
   const { data: pipelines } = useQuery({
     queryKey: ["pipelines"],
@@ -32,6 +33,24 @@ export default function Mentoria() {
       return data ?? [];
     },
   });
+
+  const { data: etapasPipeline } = useQuery({
+    queryKey: ["pipeline-etapas", pipelineId],
+    enabled: pipelineId !== "todas",
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("pipeline_etapas" as any).select("nome, ordem")
+        .eq("pipeline_id", pipelineId).order("ordem", { ascending: true });
+      if (error) throw error;
+      return (data ?? []) as unknown as { nome: string; ordem: number }[];
+    },
+  });
+
+  const COLUNAS: string[] =
+    pipelineId !== "todas" && etapasPipeline?.length
+      ? etapasPipeline.map((e) => e.nome)
+      : [...STATUS_JORNADA];
+
 
   const { data: mentoradas, isLoading } = useQuery({
     queryKey: ["mentoradas"],
