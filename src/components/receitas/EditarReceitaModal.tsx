@@ -497,6 +497,22 @@ export function EditarReceitaModal({ receita, open, onClose }: EditarReceitaModa
                     {o.label}
                   </button>
                 ))}
+                <button
+                  type="button"
+                  onClick={async () => {
+                    const nome = window.prompt("Nova origem de venda");
+                    if (!nome?.trim()) return;
+                    const label = nome.trim();
+                    const { error } = await supabase.from("origens_venda_opcoes").insert({ label, ativo: true });
+                    if (error) return toast.error(error.message);
+                    await queryClient.invalidateQueries({ queryKey: ["origens-venda-opcoes"] });
+                    setOrigensVenda((prev) => [...prev, label]);
+                    toast.success("Origem criada");
+                  }}
+                  className="px-3 py-1.5 text-xs rounded-full border border-dashed border-border text-muted-foreground hover:border-primary/50"
+                >
+                  + Nova origem
+                </button>
               </div>
             </div>
 

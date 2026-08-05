@@ -21,6 +21,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import ClienteSheet from "@/components/clientes/ClienteSheet";
 import GerenciarTagsDialog from "@/components/clientes/GerenciarTagsDialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import MentoradasDialog from "@/components/clientes/MentoradasDialog";
 
 import { EditarReceitaModal } from "@/components/receitas/EditarReceitaModal";
 import type { Tables } from "@/integrations/supabase/types";
@@ -38,6 +39,7 @@ export default function Clientes() {
   const [page, setPage] = useState(1);
   const [selectedCliente, setSelectedCliente] = useState<Tables<"clientes"> | null>(null);
   const [showForm, setShowForm] = useState(false);
+  const [showMentoradas, setShowMentoradas] = useState(false);
   const [editCliente, setEditCliente] = useState<Tables<"clientes"> | null>(null);
   const [form, setForm] = useState({ nome: "", email: "", telefone: "", whatsapp: "", instagram: "", observacao: "" });
   const [editContrato, setEditContrato] = useState<Tables<"parcelas_mentoria"> | null>(null);
@@ -272,10 +274,14 @@ export default function Clientes() {
             <p className="text-lg font-bold text-foreground">{(totalGeral ?? 0).toLocaleString("pt-BR")}</p>
           </CardContent>
         </Card>
-        <Card className="border-border bg-card">
+        <Card
+          className="border-border bg-card cursor-pointer hover:border-primary/50 transition-colors"
+          onClick={() => setShowMentoradas(true)}
+        >
           <CardContent className="p-3">
             <p className="text-[10px] uppercase text-muted-foreground tracking-wider">Mentoradas</p>
             <p className="text-lg font-bold text-primary">{(totalMentoradas ?? 0).toLocaleString("pt-BR")}</p>
+            <p className="text-[10px] text-muted-foreground mt-0.5">Clique para ver quem são</p>
           </CardContent>
         </Card>
         {filtrosAtivos && (
@@ -487,6 +493,8 @@ export default function Clientes() {
         contrato={editContrato}
         onClose={() => setEditContrato(null)}
       />
+
+      <MentoradasDialog open={showMentoradas} onClose={() => setShowMentoradas(false)} />
 
       <EditarReceitaModal
         receita={editReceita}

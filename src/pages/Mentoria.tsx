@@ -11,7 +11,9 @@ import TagsAluna from "@/components/mentoria/TagsAluna";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { AlertTriangle, GraduationCap, Loader2, Search, Settings2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { AlertTriangle, GraduationCap, Loader2, Search, Settings2, SlidersHorizontal } from "lucide-react";
 
 
 export default function Mentoria() {
@@ -23,6 +25,17 @@ export default function Mentoria() {
   const [soPendencias, setSoPendencias] = useState(false);
   const [pipelineId, setPipelineId] = useState<string>("todas");
   const [editandoPipeline, setEditandoPipeline] = useState<{ id: string; nome: string } | null>(null);
+  const [soRenovacao, setSoRenovacao] = useState(false);
+  const [ordem, setOrdem] = useState("padrao");
+  const [mostrarFiltros, setMostrarFiltros] = useState(false);
+
+  const FILTROS_PADRAO = {
+    programa: "todos", vendedor: "todos", tag: "todas", cobranca: "todos", renovacao: "todos",
+    prazo: "todos", atividade: "todas", ativa: "todas", vencerDias: "todos", parcelas: "todas",
+    proximaAte: "", valorMin: "", valorMax: "", inicioDe: "", inicioAte: "", terminoDe: "", terminoAte: "",
+  };
+  const [f, setF] = useState({ ...FILTROS_PADRAO });
+  const setFiltro = (k: keyof typeof FILTROS_PADRAO, v: string) => setF((s) => ({ ...s, [k]: v }));
 
   const { data: pipelines } = useQuery({
     queryKey: ["pipelines"],
@@ -72,7 +85,7 @@ export default function Mentoria() {
     },
   });
 
-  // Clientes com parcelas de mentoria em atraso (não quitadas e vencidas)
+  // Financeiro por cliente: inadimplência, próxima parcela e parcelas restantes
   const { data: financeiro } = useQuery({
     queryKey: ["clientes-inadimplentes"],
     queryFn: async () => {
@@ -86,21 +99,32 @@ export default function Mentoria() {
       });
       const ids = [...mapa.keys()];
       const inadimplentes = new Set<string>();
-      if (!ids.length) return { inadimplentes, comContrato };
+      const porCliente = new Map<string, { proxima: string | null; restantes: number; atrasadas: number; valorRestante: number }>();
+      if (!ids.length) return { inadimplentes, comContrato, porCliente };
       const { data: det } = await supabase
         .from("parcelas_mentoria_detalhe")
-        .select("parcela_mentoria_id, status, data_vencimento")
+        .select("parcela_mentoria_id, status, data_vencimento, valor_real, valor_sugerido, saldo_parcela")
         .in("parcela_mentoria_id", ids);
       (det ?? []).forEach((d: any) => {
-        const atrasada = d.status === "Atraso" || (d.status !== "Quitado" && d.data_vencimento && d.data_vencimento < hoje);
         const cid = mapa.get(d.parcela_mentoria_id);
-        if (atrasada && cid) inadimplentes.add(cid);
+        if (!cid) return;
+        const atrasada = d.status === "Atraso" || (d.status !== "Quitado" && d.data_vencimento && d.data_vencimento < hoje);
+        if (atrasada) inadimplentes.add(cid);
+        const info = porCliente.get(cid) ?? { proxima: null, restantes: 0, atrasadas: 0, valorRestante: 0 };
+        if (d.status !== "Quitado") {
+          info.restantes += 1;
+          info.valorRestante += Number(d.saldo_parcela ?? d.valor_real ?? d.valor_sugerido ?? 0);
+          if (d.data_vencimento && (!info.proxima || d.data_vencimento < info.proxima)) info.proxima = d.data_vencimento;
+        }
+        if (atrasada) info.atrasadas += 1;
+        porCliente.set(cid, info);
       });
-      return { inadimplentes, comContrato };
+      return { inadimplentes, comContrato, porCliente };
     },
   });
   const inadimplentes = financeiro?.inadimplentes;
   const comContrato = financeiro?.comContrato;
+  const finPorCliente = financeiro?.porCliente;
 
 
 
@@ -158,17 +182,101 @@ export default function Mentoria() {
 
   const pendencias = doPipeline.filter((m) => !!m.motivo_cancelamento);
 
-  const filtradas = doPipeline.filter(
-    (m) =>
-      m.nome.toLowerCase().includes(busca.toLowerCase()) &&
-      (!soPendencias || !!m.motivo_cancelamento)
-  );
+  const fin = (m: any) => (m.cliente_id ? finPorCliente?.get(m.cliente_id) : undefined);
+  const progressoTotal = (id: string) => {
+    const itens = (tarefas ?? []).filter((t) => t.mentorada_id === id);
+    return { total: itens.length, feitas: itens.filter((t) => t.concluida).length };
+  };
 
-  const ativas = doPipeline.filter((m) => !["Concluída", "Cancelada", "Inativa"].includes(m.status_jornada));
+  const INATIVOS = ["Concluída", "Cancelada", "Inativa"];
+
+  const filtradas = doPipeline.filter((m) => {
+    if (!m.nome.toLowerCase().includes(busca.toLowerCase())) return false;
+    if (soPendencias && !m.motivo_cancelamento) return false;
+    if (soRenovacao) {
+      const d = diasRestantes(m.data_termino);
+      if (!(d !== null && d >= 0 && d <= 30 && m.status_jornada !== "Cancelada")) return false;
+    }
+    if (f.programa !== "todos" && m.programa !== f.programa) return false;
+    if (f.vendedor !== "todos" && (m.vendedor ?? "") !== f.vendedor) return false;
+    if (f.tag !== "todas" && !((m.tags ?? []) as string[]).includes(f.tag)) return false;
+    if (f.cobranca !== "todos" && (m.status_cobranca ?? "") !== f.cobranca) return false;
+    if (f.renovacao !== "todos" && (m.status_renovacao ?? "") !== f.renovacao) return false;
+    if (f.prazo !== "todos" && String(m.prazo_meses ?? "") !== f.prazo) return false;
+    if (f.atividade !== "todas") {
+      const { total, feitas } = progressoTotal(m.id);
+      if (f.atividade === "pendentes" && !(total > feitas)) return false;
+      if (f.atividade === "concluidas" && !(total > 0 && feitas === total)) return false;
+      if (f.atividade === "sem" && total !== 0) return false;
+    }
+    if (f.ativa !== "todas") {
+      const inativa = INATIVOS.includes(m.status_jornada);
+      if (f.ativa === "ativas" && inativa) return false;
+      if (f.ativa === "inativas" && !inativa) return false;
+    }
+    if (f.vencerDias !== "todos") {
+      const d = diasRestantes(m.data_termino);
+      if (d === null || d < 0 || d > Number(f.vencerDias)) return false;
+    }
+    if (f.parcelas !== "todas") {
+      const i = fin(m);
+      if (f.parcelas === "com" && !(i && i.restantes > 0)) return false;
+      if (f.parcelas === "sem" && i && i.restantes > 0) return false;
+      if (f.parcelas === "atraso" && !(i && i.atrasadas > 0)) return false;
+    }
+    if (f.proximaAte) {
+      const i = fin(m);
+      if (!i?.proxima || i.proxima > f.proximaAte) return false;
+    }
+    if (f.valorMin && Number(m.valor_mentoria ?? 0) < Number(f.valorMin)) return false;
+    if (f.valorMax && Number(m.valor_mentoria ?? 0) > Number(f.valorMax)) return false;
+    if (f.inicioDe && (!m.data_inicio || m.data_inicio < f.inicioDe)) return false;
+    if (f.inicioAte && (!m.data_inicio || m.data_inicio > f.inicioAte)) return false;
+    if (f.terminoDe && (!m.data_termino || m.data_termino < f.terminoDe)) return false;
+    if (f.terminoAte && (!m.data_termino || m.data_termino > f.terminoAte)) return false;
+    return true;
+  });
+
+  const ordenar = (lista: any[]) => {
+    const nulo = (v: any) => v === null || v === undefined || v === "";
+    const arr = [...lista];
+    arr.sort((a, b) => {
+      switch (ordem) {
+        case "nome": return a.nome.localeCompare(b.nome);
+        case "nome-desc": return b.nome.localeCompare(a.nome);
+        case "valor": return Number(b.valor_mentoria ?? 0) - Number(a.valor_mentoria ?? 0);
+        case "valor-asc": return Number(a.valor_mentoria ?? 0) - Number(b.valor_mentoria ?? 0);
+        case "inicio": return (a.data_inicio ?? "9999").localeCompare(b.data_inicio ?? "9999");
+        case "termino": return (a.data_termino ?? "9999").localeCompare(b.data_termino ?? "9999");
+        case "vencimento": {
+          const da = diasRestantes(a.data_termino), db = diasRestantes(b.data_termino);
+          return (da ?? 99999) - (db ?? 99999);
+        }
+        case "parcelas": return (fin(b)?.restantes ?? 0) - (fin(a)?.restantes ?? 0);
+        case "proxima-parcela": {
+          const pa = fin(a)?.proxima, pb = fin(b)?.proxima;
+          if (nulo(pa) && nulo(pb)) return 0;
+          if (nulo(pa)) return 1;
+          if (nulo(pb)) return -1;
+          return pa!.localeCompare(pb!);
+        }
+        default: return 0;
+      }
+    });
+    return arr;
+  };
+
+  const ativas = doPipeline.filter((m) => !INATIVOS.includes(m.status_jornada));
   const emRenovacao = doPipeline.filter((m) => {
     const d = diasRestantes(m.data_termino);
     return d !== null && d <= 30 && d >= 0 && m.status_jornada !== "Cancelada";
   });
+
+  const opcoes = (campo: string) =>
+    Array.from(new Set(doPipeline.map((m: any) => m[campo]).filter(Boolean))).sort() as string[];
+  const todasTags = Array.from(
+    new Set(doPipeline.flatMap((m: any) => (m.tags ?? []) as string[]))
+  ).sort();
 
 
   useEffect(() => {
@@ -247,7 +355,13 @@ export default function Mentoria() {
 
           <div className="grid gap-4 sm:grid-cols-3">
             <CardResumo titulo="Mentoradas ativas" valor={String(ativas.length)} />
-            <CardResumo titulo="Renovação em até 30 dias" valor={String(emRenovacao.length)} />
+            <CardResumo
+              titulo="Renovação em até 30 dias"
+              valor={String(emRenovacao.length)}
+              ativo={soRenovacao}
+              onClick={() => setSoRenovacao((v) => !v)}
+              legenda={soRenovacao ? "Mostrando só essas alunas — clique para ver todas" : "Clique para filtrar"}
+            />
             <CardResumo titulo="Total cadastradas" valor={String(doPipeline.length)} />
           </div>
 
@@ -276,10 +390,113 @@ export default function Mentoria() {
             </button>
           )}
 
-          <div className="relative max-w-sm">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input className="pl-9" placeholder="Buscar mentorada" value={busca} onChange={(e) => setBusca(e.target.value)} />
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="relative flex-1 min-w-[220px] max-w-sm">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input className="pl-9" placeholder="Buscar mentorada" value={busca} onChange={(e) => setBusca(e.target.value)} />
+            </div>
+
+            <Select value={ordem} onValueChange={setOrdem}>
+              <SelectTrigger className="w-56"><SelectValue placeholder="Ordenar por" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="padrao">Ordem padrão</SelectItem>
+                <SelectItem value="nome">Nome (A-Z)</SelectItem>
+                <SelectItem value="nome-desc">Nome (Z-A)</SelectItem>
+                <SelectItem value="vencimento">Tempo para vencer</SelectItem>
+                <SelectItem value="inicio">Data de início</SelectItem>
+                <SelectItem value="termino">Data de término</SelectItem>
+                <SelectItem value="valor">Maior valor</SelectItem>
+                <SelectItem value="valor-asc">Menor valor</SelectItem>
+                <SelectItem value="parcelas">Parcelas a vencer</SelectItem>
+                <SelectItem value="proxima-parcela">Próxima parcela</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Button variant="outline" onClick={() => setMostrarFiltros((v) => !v)}>
+              <SlidersHorizontal className="h-4 w-4 mr-2" /> Filtros
+            </Button>
+            <Button variant="ghost" onClick={() => { setF({ ...FILTROS_PADRAO }); setSoRenovacao(false); setSoPendencias(false); setBusca(""); }}>
+              Limpar
+            </Button>
+            <Badge variant="secondary">{filtradas.length} alunas</Badge>
           </div>
+
+          {mostrarFiltros && (
+            <div className="grid gap-3 rounded-xl border border-border bg-card p-4 sm:grid-cols-2 lg:grid-cols-4">
+              <FiltroSelect label="Tipo de mentoria" value={f.programa} onChange={(v) => setFiltro("programa", v)} todos="todos" opcoes={opcoes("programa")} />
+              <FiltroSelect label="Vendedor" value={f.vendedor} onChange={(v) => setFiltro("vendedor", v)} todos="todos" opcoes={opcoes("vendedor")} />
+              <FiltroSelect label="Tag" value={f.tag} onChange={(v) => setFiltro("tag", v)} todos="todas" opcoes={todasTags} />
+              <FiltroSelect label="Status de cobrança" value={f.cobranca} onChange={(v) => setFiltro("cobranca", v)} todos="todos" opcoes={opcoes("status_cobranca")} />
+              <FiltroSelect label="Status de renovação" value={f.renovacao} onChange={(v) => setFiltro("renovacao", v)} todos="todos" opcoes={opcoes("status_renovacao")} />
+              <FiltroSelect label="Prazo (meses)" value={f.prazo} onChange={(v) => setFiltro("prazo", v)} todos="todos" opcoes={Array.from(new Set(doPipeline.map((m) => String(m.prazo_meses ?? "")).filter(Boolean))).sort((a, b) => Number(a) - Number(b))} />
+
+              <div>
+                <p className="text-[11px] text-muted-foreground mb-1">Atividades</p>
+                <Select value={f.atividade} onValueChange={(v) => setFiltro("atividade", v)}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="todas">Todas</SelectItem>
+                    <SelectItem value="pendentes">Com tarefas pendentes</SelectItem>
+                    <SelectItem value="concluidas">Todas tarefas concluídas</SelectItem>
+                    <SelectItem value="sem">Sem tarefas</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <p className="text-[11px] text-muted-foreground mb-1">Situação</p>
+                <Select value={f.ativa} onValueChange={(v) => setFiltro("ativa", v)}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="todas">Todas</SelectItem>
+                    <SelectItem value="ativas">Ativas</SelectItem>
+                    <SelectItem value="inativas">Inativas / encerradas</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <p className="text-[11px] text-muted-foreground mb-1">Vence em até</p>
+                <Select value={f.vencerDias} onValueChange={(v) => setFiltro("vencerDias", v)}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="todos">Qualquer prazo</SelectItem>
+                    <SelectItem value="7">7 dias</SelectItem>
+                    <SelectItem value="15">15 dias</SelectItem>
+                    <SelectItem value="30">30 dias</SelectItem>
+                    <SelectItem value="60">60 dias</SelectItem>
+                    <SelectItem value="90">90 dias</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <p className="text-[11px] text-muted-foreground mb-1">Parcelas</p>
+                <Select value={f.parcelas} onValueChange={(v) => setFiltro("parcelas", v)}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="todas">Todas</SelectItem>
+                    <SelectItem value="com">Com parcelas restantes</SelectItem>
+                    <SelectItem value="sem">Sem parcelas restantes</SelectItem>
+                    <SelectItem value="atraso">Com parcelas em atraso</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <FiltroData label="Próxima parcela até" value={f.proximaAte} onChange={(v) => setFiltro("proximaAte", v)} />
+              <div>
+                <p className="text-[11px] text-muted-foreground mb-1">Valor da mentoria (R$)</p>
+                <div className="flex gap-2">
+                  <Input type="number" placeholder="mín" value={f.valorMin} onChange={(e) => setFiltro("valorMin", e.target.value)} />
+                  <Input type="number" placeholder="máx" value={f.valorMax} onChange={(e) => setFiltro("valorMax", e.target.value)} />
+                </div>
+              </div>
+              <FiltroData label="Início de" value={f.inicioDe} onChange={(v) => setFiltro("inicioDe", v)} />
+              <FiltroData label="Início até" value={f.inicioAte} onChange={(v) => setFiltro("inicioAte", v)} />
+              <FiltroData label="Término de" value={f.terminoDe} onChange={(v) => setFiltro("terminoDe", v)} />
+              <FiltroData label="Término até" value={f.terminoAte} onChange={(v) => setFiltro("terminoAte", v)} />
+            </div>
+          )}
 
 
           {isLoading ? (
@@ -290,7 +507,7 @@ export default function Mentoria() {
             <div className="overflow-x-auto pb-4">
               <div className="flex gap-4 min-w-max">
                 {COLUNAS.map((coluna) => {
-                  const itens = filtradas.filter((m) => m.status_jornada === coluna);
+                  const itens = ordenar(filtradas.filter((m) => m.status_jornada === coluna));
                   return (
                     <div
                       key={coluna}
@@ -396,11 +613,42 @@ export default function Mentoria() {
   );
 }
 
-function CardResumo({ titulo, valor }: { titulo: string; valor: string }) {
+function CardResumo({ titulo, valor, onClick, ativo, legenda }: { titulo: string; valor: string; onClick?: () => void; ativo?: boolean; legenda?: string }) {
+  const Comp: any = onClick ? "button" : "div";
   return (
-    <div className="rounded-xl border border-border bg-card p-4">
+    <Comp
+      onClick={onClick}
+      className={`w-full text-left rounded-xl border bg-card p-4 transition-colors ${
+        onClick ? "hover:bg-surface-hover cursor-pointer" : ""
+      } ${ativo ? "border-primary bg-primary/5" : "border-border"}`}
+    >
       <p className="text-xs text-muted-foreground">{titulo}</p>
-      <p className="text-2xl font-bold mt-1">{valor}</p>
+      <p className={`text-2xl font-bold mt-1 ${ativo ? "text-primary" : ""}`}>{valor}</p>
+      {legenda && <p className="text-[10px] text-muted-foreground mt-1">{legenda}</p>}
+    </Comp>
+  );
+}
+
+function FiltroSelect({ label, value, onChange, todos, opcoes }: { label: string; value: string; onChange: (v: string) => void; todos: string; opcoes: string[] }) {
+  return (
+    <div>
+      <p className="text-[11px] text-muted-foreground mb-1">{label}</p>
+      <Select value={value} onValueChange={onChange}>
+        <SelectTrigger><SelectValue /></SelectTrigger>
+        <SelectContent>
+          <SelectItem value={todos}>Todos</SelectItem>
+          {opcoes.map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
+        </SelectContent>
+      </Select>
+    </div>
+  );
+}
+
+function FiltroData({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
+  return (
+    <div>
+      <p className="text-[11px] text-muted-foreground mb-1">{label}</p>
+      <Input type="date" value={value} onChange={(e) => onChange(e.target.value)} />
     </div>
   );
 }

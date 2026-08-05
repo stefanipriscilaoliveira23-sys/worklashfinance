@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatCurrency } from "@/lib/format";
 import { toast } from "sonner";
-import { Loader2, Save, Plus, Trash2, Settings, Users, Package, DollarSign, Tag, Globe } from "lucide-react";
+import { Loader2, Save, Plus, Trash2, Settings, Users, Package, DollarSign, Tag, Globe, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -15,6 +15,7 @@ import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Navigate } from "react-router-dom";
 import { Constants } from "@/integrations/supabase/types";
+import PermissoesDialog from "@/components/config/PermissoesDialog";
 
 const MESES = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
 
@@ -400,6 +401,7 @@ function UsuariosTab() {
   const [senha, setSenha] = useState("");
   const [nome, setNome] = useState("");
   const [novoRole, setNovoRole] = useState("operacional");
+  const [permUser, setPermUser] = useState<{ user_id: string; nome: string } | null>(null);
 
   const { data: profiles, isLoading } = useQuery({
     queryKey: ["config-users"],
@@ -435,7 +437,7 @@ function UsuariosTab() {
         </div>
         <table className="w-full text-sm">
           <thead><tr className="border-b border-border bg-secondary/30">
-            {["Nome", "Email", "Perfil"].map(h => (
+            {["Nome", "Email", "Perfil", "Autorizações"].map(h => (
               <th key={h} className="p-3 text-xs font-medium text-muted-foreground text-left">{h}</th>
             ))}
           </tr></thead>
@@ -443,10 +445,14 @@ function UsuariosTab() {
             {(profiles ?? []).map(p => {
               const userRole = (roles ?? []).find(r => r.user_id === p.user_id);
               return (
-                <tr key={p.id} className="border-b border-border/50 hover:bg-surface-hover transition-colors">
+                <tr
+                  key={p.id}
+                  onClick={() => setPermUser({ user_id: p.user_id, nome: p.display_name ?? p.email ?? "Usuário" })}
+                  className="border-b border-border/50 hover:bg-surface-hover transition-colors cursor-pointer"
+                >
                   <td className="p-3 font-medium">{p.display_name ?? "—"}</td>
                   <td className="p-3 text-muted-foreground">{p.email ?? "—"}</td>
-                  <td className="p-3">
+                  <td className="p-3" onClick={e => e.stopPropagation()}>
                     <Select value={userRole?.role ?? "operacional"} onValueChange={v => updateRole.mutate({ userId: p.user_id, newRole: v })}>
                       <SelectTrigger className="w-[140px] bg-secondary/50 border-border h-8 text-xs"><SelectValue /></SelectTrigger>
                       <SelectContent>
@@ -455,12 +461,22 @@ function UsuariosTab() {
                       </SelectContent>
                     </Select>
                   </td>
+                  <td className="p-3" onClick={e => e.stopPropagation()}>
+                    <Button
+                      size="sm" variant="outline" className="h-8 text-xs"
+                      onClick={() => setPermUser({ user_id: p.user_id, nome: p.display_name ?? p.email ?? "Usuário" })}
+                    >
+                      <ShieldCheck className="h-3.5 w-3.5 mr-1.5" /> Autorizações
+                    </Button>
+                  </td>
                 </tr>
               );
             })}
           </tbody>
         </table>
       </div>
+
+      <PermissoesDialog usuario={permUser} open={!!permUser} onClose={() => setPermUser(null)} />
     </div>
   );
 }
