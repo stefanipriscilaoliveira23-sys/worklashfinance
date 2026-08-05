@@ -505,7 +505,7 @@ export function EditarReceitaModal({ receita, open, onClose }: EditarReceitaModa
                     const label = nome.trim();
                     const { error } = await supabase.from("origens_venda_opcoes").insert({ label, ativo: true });
                     if (error) return toast.error(error.message);
-                    await qc.invalidateQueries({ queryKey: ["origens-venda-opcoes"] });
+                    await queryClient.invalidateQueries({ queryKey: ["origens-venda-opcoes"] });
                     setOrigensVenda((prev) => [...prev, label]);
                     toast.success("Origem criada");
                   }}
