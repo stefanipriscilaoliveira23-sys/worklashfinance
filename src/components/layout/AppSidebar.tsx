@@ -5,6 +5,7 @@ import {
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useAuth, isAdmin } from "@/contexts/AuthContext";
+import { usePermissions } from "@/hooks/usePermissions";
 import {
   Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent,
   SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarFooter
@@ -76,9 +77,11 @@ const adminItems: MenuItem[] = [
 
 export function AppSidebar() {
   const { role, signOut, user } = useAuth();
+  const { podeVer: temPermissao } = usePermissions();
   const admin = isAdmin(role);
 
   const podeVer = (item: MenuItem) => {
+    if (!temPermissao(item.url)) return false;
     if (item.roles) return item.roles.includes(role ?? "");
     return !item.adminOnly || admin;
   };

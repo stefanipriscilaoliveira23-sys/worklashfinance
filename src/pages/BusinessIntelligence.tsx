@@ -6,6 +6,8 @@ import { formatCurrency, formatPercent, formatDate, getMonthRange } from "@/lib/
 import { Loader2, BarChart3, Users, RefreshCw, DollarSign, AlertTriangle } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, Line } from "recharts";
 import { Navigate } from "react-router-dom";
@@ -20,6 +22,8 @@ export default function BusinessIntelligence() {
   const { role } = useAuth();
   const [tab, setTab] = useState("origens");
   const [trafegoPago, setTrafegoPago] = useState("");
+  const [mesOrigem, setMesOrigem] = useState("todos");
+  const [origemDetalhe, setOrigemDetalhe] = useState<string | null>(null);
 
   if (role !== "admin") return <Navigate to="/" replace />;
 
@@ -45,8 +49,12 @@ export default function BusinessIntelligence() {
   const today = now.toISOString().split("T")[0];
 
   // ORIGENS
+  const mesesDisponiveis = Array.from(new Set(allReceitas.map(r => (r.data ?? "").slice(0, 7)).filter(Boolean))).sort().reverse();
+  const receitasOrigem = mesOrigem === "todos" ? allReceitas : allReceitas.filter(r => (r.data ?? "").startsWith(mesOrigem));
+  const receitasPorOrigem = (origem: string) => receitasOrigem.filter(r => (r.origens_venda ?? []).includes(origem));
+
   const origemMap = new Map<string, { qtd: number; receita: number }>();
-  allReceitas.forEach(r => {
+  receitasOrigem.forEach(r => {
     const origens = r.origens_venda ?? [];
     const share = origens.length > 0 ? 1 / origens.length : 0;
     origens.forEach(o => { const e = origemMap.get(o) ?? { qtd: 0, receita: 0 }; e.qtd += share; e.receita += (r.valor_bruto ?? 0) * share; origemMap.set(o, e); });
@@ -147,6 +155,19 @@ export default function BusinessIntelligence() {
 
         {/* ORIGENS */}
         <TabsContent value="origens">
+          <div className="flex items-center gap-3 mb-3">
+            <span className="text-xs text-muted-foreground">Período:</span>
+            <Select value={mesOrigem} onValueChange={setMesOrigem}>
+              <SelectTrigger className="w-48 h-8 text-xs bg-secondary/50 border-border"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todos">Todos os meses</SelectItem>
+                {mesesDisponiveis.map(m => {
+                  const [a, mm] = m.split("-");
+                  return <SelectItem key={m} value={m}>{`${mm}/${a}`}</SelectItem>;
+                })}
+              </SelectContent>
+            </Select>
+          </div>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <div className="rounded-xl border border-border bg-card p-5">
               <h3 className="text-sm font-medium text-muted-foreground mb-4">Receita por Origem</h3>
@@ -165,8 +186,8 @@ export default function BusinessIntelligence() {
                   {["Origem", "Vendas", "Receita", "Ticket Médio", "% Total"].map(h => <th key={h} className={`p-3 text-xs font-medium text-muted-foreground ${h !== "Origem" ? "text-right" : "text-left"}`}>{h}</th>)}
                 </tr></thead>
                 <tbody>{origensData.map((o, i) => (
-                  <tr key={i} className="border-b border-border/50 hover:bg-surface-hover transition-colors">
-                    <td className="p-3 font-medium">{o.name}</td><td className="p-3 text-right">{o.qtd}</td><td className="p-3 text-right">{formatCurrency(o.receita)}</td><td className="p-3 text-right text-muted-foreground">{formatCurrency(o.ticket)}</td><td className="p-3 text-right text-primary">{formatPercent(o.pct)}</td>
+                  <tr key={i} onClick={() => setOrigemDetalhe(o.name)} className="cursor-pointer border-b border-border/50 hover:bg-surface-hover transition-colors">
+                    <td className="p-3 font-medium text-primary underline underline-offset-2">{o.name}</td><td className="p-3 text-right">{o.qtd}</td><td className="p-3 text-right">{formatCurrency(o.receita)}</td><td className="p-3 text-right text-muted-foreground">{formatCurrency(o.ticket)}</td><td className="p-3 text-right text-primary">{formatPercent(o.pct)}</td>
                   </tr>
                 ))}</tbody>
               </table>
@@ -336,6 +357,72 @@ export default function BusinessIntelligence() {
           </div>
         </TabsContent>
       </Tabs>
+
+      <Dialog open={!!origemDetalhe} onOpenChange={(v) => !v && setOrigemDetalhe(null)}>
+        <DialogContent className="bg-card border-border max-w-4xl max-h-[85vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle>
+              Origem: {origemDetalhe} {mesOrigem !== "todos" && <span className="text-muted-foreground text-sm">— {mesOrigem.split("-")[1]}/{mesOrigem.split("-")[0]}</span>}
+            </DialogTitle>
+          </DialogHeader>
+          {origemDetalhe && (() => {
+            const lista = receitasPorOrigem(origemDetalhe);
+            const total = lista.reduce((s, r) => s + (r.valor_bruto ?? 0), 0);
+            const porProduto = new Map<string, { qtd: number; valor: number }>();
+            lista.forEach(r => {
+              const k = r.produto_nome ?? "—";
+              const e = porProduto.get(k) ?? { qtd: 0, valor: 0 };
+              e.qtd += 1; e.valor += r.valor_bruto ?? 0;
+              porProduto.set(k, e);
+            });
+            return (
+              <div className="space-y-4 overflow-y-auto">
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                  <div className="rounded-xl border border-border p-3"><p className="text-[10px] uppercase text-muted-foreground">Vendas</p><p className="text-lg font-bold">{lista.length}</p></div>
+                  <div className="rounded-xl border border-border p-3"><p className="text-[10px] uppercase text-muted-foreground">Receita</p><p className="text-lg font-bold text-primary">{formatCurrency(total)}</p></div>
+                  <div className="rounded-xl border border-border p-3"><p className="text-[10px] uppercase text-muted-foreground">Ticket médio</p><p className="text-lg font-bold">{formatCurrency(lista.length ? total / lista.length : 0)}</p></div>
+                </div>
+
+                <div className="rounded-xl border border-border overflow-hidden">
+                  <p className="p-3 text-xs font-medium text-muted-foreground border-b border-border">Produtos vindos desta origem</p>
+                  <table className="w-full text-sm">
+                    <tbody>
+                      {Array.from(porProduto.entries()).sort((a, b) => b[1].valor - a[1].valor).map(([nome, v]) => (
+                        <tr key={nome} className="border-b border-border/50">
+                          <td className="p-3 font-medium">{nome}</td>
+                          <td className="p-3 text-right text-muted-foreground">{v.qtd} venda(s)</td>
+                          <td className="p-3 text-right">{formatCurrency(v.valor)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div className="rounded-xl border border-border overflow-hidden">
+                  <p className="p-3 text-xs font-medium text-muted-foreground border-b border-border">Receitas ({lista.length})</p>
+                  <table className="w-full text-sm">
+                    <thead><tr className="border-b border-border bg-secondary/30">
+                      {["Data", "Cliente", "Produto", "Origens", "Valor"].map(h => <th key={h} className={`p-3 text-xs font-medium text-muted-foreground ${h === "Valor" ? "text-right" : "text-left"}`}>{h}</th>)}
+                    </tr></thead>
+                    <tbody>
+                      {lista.map(r => (
+                        <tr key={r.id} className="border-b border-border/50">
+                          <td className="p-3 text-muted-foreground whitespace-nowrap">{formatDate(r.data)}</td>
+                          <td className="p-3">{r.cliente_nome ?? "—"}</td>
+                          <td className="p-3 text-muted-foreground">{r.produto_nome}</td>
+                          <td className="p-3 text-xs text-muted-foreground">{(r.origens_venda ?? []).join(", ")}</td>
+                          <td className="p-3 text-right">{formatCurrency(r.valor_bruto ?? 0)}</td>
+                        </tr>
+                      ))}
+                      {lista.length === 0 && <tr><td colSpan={5} className="p-8 text-center text-muted-foreground">Sem receitas neste período</td></tr>}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            );
+          })()}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

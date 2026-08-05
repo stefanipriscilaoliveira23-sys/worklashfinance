@@ -1937,6 +1937,39 @@ export type Database = {
         }
         Relationships: []
       }
+      user_permissions: {
+        Row: {
+          created_at: string
+          id: string
+          modulo: string
+          pode_editar: boolean
+          pode_excluir: boolean
+          pode_ver: boolean
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          modulo: string
+          pode_editar?: boolean
+          pode_excluir?: boolean
+          pode_ver?: boolean
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          modulo?: string
+          pode_editar?: boolean
+          pode_excluir?: boolean
+          pode_ver?: boolean
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           id: string

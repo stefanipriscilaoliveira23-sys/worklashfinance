@@ -43,7 +43,7 @@ export default function ProdutosMargem() {
   const { data: produtos, isLoading: loadProd } = useQuery({
     queryKey: ["produtos-catalogo"],
     queryFn: async () => {
-      const { data } = await supabase.from("produtos_catalogo").select("*").order("nome");
+      const { data } = await supabase.from("produtos_catalogo").select("*").eq("ativo", true).order("nome");
       return data ?? [];
     },
   });
@@ -96,11 +96,16 @@ export default function ProdutosMargem() {
 
   const deleteProd = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from("produtos_catalogo").update({ ativo: false }).eq("id", id);
-      if (error) throw error;
+      // Tenta excluir de verdade; se o produto estiver vinculado a receitas/contratos, arquiva.
+      const { error, count } = await supabase.from("produtos_catalogo").delete({ count: "exact" }).eq("id", id);
+      if (!error && (count ?? 0) > 0) return;
+      const { data, error: err2 } = await supabase
+        .from("produtos_catalogo").update({ ativo: false }).eq("id", id).select("id");
+      if (err2) throw err2;
+      if (!data?.length) throw new Error("Você não tem permissão para excluir produtos");
     },
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["produtos-catalogo"] }); toast.success("Produto removido"); },
-    onError: () => toast.error("Erro ao remover produto"),
+    onError: (e: Error) => toast.error(e.message || "Erro ao remover produto"),
   });
 
   const allReceitas = receitas ?? [];
