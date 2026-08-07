@@ -41,6 +41,15 @@ interface EntradaLinha {
   taxaPercent: number;
 }
 
+interface ItemExtra {
+  produtoId: string | null;
+  produtoNome: string;
+  categoria: ProdutoCategoria;
+  quantidade: number;
+  valorUnit: number;
+}
+
+
 export function NovaReceitaModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -65,6 +74,10 @@ export function NovaReceitaModal({ open, onClose }: { open: boolean; onClose: ()
 
   const [origensVenda, setOrigensVenda] = useState<string[]>([]);
   const [produtoEntradaId, setProdutoEntradaId] = useState<string | null>(null);
+
+  // === ITENS ADICIONAIS DA VENDA (ex: duas pinças diferentes) ===
+  const [itensExtras, setItensExtras] = useState<ItemExtra[]>([]);
+
 
   // === DADOS DO PAGAMENTO ===
   const [valorContrato, setValorContrato] = useState(0);
@@ -149,10 +162,17 @@ export function NovaReceitaModal({ open, onClose }: { open: boolean; onClose: ()
   const temSaldoParcelar = saldoRestante > 0 && tipoPagamento === "entrada_parcelas";
   const showStep2 = isMentoria && temSaldoParcelar;
 
+  // Itens adicionais (somente venda comum, não mentoria)
+  const extrasTotal = isMentoria
+    ? 0
+    : itensExtras.reduce((s, i) => s + (i.quantidade || 0) * (i.valorUnit || 0), 0);
+  const totalVenda = valorContrato + extrasTotal;
+
   // For à vista, the "entrada" is the full contract value
   const valorRecebido = isMentoria
     ? (isAvista ? valorContrato : entradaValorTotal)
-    : valorContrato;
+    : totalVenda;
+
 
   // Taxa total: calculada a partir das linhas de forma de pagamento
   const taxaValorLinhas = entradaLinhas.reduce((s, l) => s + ((l.valor || 0) * (l.taxaPercent || 0)) / 100, 0);
@@ -217,11 +237,23 @@ export function NovaReceitaModal({ open, onClose }: { open: boolean; onClose: ()
     setEntradaLinhas(updated);
   };
 
+  // Itens extras management
+  const addItemExtra = () =>
+    setItensExtras([...itensExtras, { produtoId: null, produtoNome: "", categoria, quantidade: 1, valorUnit: 0 }]);
+  const removeItemExtra = (idx: number) => setItensExtras(itensExtras.filter((_, i) => i !== idx));
+  const updateItemExtra = (idx: number, patch: Partial<ItemExtra>) => {
+    const updated = [...itensExtras];
+    updated[idx] = { ...updated[idx], ...patch };
+    setItensExtras(updated);
+  };
+
   const insertMutation = useMutation({
     mutationFn: async () => {
-      const valorBrutoFinal = valorRecebido;
-      const taxaValorFinal = taxaValorLinhas;
+      const extrasValidos = isMentoria ? [] : itensExtras.filter((i) => i.produtoId && i.quantidade > 0);
+      const valorBrutoFinal = extrasValidos.length > 0 ? valorContrato : valorRecebido;
+      const taxaValorFinal = valorRecebido > 0 ? taxaValorLinhas * (valorBrutoFinal / valorRecebido) : 0;
       const valorLiquidoFinal = valorBrutoFinal - taxaValorFinal;
+
 
       // forma_pagamento: sempre concatenar as linhas (com taxa quando > 0)
       const formaPagamentoFinal = entradaFormaConcat || entradaLinhas[0]?.forma || null;
@@ -264,6 +296,39 @@ export function NovaReceitaModal({ open, onClose }: { open: boolean; onClose: ()
         data_fim_mentoria: dataFimMentoria || null,
       }).select().single();
       if (error) throw error;
+
+      // Itens adicionais: uma receita por item
+      if (extrasValidos.length > 0) {
+        const rows = extrasValidos.map((it) => {
+          const bruto = (it.quantidade || 0) * (it.valorUnit || 0);
+          const taxa = valorRecebido > 0 ? taxaValorLinhas * (bruto / valorRecebido) : 0;
+          return {
+            data,
+            produto_nome: it.quantidade > 1 ? `${it.produtoNome} (x${it.quantidade})` : it.produtoNome,
+            produto_id: it.produtoId,
+            produto_categoria: it.categoria,
+            plataforma,
+            valor_bruto: bruto,
+            taxa_plataforma_percentual: bruto > 0 ? (taxa / bruto) * 100 : 0,
+            taxa_plataforma_valor: taxa,
+            valor_liquido: bruto - taxa,
+            moeda_original: moeda,
+            taxa_cambio: taxaCambio,
+            valor_em_brl: moeda !== "BRL" ? bruto * taxaCambio : bruto,
+            cliente_nome: clienteNome,
+            cliente_email: clienteEmail,
+            forma_pagamento: formaPagamentoFinal,
+            origens_venda: origensVenda,
+            is_ascensao: origensVenda.includes("Ascensão"),
+            observacao: obsCompleta,
+            vendedor: vendedor || alunaVendedor || null,
+            lancado_por: user?.id,
+          };
+        });
+        const { error: extrasErr } = await supabase.from("receitas").insert(rows as any);
+        if (extrasErr) throw extrasErr;
+      }
+
 
       // Create parcelas if mentorship with installments
       if (showStep2 && receita) {
