@@ -763,9 +763,18 @@ export function NovaReceitaModal({ open, onClose }: { open: boolean; onClose: ()
               </h3>
 
               <div className="space-y-1.5">
-                <Label className="text-foreground/80">{isMentoria ? "Valor total do contrato" : "Valor da venda"}</Label>
+                <Label className="text-foreground/80">
+                  {isMentoria ? "Valor total do contrato" : extrasTotal > 0 ? "Valor do 1º item" : "Valor da venda"}
+                </Label>
                 <Input type="number" step="0.01" value={valorContrato || ""} onChange={(e) => setValorContrato(Number(e.target.value))} className="bg-secondary/50 border-border" />
+                {extrasTotal > 0 && (
+                  <p className="text-xs text-muted-foreground">
+                    Itens adicionais: {formatCurrency(extrasTotal)} · Total da venda:{" "}
+                    <strong className="text-primary">{formatCurrency(totalVenda)}</strong>
+                  </p>
+                )}
               </div>
+
 
               {/* === MENTORIA: TIPO DE PAGAMENTO === */}
               {isMentoria && valorContrato > 0 && (
