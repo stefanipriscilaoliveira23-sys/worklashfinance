@@ -557,6 +557,52 @@ export function NovaReceitaModal({ open, onClose }: { open: boolean; onClose: ()
                 </Select>
               </div>
 
+              {/* Itens adicionais da venda */}
+              {!isMentoria && (
+                <div className="space-y-2">
+                  {itensExtras.map((it, idx) => (
+                    <div key={idx} className="flex gap-2 items-end">
+                      <div className="flex-[2] space-y-1">
+                        <Label className="text-xs text-muted-foreground">Item adicional {idx + 2}</Label>
+                        <Select
+                          value={it.produtoId ?? ""}
+                          onValueChange={(v) => {
+                            const p = produtos?.find((x) => x.id === v);
+                            updateItemExtra(idx, {
+                              produtoId: v,
+                              produtoNome: p?.nome ?? "",
+                              categoria: (p?.categoria ?? categoria) as ProdutoCategoria,
+                              valorUnit: it.valorUnit || Number(p?.preco_venda ?? 0),
+                            });
+                          }}
+                        >
+                          <SelectTrigger className="bg-secondary/50 border-border"><SelectValue placeholder="Selecionar produto" /></SelectTrigger>
+                          <SelectContent>
+                            {(produtos ?? []).map((p) => <SelectItem key={p.id} value={p.id}>{p.nome} ({p.categoria})</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="w-20 space-y-1">
+                        <Label className="text-xs text-muted-foreground">Qtd</Label>
+                        <Input type="number" min={1} value={it.quantidade || ""} onChange={(e) => updateItemExtra(idx, { quantidade: Number(e.target.value) })} className="bg-secondary/50 border-border" />
+                      </div>
+                      <div className="flex-1 space-y-1">
+                        <Label className="text-xs text-muted-foreground">Valor unit.</Label>
+                        <Input type="number" step="0.01" value={it.valorUnit || ""} onChange={(e) => updateItemExtra(idx, { valorUnit: Number(e.target.value) })} className="bg-secondary/50 border-border" placeholder="0,00" />
+                      </div>
+                      <Button variant="ghost" size="icon" className="h-9 w-9 text-destructive shrink-0" onClick={() => removeItemExtra(idx)}>
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
+                  <Button type="button" variant="ghost" size="sm" onClick={addItemExtra} className="text-xs text-primary">
+                    <Plus className="h-3 w-3 mr-1" /> Adicionar outro item
+                  </Button>
+                </div>
+              )}
+
+
+
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
                   <Label className="text-foreground/80">Data da venda</Label>
