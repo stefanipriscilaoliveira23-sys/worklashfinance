@@ -980,8 +980,9 @@ export function NovaReceitaModal({ open, onClose }: { open: boolean; onClose: ()
                     {entradaLinhas.length > 1 && (
                       <span className="text-xs text-muted-foreground">
                         Total: <strong className="text-foreground">{formatCurrency(entradaValorTotal)}</strong>
-                        {Math.abs(entradaValorTotal - valorContrato) > 0.01 && (
-                          <span className="text-destructive ml-1">(diferença: {formatCurrency(valorContrato - entradaValorTotal)})</span>
+                        {Math.abs(entradaValorTotal - totalVenda) > 0.01 && (
+                          <span className="text-destructive ml-1">(diferença: {formatCurrency(totalVenda - entradaValorTotal)})</span>
+
                         )}
                       </span>
                     )}
