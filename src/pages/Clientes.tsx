@@ -6,6 +6,8 @@ import { formatCurrency, formatDate } from "@/lib/format";
 import { toast } from "sonner";
 import { Search, Loader2, ChevronRight, Users, Plus, MoreHorizontal, Pencil, Trash2, AlertTriangle, CheckCircle2, Clock, DollarSign, Download } from "lucide-react";
 import { exportCsv } from "@/lib/exportCsv";
+import WhatsAppButton from "@/components/WhatsAppButton";
+
 
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
