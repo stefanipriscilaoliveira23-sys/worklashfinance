@@ -6,6 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, Search, GraduationCap } from "lucide-react";
+import WhatsAppButton from "@/components/WhatsAppButton";
 
 export default function MentoradasDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
   const [busca, setBusca] = useState("");
