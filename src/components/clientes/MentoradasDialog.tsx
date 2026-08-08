@@ -57,7 +57,13 @@ export default function MentoradasDialog({ open, onClose }: { open: boolean; onC
                 {lista.map((m) => (
                   <tr key={m.id} className="border-b border-border/50 hover:bg-surface-hover transition-colors">
                     <td className="p-3 font-medium">{m.nome}</td>
-                    <td className="p-3 text-muted-foreground text-xs">{m.email || m.telefone || "—"}</td>
+                    <td className="p-3 text-muted-foreground text-xs">
+                      <div className="flex items-center gap-1">
+                        <span>{m.email || m.telefone || "—"}</span>
+                        <WhatsAppButton phone={m.telefone} nome={m.nome} />
+                      </div>
+                    </td>
+
                     <td className="p-3 text-muted-foreground">{m.programa}</td>
                     <td className="p-3"><Badge variant="outline">{m.status_jornada}</Badge></td>
                     <td className="p-3 text-muted-foreground">{formatDate(m.data_inicio)}</td>
