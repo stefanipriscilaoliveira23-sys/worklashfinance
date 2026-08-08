@@ -6,6 +6,9 @@ import { computeParcela } from "@/lib/parcelaCalc";
 import { toast } from "sonner";
 import { Search, Loader2, AlertTriangle, ChevronRight, Users, DollarSign, Clock, CheckCircle2, Plus, Download, MessageSquare } from "lucide-react";
 import { exportCsv } from "@/lib/exportCsv";
+import WhatsAppButton from "@/components/WhatsAppButton";
+import { useTelefonesClientes } from "@/hooks/useTelefonesClientes";
+
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
