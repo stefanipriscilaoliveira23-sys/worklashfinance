@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/select";
 import { Copy, Loader2, Plus, Save, Trash2, Upload, FileText } from "lucide-react";
 import TagsAluna from "@/components/mentoria/TagsAluna";
+import WhatsAppButton from "@/components/WhatsAppButton";
 import TagsEditor from "@/components/clientes/TagsEditor";
 
 type Props = { id: string | null; onClose: () => void };
