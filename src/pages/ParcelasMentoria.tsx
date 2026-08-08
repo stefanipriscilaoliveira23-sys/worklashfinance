@@ -349,7 +349,14 @@ export default function ParcelasMentoria() {
                       }}
                     >
                       <td className="p-3 font-medium">
-                        <div>{parent.cliente_nome}</div>
+                        <div className="flex items-center gap-1">
+                          {parent.cliente_nome}
+                          <WhatsAppButton
+                            phone={telefonesMap.get(parent.cliente_id) ?? null}
+                            nome={parent.cliente_nome}
+                          />
+                        </div>
+
                         {(atrasadasPorContrato.get(parent.id) ?? 0) > 0 && (
                           <div className="text-[10px] text-destructive mt-0.5 flex items-center gap-1">
                             <AlertTriangle className="h-3 w-3" />
