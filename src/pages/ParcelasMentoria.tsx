@@ -199,6 +199,9 @@ export default function ParcelasMentoria() {
 
   const inadimplentes = (allDetalhes ?? []).filter((d: any) => d.status === "Atraso");
 
+  const telefonesMap = useTelefonesClientes((allDetalhes ?? []).map((d: any) => d.parcelas_mentoria?.cliente_id));
+
+
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
