@@ -6,6 +6,9 @@ import { formatCurrency, formatDate } from "@/lib/format";
 import { toast } from "sonner";
 import { Plus, Upload, Search, Loader2, MoreHorizontal, Pencil, Trash2, FileSpreadsheet, Download } from "lucide-react";
 import { exportCsv } from "@/lib/exportCsv";
+import WhatsAppButton from "@/components/WhatsAppButton";
+import { useTelefonesClientes } from "@/hooks/useTelefonesClientes";
+
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
