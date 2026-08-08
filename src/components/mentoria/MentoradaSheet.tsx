@@ -302,7 +302,9 @@ export default function MentoradaSheet({ id, onClose }: Props) {
               <SheetTitle className="flex items-center gap-2">
                 {m.nome}
                 <Badge variant="secondary">{m.status_jornada}</Badge>
+                <WhatsAppButton phone={(m as any).telefone} nome={m.nome} size="sm" />
               </SheetTitle>
+
               <TagsAluna
                 className="mt-0.5"
                 tags={(() => {
