@@ -32,8 +32,8 @@ export default function WhatsAppButton({ phone, nome, message, className, size =
       toast.error(nome ? `${nome} não tem WhatsApp cadastrado` : "Sem WhatsApp cadastrado");
       return;
     }
-    const texto = message ?? `Oi${nome ? `, ${String(nome).split(" ")[0]}` : ""}! Tudo bem?`;
-    window.open(`https://wa.me/${num}?text=${encodeURIComponent(texto)}`, "_blank", "noopener,noreferrer");
+    const url = message ? `https://wa.me/${num}?text=${encodeURIComponent(message)}` : `https://wa.me/${num}`;
+    window.open(url, "_blank", "noopener,noreferrer");
   };
 
   return (
