@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/select";
 import { Copy, Loader2, Plus, Save, Trash2, Upload, FileText } from "lucide-react";
 import TagsAluna from "@/components/mentoria/TagsAluna";
+import WhatsAppButton from "@/components/WhatsAppButton";
 import TagsEditor from "@/components/clientes/TagsEditor";
 
 type Props = { id: string | null; onClose: () => void };
@@ -302,7 +303,9 @@ export default function MentoradaSheet({ id, onClose }: Props) {
               <SheetTitle className="flex items-center gap-2">
                 {m.nome}
                 <Badge variant="secondary">{m.status_jornada}</Badge>
+                <WhatsAppButton phone={(m as any).telefone} nome={m.nome} size="sm" />
               </SheetTitle>
+
               <TagsAluna
                 className="mt-0.5"
                 tags={(() => {

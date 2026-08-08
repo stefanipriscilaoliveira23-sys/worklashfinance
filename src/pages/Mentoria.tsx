@@ -8,6 +8,8 @@ import { notificarProprio } from "@/lib/notificacoes";
 import MentoradaSheet from "@/components/mentoria/MentoradaSheet";
 import PipelineEditorDialog from "@/components/mentoria/PipelineEditorDialog";
 import TagsAluna from "@/components/mentoria/TagsAluna";
+import WhatsAppButton from "@/components/WhatsAppButton";
+
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -551,7 +553,11 @@ export default function Mentoria() {
                                 arrastando === m.id ? "opacity-50" : ""
                               }`}
                             >
-                              <p className="text-sm font-medium truncate">{m.nome}</p>
+                              <div className="flex items-center gap-1">
+                                <p className="text-sm font-medium truncate flex-1">{m.nome}</p>
+                                <WhatsAppButton phone={(m as any).telefone} nome={m.nome} />
+                              </div>
+
                               <TagsAluna tags={tagsExibidas(m)} />
 
 

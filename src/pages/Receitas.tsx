@@ -6,6 +6,9 @@ import { formatCurrency, formatDate } from "@/lib/format";
 import { toast } from "sonner";
 import { Plus, Upload, Search, Loader2, MoreHorizontal, Pencil, Trash2, FileSpreadsheet, Download } from "lucide-react";
 import { exportCsv } from "@/lib/exportCsv";
+import WhatsAppButton from "@/components/WhatsAppButton";
+import { useTelefonesClientes } from "@/hooks/useTelefonesClientes";
+
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -262,6 +265,12 @@ export default function Receitas() {
   };
   const tabData = getTabData();
 
+  const telefonesMap = useTelefonesClientes(tabData.map((r: any) => r.cliente_id));
+  const renderWhats = (r: any) => (
+    <WhatsAppButton phone={telefonesMap.get(r.cliente_id) ?? null} nome={r.cliente_nome} />
+  );
+
+
   const totalBruto = tabData.reduce((s, r) => s + (r.valor_bruto ?? 0), 0);
   const totalTaxas = tabData.reduce((s, r) => s + ((r as any).taxa_plataforma_valor ?? 0), 0);
   const totalLiquido = tabData.reduce((s, r) => s + ((r as any).valor_liquido ?? 0), 0);
@@ -383,7 +392,7 @@ export default function Receitas() {
                   )
                   : "—"}
               </td>
-              <td className="p-3 truncate max-w-[120px]">{r.cliente_nome || "—"}</td>
+              <td className="p-3 truncate max-w-[160px]"><div className="flex items-center gap-1">{r.cliente_nome || "—"}{renderWhats(r)}</div></td>
               <td className="p-3 text-muted-foreground text-xs truncate max-w-[110px]">{r.vendedor || "—"}</td>
 
               <td className="p-3 text-right">{formatCurrency(r.valor_bruto)}</td>
@@ -413,7 +422,7 @@ export default function Receitas() {
           return (
             <tr key={r.id} className="border-b border-border/50 hover:bg-surface-hover transition-colors">
               <td className="p-3">{formatDate(r.data)}</td>
-              <td className="p-3">{r.cliente_nome || "—"}</td>
+              <td className="p-3"><div className="flex items-center gap-1">{r.cliente_nome || "—"}{renderWhats(r)}</div></td>
               <td className="p-3">{r.produto_nome}</td>
               <td className="p-3 text-right">{formatCurrency(r.valor_bruto)}</td>
               <td className="p-3 text-right">{pi ? formatCurrency(pi.pm.valor_total) : formatCurrency(r.valor_bruto)}</td>
@@ -447,7 +456,7 @@ export default function Receitas() {
           return (
             <tr key={r.id} className="border-b border-border/50 hover:bg-surface-hover transition-colors">
               <td className="p-3">{formatDate(r.data)}</td>
-              <td className="p-3">{r.cliente_nome || "—"}</td>
+              <td className="p-3"><div className="flex items-center gap-1">{r.cliente_nome || "—"}{renderWhats(r)}</div></td>
               <td className="p-3">{r.produto_nome}</td>
               <td className="p-3 text-right">{formatCurrency(r.valor_bruto)}</td>
               <td className="p-3 text-right">{pi ? formatCurrency(pi.pm.valor_total) : formatCurrency(r.valor_bruto)}</td>
@@ -478,7 +487,7 @@ export default function Receitas() {
         {tabData.map(r => (
           <tr key={r.id} className="border-b border-border/50 hover:bg-surface-hover transition-colors">
             <td className="p-3">{formatDate(r.data)}</td>
-            <td className="p-3">{r.cliente_nome || "—"}</td>
+            <td className="p-3"><div className="flex items-center gap-1">{r.cliente_nome || "—"}{renderWhats(r)}</div></td>
             <td className="p-3">{r.produto_nome}</td>
             <td className="p-3 text-right">{formatCurrency(r.valor_bruto)}</td>
             <td className="p-3 text-muted-foreground">{r.forma_pagamento || "—"}</td>
@@ -502,7 +511,7 @@ export default function Receitas() {
         {tabData.map(r => (
           <tr key={r.id} className="border-b border-border/50 hover:bg-surface-hover transition-colors">
             <td className="p-3">{formatDate(r.data)}</td>
-            <td className="p-3">{r.cliente_nome || "—"}</td>
+            <td className="p-3"><div className="flex items-center gap-1">{r.cliente_nome || "—"}{renderWhats(r)}</div></td>
             <td className="p-3">{r.produto_nome}</td>
             <td className="p-3 text-right">{formatCurrency(r.valor_bruto)}</td>
             <td className="p-3 text-muted-foreground">{r.forma_pagamento || "—"}</td>
@@ -526,7 +535,7 @@ export default function Receitas() {
         {tabData.map((r: any) => (
           <tr key={r.id} className="border-b border-border/50 hover:bg-surface-hover transition-colors">
             <td className="p-3">{formatDate(r.data)}</td>
-            <td className="p-3">{r.cliente_nome || "—"}</td>
+            <td className="p-3"><div className="flex items-center gap-1">{r.cliente_nome || "—"}{renderWhats(r)}</div></td>
             <td className="p-3">{r.produto_nome}</td>
             <td className="p-3 text-xs"><span className="text-primary font-medium">{r.parcela_label}</span></td>
             <td className="p-3 text-right text-primary">{formatCurrency(r.valor_bruto)}</td>

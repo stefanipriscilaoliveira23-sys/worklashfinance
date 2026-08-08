@@ -6,6 +6,9 @@ import { computeParcela } from "@/lib/parcelaCalc";
 import { toast } from "sonner";
 import { Search, Loader2, AlertTriangle, ChevronRight, Users, DollarSign, Clock, CheckCircle2, Plus, Download, MessageSquare } from "lucide-react";
 import { exportCsv } from "@/lib/exportCsv";
+import WhatsAppButton from "@/components/WhatsAppButton";
+import { useTelefonesClientes } from "@/hooks/useTelefonesClientes";
+
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -196,6 +199,9 @@ export default function ParcelasMentoria() {
 
   const inadimplentes = (allDetalhes ?? []).filter((d: any) => d.status === "Atraso");
 
+  const telefonesMap = useTelefonesClientes((allDetalhes ?? []).map((d: any) => d.parcelas_mentoria?.cliente_id));
+
+
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -343,7 +349,14 @@ export default function ParcelasMentoria() {
                       }}
                     >
                       <td className="p-3 font-medium">
-                        <div>{parent.cliente_nome}</div>
+                        <div className="flex items-center gap-1">
+                          {parent.cliente_nome}
+                          <WhatsAppButton
+                            phone={telefonesMap.get(parent.cliente_id) ?? null}
+                            nome={parent.cliente_nome}
+                          />
+                        </div>
+
                         {(atrasadasPorContrato.get(parent.id) ?? 0) > 0 && (
                           <div className="text-[10px] text-destructive mt-0.5 flex items-center gap-1">
                             <AlertTriangle className="h-3 w-3" />
