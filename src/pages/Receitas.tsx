@@ -265,6 +265,12 @@ export default function Receitas() {
   };
   const tabData = getTabData();
 
+  const telefonesMap = useTelefonesClientes(tabData.map((r: any) => r.cliente_id));
+  const renderWhats = (r: any) => (
+    <WhatsAppButton phone={telefonesMap.get(r.cliente_id) ?? null} nome={r.cliente_nome} />
+  );
+
+
   const totalBruto = tabData.reduce((s, r) => s + (r.valor_bruto ?? 0), 0);
   const totalTaxas = tabData.reduce((s, r) => s + ((r as any).taxa_plataforma_valor ?? 0), 0);
   const totalLiquido = tabData.reduce((s, r) => s + ((r as any).valor_liquido ?? 0), 0);
