@@ -8,6 +8,8 @@ import { notificarProprio } from "@/lib/notificacoes";
 import MentoradaSheet from "@/components/mentoria/MentoradaSheet";
 import PipelineEditorDialog from "@/components/mentoria/PipelineEditorDialog";
 import TagsAluna from "@/components/mentoria/TagsAluna";
+import WhatsAppButton from "@/components/WhatsAppButton";
+
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
