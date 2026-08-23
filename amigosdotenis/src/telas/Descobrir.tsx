@@ -53,6 +53,29 @@ export default function Descobrir({ eu, recarregar, irParaChat }: {
 
       <Aviso ok={recado?.ok}>{recado?.texto}</Aviso>
 
+      {/* mural da organizadora */}
+      {eu.avisos?.map(a => (
+        <div key={a.id} className="cartao cartao--apertado" style={{
+          marginBottom: 12,
+          borderColor: a.tipo === 'alerta' ? 'rgba(255,77,157,.45)'
+                     : a.tipo === 'festa'  ? 'rgba(53,228,240,.45)'
+                                           : 'rgba(123,92,255,.45)',
+          background: a.tipo === 'alerta' ? 'rgba(255,77,157,.09)'
+                    : a.tipo === 'festa'  ? 'rgba(53,228,240,.09)'
+                                          : 'rgba(123,92,255,.09)',
+        }}>
+          <div className="linha">
+            <div style={{ fontSize: 21 }}>
+              {a.tipo === 'alerta' ? '⚠️' : a.tipo === 'festa' ? '🎉' : '📣'}
+            </div>
+            <div className="cresce">
+              <div className="linha__nome">{a.titulo}</div>
+              {a.texto && <div className="linha__sub">{a.texto}</div>}
+            </div>
+          </div>
+        </div>
+      ))}
+
       {/* botão de ação principal: bora jogar hoje */}
       <button className={`cartao cartao--clicavel${livreHoje ? '' : ' brilho'}`}
               onClick={() => setAbrirLivre(true)}

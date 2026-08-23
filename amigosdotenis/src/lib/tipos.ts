@@ -43,14 +43,56 @@ export type Perfil = {
   onboarding_ok: boolean; ativo: boolean
 }
 
+export type Aviso = { id: string; titulo: string; texto: string; tipo: 'info' | 'alerta' | 'festa' }
+
 export type Eu = {
-  usuario: { id: string; nome: string; telefone: string; foto_url: string | null; nascimento: string | null }
+  usuario: {
+    id: string; nome: string; telefone: string
+    foto_url: string | null; nascimento: string | null; is_admin: boolean
+  }
   perfil: Perfil
   disponibilidade: { dia: number; turno: string }[]
   livre_hoje: { data: string; hora_ini: string; hora_fim: string; obs: string } | null
+  avisos: Aviso[]
   convites_novos: number
   msgs_novas: number
   jogos_pendentes: number
+  denuncias_abertas: number
+}
+
+/* ---------- painel da organizadora ---------- */
+export type Resumo = {
+  atletas: number; perfis_prontos: number; ativos_semana: number
+  livres_hoje: number; convites_abertos: number
+  jogos_marcados: number; jogos_feitos: number
+  denuncias: number; mensagens: number
+  cidades: { cidade: string; uf: string; quantos: number }[]
+}
+
+export type AtletaAdmin = {
+  id: string; nome: string; telefone: string; foto_url: string | null
+  is_admin: boolean; criado_em: string
+  cidade: string; uf: string; nivel: number; rating: number
+  jogos: number; vitorias: number; confiabilidade: number; avaliacoes: number
+  ativo: boolean; pronto: boolean; visto_em: string; eu: boolean
+}
+
+export type Denuncia = {
+  id: string; motivo: string; descricao: string; status: string; criado_em: string
+  quem: { id: string; nome: string }
+  alvo: { id: string; nome: string; telefone: string; ativo: boolean }
+}
+
+export type JogoAdmin = {
+  id: string; data: string; hora: string; local_texto: string
+  status: string; tipo: string; placar: string
+  a: string; b: string; vencedor: string | null
+}
+
+export type Local = {
+  id: string; nome: string; tipo: string; endereco: string
+  bairro: string; cidade: string; uf: string; piso: string
+  valor_hora: number | null
 }
 
 export type Convite = {

@@ -8,6 +8,7 @@ import Jogos from './telas/Jogos'
 import Chat from './telas/Chat'
 import Ranking from './telas/Ranking'
 import Perfil from './telas/Perfil'
+import Admin from './telas/Admin'
 
 type Aba = 'descobrir' | 'jogos' | 'chat' | 'ranking' | 'perfil'
 
@@ -24,6 +25,8 @@ export default function App() {
   const [estado, setEstado] = useState<'carregando' | 'fora' | 'dentro'>('carregando')
   const [aba, setAba] = useState<Aba>('descobrir')
   const [conversa, setConversa] = useState<string | null>(null)
+  // a organizadora usa o app como atleta; o painel é um modo à parte
+  const [modo, setModo] = useState<'app' | 'admin'>('app')
 
   const carregar = useCallback(async () => {
     if (!pegarToken()) { setEstado('fora'); return }
@@ -75,6 +78,14 @@ export default function App() {
     )
   }
 
+  if (modo === 'admin') {
+    return (
+      <div className="app">
+        <Admin eu={eu} recarregar={carregar} sair={() => setModo('app')} />
+      </div>
+    )
+  }
+
   return (
     <div className="app">
       {aba === 'descobrir' && <Descobrir eu={eu} recarregar={carregar} irParaChat={abrirChat} />}
@@ -82,7 +93,9 @@ export default function App() {
       {aba === 'chat' && <Chat conversaAberta={conversa} abrir={setConversa} recarregar={carregar} />}
       {aba === 'ranking' && <Ranking cidade={eu.perfil.cidade} />}
       {aba === 'perfil' && (
-        <Perfil eu={eu} atualizar={setEu} deslogar={() => { setEu(null); setEstado('fora') }} />
+        <Perfil eu={eu} atualizar={setEu}
+                abrirAdmin={() => setModo('admin')}
+                deslogar={() => { setEu(null); setEstado('fora') }} />
       )}
 
       {!(aba === 'chat' && conversa) && (

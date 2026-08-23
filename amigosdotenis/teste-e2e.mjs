@@ -14,7 +14,8 @@ const jogadorB = {
   disponibilidade: [{ dia: 2, turno: 'noite' }], convite_pendente: false, conversa_id: 'cv-1',
 }
 const eu = {
-  usuario: { id: 'a-1111', nome: 'Stéfani Oliveira', telefone: '18999998888', foto_url: null, nascimento: null },
+  usuario: { id: 'a-1111', nome: 'Stéfani Oliveira', telefone: '18999998888', foto_url: null,
+             nascimento: null, is_admin: true },
   perfil: {
     cidade: 'Araçatuba', uf: 'SP', bairro: 'Centro', lat: -21.2, lng: -50.4, nivel: 5, rating: 1024,
     mao: 'destro', joga_simples: true, joga_duplas: true, genero: 'F', estilo: '', bio: 'Voltando a jogar depois de uma pausa.',
@@ -24,6 +25,8 @@ const eu = {
   },
   disponibilidade: [{ dia: 2, turno: 'noite' }, { dia: 4, turno: 'noite' }],
   livre_hoje: null, convites_novos: 1, msgs_novas: 2, jogos_pendentes: 1,
+  denuncias_abertas: 1,
+  avisos: [{ id: 'av-1', titulo: 'Torneio de setembro', texto: 'Inscrições até dia 10.', tipo: 'festa' }],
 }
 const respostas = {
   tenis_login: { token: 'tok-teste', usuario: eu.usuario },
@@ -67,6 +70,43 @@ const respostas = {
   tenis_responder: { ok: true, conversa_id: 'cv-1', jogo_id: 'j-1' },
   tenis_salvar_perfil: eu,
   tenis_salvar_disponibilidade: eu,
+  tenis_admin_resumo: {
+    atletas: 42, perfis_prontos: 37, ativos_semana: 21, livres_hoje: 5,
+    convites_abertos: 3, jogos_marcados: 8, jogos_feitos: 26, denuncias: 1, mensagens: 412,
+    cidades: [{ cidade: 'Araçatuba', uf: 'SP', quantos: 33 }, { cidade: 'Birigui', uf: 'SP', quantos: 4 }],
+  },
+  tenis_admin_atletas: {
+    atletas: [
+      { id: 'a-1111', nome: 'Stéfani Oliveira', telefone: '18999998888', foto_url: null, is_admin: true,
+        criado_em: hoje, cidade: 'Araçatuba', uf: 'SP', nivel: 5, rating: 1024, jogos: 12, vitorias: 8,
+        confiabilidade: 100, avaliacoes: 9, ativo: true, pronto: true, visto_em: new Date().toISOString(), eu: true },
+      { id: 'b-2222', nome: 'Marina Prado', telefone: '18988887777', foto_url: null, is_admin: false,
+        criado_em: hoje, cidade: 'Araçatuba', uf: 'SP', nivel: 4, rating: 1010, jogos: 12, vitorias: 7,
+        confiabilidade: 92, avaliacoes: 8, ativo: true, pronto: true, visto_em: new Date().toISOString(), eu: false },
+    ],
+  },
+  tenis_admin_denuncias: {
+    denuncias: [{ id: 'd-1', motivo: 'Deu bolo duas vezes', descricao: '', status: 'aberta',
+      criado_em: new Date().toISOString(),
+      quem: { id: 'a-1111', nome: 'Stéfani Oliveira' },
+      alvo: { id: 'c-3333', nome: 'Rafael Bueno', telefone: '18977776666', ativo: true } }],
+  },
+  tenis_admin_jogos: {
+    jogos: [{ id: 'j-1', data: hoje, hora: '20:30:00', local_texto: 'Quadra 3', status: 'realizado',
+      tipo: 'desafio', placar: '6/4 6/3', a: 'Stéfani Oliveira', b: 'Marina Prado', vencedor: 'Stéfani Oliveira' }],
+  },
+  tenis_admin_locais: {
+    locais: [{ id: 'l-1', nome: 'Tênis Clube de Araçatuba', tipo: 'clube', endereco: 'Rua X, 100',
+      bairro: 'Centro', cidade: 'Araçatuba', uf: 'SP', piso: 'saibro', valor_hora: 60 }],
+  },
+  tenis_admin_avisos: {
+    avisos: [{ id: 'av-1', titulo: 'Torneio de setembro', texto: 'Inscrições até dia 10.',
+      tipo: 'festa', publicado: true, ordem: 100, criado_em: new Date().toISOString() }],
+  },
+  tenis_admin_salvar_local: { ok: true, id: 'l-1' },
+  tenis_admin_salvar_aviso: { ok: true, id: 'av-1' },
+  tenis_admin_editar_atleta: { ok: true },
+  tenis_admin_resolver_denuncia: { ok: true },
 }
 
 const erros = []
@@ -230,8 +270,79 @@ await passo('abre a grade de horários', async () => {
 await p.waitForTimeout(400)
 await foto('13-horarios')
 
-// onboarding: simula perfil novo
+// fecha a folha de horários que ficou aberta no passo anterior
 await p.locator('.folha-fundo').click({ position: { x: 8, y: 8 } })
+await p.waitForTimeout(400)
+
+await passo('mural da organizadora aparece pro atleta', async () => {
+  await p.locator('.tab').nth(0).click()
+  await p.waitForSelector('text=Torneio de setembro', { timeout: 6000 })
+})
+
+await passo('abre o painel da organizadora pelo Perfil', async () => {
+  await p.locator('.tab').nth(4).click()
+  await p.waitForSelector('text=Painel da organizadora', { timeout: 6000 })
+  await p.getByText('Painel da organizadora').click()
+  await p.waitForSelector('h1:has-text("Organizadora")', { timeout: 6000 })
+  await p.waitForSelector('text=Visão geral')
+})
+await p.waitForTimeout(700)
+await foto('16-admin-resumo')
+
+await passo('visão geral mostra os números', async () => {
+  await p.waitForSelector('text=Araçatuba')
+  await p.waitForSelector('text=412 mensagens trocadas no chat até agora.')
+})
+
+await passo('aba Atletas lista e abre a edição', async () => {
+  await p.getByRole('button', { name: /Atletas/ }).click()
+  await p.waitForSelector('text=Marina Prado', { timeout: 6000 })
+  await p.getByText('Marina Prado').click()
+  await p.waitForSelector('text=👑 Organizadora', { timeout: 6000 })
+  await p.waitForSelector('text=Excluir atleta')
+})
+await p.waitForTimeout(500)
+await foto('17-admin-atleta')
+await p.locator('.folha-fundo').click({ position: { x: 8, y: 8 } })
+await p.waitForTimeout(400)
+
+await passo('aba Moderação mostra a denúncia', async () => {
+  await p.getByRole('button', { name: /Moderação/ }).click()
+  await p.waitForSelector('text=Rafael Bueno', { timeout: 6000 })
+  await p.waitForSelector('text=Suspender atleta')
+})
+await p.waitForTimeout(600)
+await foto('18-admin-moderacao')
+
+await passo('aba Quadras abre o cadastro', async () => {
+  await p.getByRole('button', { name: /Quadras/ }).click()
+  await p.waitForSelector('text=Tênis Clube de Araçatuba', { timeout: 6000 })
+  await p.getByRole('button', { name: /Cadastrar quadra/ }).click()
+  await p.waitForSelector('text=Nova quadra', { timeout: 6000 })
+})
+await p.waitForTimeout(500)
+await foto('19-admin-quadra')
+await p.locator('.folha-fundo').click({ position: { x: 8, y: 8 } })
+await p.waitForTimeout(400)
+
+await passo('aba Mural edita um recado', async () => {
+  await p.getByRole('button', { name: /Mural/ }).click()
+  await p.waitForSelector('text=Inscrições até dia 10.', { timeout: 6000 })
+  await p.getByText('Torneio de setembro').first().click()
+  await p.waitForSelector('text=Editar recado', { timeout: 6000 })
+})
+await p.waitForTimeout(500)
+await foto('20-admin-mural')
+await p.locator('.folha-fundo').click({ position: { x: 8, y: 8 } })
+await p.waitForTimeout(400)
+
+await passo('volta do painel para o app de atleta', async () => {
+  await p.locator('.topo .redondo').first().click()
+  await p.waitForSelector('.tabs', { timeout: 6000 })
+  await p.waitForSelector('h1:has-text("Meu perfil")', { timeout: 6000 })
+})
+
+// onboarding: simula perfil novo
 await passo('onboarding aparece pra quem é novo', async () => {
   await p.route('**/rest/v1/rpc/tenis_eu', r => r.fulfill({
     status: 200, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' },

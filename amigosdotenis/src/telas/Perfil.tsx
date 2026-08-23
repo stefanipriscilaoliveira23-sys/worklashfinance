@@ -4,8 +4,8 @@ import { NIVEIS, nivelNome, DIAS, TURNOS, UFS, formatarTel } from '../lib/util'
 import type { Eu } from '../lib/tipos'
 import { Avatar, Botao, Campo, Chip, Folha, Aviso, useRecado } from '../ui'
 
-export default function Perfil({ eu, atualizar, deslogar }: {
-  eu: Eu; atualizar: (e: Eu) => void; deslogar: () => void
+export default function Perfil({ eu, atualizar, abrirAdmin, deslogar }: {
+  eu: Eu; atualizar: (e: Eu) => void; abrirAdmin: () => void; deslogar: () => void
 }) {
   const [editando, setEditando] = useState(false)
   const [horarios, setHorarios] = useState(false)
@@ -48,6 +48,7 @@ export default function Perfil({ eu, atualizar, deslogar }: {
         <div style={{ display: 'flex', gap: 6, justifyContent: 'center', flexWrap: 'wrap', marginTop: 13 }}>
           <span className="selo selo--lima">{nivelNome(p.nivel)}</span>
           <span className="selo selo--ciano">{p.rating} pts</span>
+          {eu.usuario.is_admin && <span className="selo selo--roxo">👑 Organizadora</span>}
           {p.avaliacoes > 0 && (
             <span className={`selo ${p.confiabilidade >= 80 ? 'selo--lima' : 'selo--rosa'}`}>
               {p.confiabilidade}% presença
@@ -62,6 +63,21 @@ export default function Perfil({ eu, atualizar, deslogar }: {
         <div className="stat"><b className="lima">{p.vitorias}</b><span>Vitórias</span></div>
         <div className="stat"><b>{aproveitamento}%</b><span>Aproveit.</span></div>
       </div>
+
+      {eu.usuario.is_admin && (
+        <button className="cartao cartao--clicavel" onClick={abrirAdmin}
+                style={{ marginBottom: 12, borderColor: 'rgba(123,92,255,.5)', background: 'rgba(123,92,255,.10)' }}>
+          <div className="linha">
+            <div style={{ fontSize: 24 }}>👑</div>
+            <div className="cresce">
+              <div className="linha__nome">Painel da organizadora</div>
+              <div className="linha__sub">Atletas, moderação, quadras e mural</div>
+            </div>
+            {eu.denuncias_abertas > 0 && <span className="contador">{eu.denuncias_abertas}</span>}
+            <span style={{ color: 'var(--txt-3)', fontSize: 22 }}>›</span>
+          </div>
+        </button>
+      )}
 
       <button className="cartao cartao--clicavel" onClick={() => setHorarios(true)} style={{ marginBottom: 12 }}>
         <div className="linha">

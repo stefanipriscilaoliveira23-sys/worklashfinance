@@ -92,6 +92,45 @@ await passo('sai e faz login de novo', async () => {
   await p.waitForSelector('.tabs', { timeout: 30000 })
 })
 
+// ---- painel da organizadora (a primeira conta criada vira organizadora) ----
+const souAdmin = await p.locator('.tab').nth(4).click()
+  .then(() => p.waitForSelector('text=Painel da organizadora', { timeout: 8000 }).then(() => true, () => false))
+
+if (souAdmin) {
+  await passo('abre o painel da organizadora', async () => {
+    await p.getByText('Painel da organizadora').click()
+    await p.waitForSelector('h1:has-text("Organizadora")', { timeout: 15000 })
+    await p.waitForSelector('text=Atletas', { timeout: 15000 })
+  })
+
+  await passo('cadastra uma quadra no banco real', async () => {
+    await p.getByRole('button', { name: /Quadras/ }).click()
+    await p.getByRole('button', { name: /Cadastrar quadra/ }).click()
+    await p.waitForSelector('text=Nova quadra', { timeout: 15000 })
+    await p.getByPlaceholder('Tênis Clube de Araçatuba').fill('Quadra de Teste Automático')
+    await p.getByRole('button', { name: 'Salvar' }).click()
+    await p.waitForSelector('text=Quadra cadastrada', { timeout: 20000 })
+  })
+
+  await passo('publica um recado no mural', async () => {
+    await p.getByRole('button', { name: /Mural/ }).click()
+    await p.getByRole('button', { name: /Escrever recado/ }).click()
+    await p.waitForSelector('text=Novo recado', { timeout: 15000 })
+    await p.getByPlaceholder('Torneio de setembro').fill('Recado de teste automático')
+    await p.getByRole('button', { name: 'Salvar' }).click()
+    await p.waitForSelector('text=Recado publicado', { timeout: 20000 })
+  })
+
+  await passo('o recado aparece pro atleta na tela inicial', async () => {
+    await p.locator('.topo .redondo').first().click()
+    await p.waitForSelector('.tabs', { timeout: 15000 })
+    await p.locator('.tab').nth(0).click()
+    await p.waitForSelector('text=Recado de teste automático', { timeout: 20000 })
+  })
+} else {
+  console.log('  · conta não é organizadora — painel não testado nesta execução')
+}
+
 await p.screenshot({ path: 'tela-ao-vivo.png' })
 console.log('\n' + (falhas ? `${falhas} passo(s) FALHARAM` : 'TODOS OS PASSOS PASSARAM — o app funciona ao vivo'))
 console.log('Erros de console: ' + (erros.length ? '\n  - ' + erros.join('\n  - ') : 'nenhum'))
