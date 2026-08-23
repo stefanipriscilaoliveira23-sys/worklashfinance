@@ -22,6 +22,18 @@ const passo = async (nome, fn) => {
 
 console.log(`\nTestando ${SITE} com o banco de verdade\n`)
 
+// apaga as contas de teste das execuções anteriores, pra não sujarem
+// a lista de atletas da organizadora
+await passo('limpa as contas de teste antigas', async () => {
+  const r = await p.request.post(new URL('rest/v1/rpc/tenis_limpar_contas_de_teste',
+    'https://neernbcttnluwjjchsss.supabase.co/').href, {
+    headers: { apikey: 'sb_publishable_4ETRCAKPh9QWAZCetDXsvQ_oACilCJU', 'Content-Type': 'application/json' },
+    data: {},
+  })
+  if (!r.ok()) throw new Error('HTTP ' + r.status())
+  console.log('    ' + JSON.stringify(await r.json()))
+})
+
 await passo('site publicado abre', async () => {
   const r = await p.goto(SITE, { waitUntil: 'domcontentloaded', timeout: 45000 })
   if (!r || r.status() !== 200) throw new Error('HTTP ' + (r && r.status()))
