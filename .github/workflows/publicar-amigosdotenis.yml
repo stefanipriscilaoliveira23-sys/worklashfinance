@@ -1,5 +1,8 @@
-# Publica o app Amigos do Tênis no GitHub Pages.
-# Roda sozinho a cada push que mexer na pasta do app.
+# Publica o app Amigos do Tênis no GitHub Pages e testa o site ao vivo.
+#
+# O Pages deste repositório serve a branch gh-pages, então aqui a gente
+# monta o app e empurra o resultado pra essa branch. Não usa a API que
+# liga o Pages (o token do Actions não tem permissão pra isso).
 name: Publicar Amigos do Tênis
 
 on:
@@ -11,24 +14,21 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
-  pages: write
-  id-token: write
+  contents: write
 
-# uma publicação por vez; se vier outra, cancela a anterior
 concurrency:
-  group: pages
+  group: publicar-amigosdotenis
   cancel-in-progress: true
 
 jobs:
-  montar:
+  publicar:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
           cache-dependency-path: amigosdotenis/package-lock.json
 
@@ -40,29 +40,70 @@ jobs:
         working-directory: amigosdotenis
         run: npm run build
 
-      - name: Ajustes do GitHub Pages
+      - name: Preparar arquivos do Pages
         working-directory: amigosdotenis
         run: |
-          # sem isso o Pages ignora pastas que começam com _
-          touch dist/.nojekyll
-          # qualquer endereço desconhecido cai no app em vez de dar 404
-          cp dist/index.html dist/404.html
+          touch dist/.nojekyll              # sem isso o Pages ignora pastas com _
+          cp dist/index.html dist/404.html  # endereço desconhecido cai no app
 
-      # liga o Pages no repositório automaticamente, se ainda não estiver
-      - uses: actions/configure-pages@v5
-        with:
-          enablement: true
+      - name: Empurrar para a branch gh-pages
+        working-directory: amigosdotenis/dist
+        run: |
+          git init -q
+          git checkout -q -b gh-pages
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -q -m "Site do Amigos do Tênis — build de ${GITHUB_SHA::7}"
+          git push -f "https://x-access-token:${TOKEN}@github.com/${GITHUB_REPOSITORY}.git" gh-pages
+        env:
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - uses: actions/upload-pages-artifact@v3
-        with:
-          path: amigosdotenis/dist
-
-  publicar:
-    needs: montar
+  testar-ao-vivo:
+    needs: publicar
     runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.publicacao.outputs.page_url }}
     steps:
-      - id: publicacao
-        uses: actions/deploy-pages@v4
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Instalar o navegador de teste
+        working-directory: amigosdotenis
+        run: |
+          npm i --no-save playwright
+          npx playwright install --with-deps chromium
+
+      - name: Esperar o Pages publicar a versão nova
+        id: espera
+        run: |
+          URL="https://${GITHUB_REPOSITORY_OWNER}.github.io/${GITHUB_REPOSITORY#*/}/"
+          echo "url=$URL" >> "$GITHUB_OUTPUT"
+          for i in $(seq 1 40); do
+            code=$(curl -s -o /dev/null -w '%{http_code}' "$URL" || true)
+            echo "tentativa $i: HTTP $code"
+            [ "$code" = "200" ] && exit 0
+            sleep 15
+          done
+          echo "O Pages não respondeu 200 em 10 minutos."
+          exit 1
+
+      - name: Testar o app ao vivo, contra o banco real
+        working-directory: amigosdotenis
+        env:
+          SITE: ${{ steps.espera.outputs.url }}
+          # telefone de teste derivado do número da execução, para não colidir
+          TEL: 000000${{ github.run_number }}0000
+        run: |
+          TEL="${TEL:0:11}"
+          echo "telefone de teste: $TEL"
+          SITE="$SITE" TEL="$TEL" node teste-ao-vivo.mjs
+
+      - name: Guardar a foto da tela
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tela-ao-vivo
+          path: amigosdotenis/tela-ao-vivo.png
+          if-no-files-found: ignore
