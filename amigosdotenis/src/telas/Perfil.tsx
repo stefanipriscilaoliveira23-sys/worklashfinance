@@ -18,7 +18,7 @@ export default function Perfil({ eu, atualizar, deslogar }: {
     if (!f) return
     if (f.size > 6_000_000) return erro('Foto muito grande. Use uma de até 6 MB.')
     try {
-      const url = await subirFoto(f, eu.atleta.id)
+      const url = await subirFoto(f, eu.usuario.id)
       atualizar(await rpcAuth<Eu>('tenis_salvar_foto', { p_url: url }))
       ok('Foto atualizada!')
     } catch (err) { erro((err as Error).message) }
@@ -29,18 +29,18 @@ export default function Perfil({ eu, atualizar, deslogar }: {
   return (
     <div className="tela">
       <div className="topo">
-        <div className="cresce"><h1>Meu perfil</h1><p>{eu.atleta.telefone && formatarTel(eu.atleta.telefone)}</p></div>
+        <div className="cresce"><h1>Meu perfil</h1><p>{eu.usuario.telefone && formatarTel(eu.usuario.telefone)}</p></div>
       </div>
 
       <Aviso ok={recado?.ok}>{recado?.texto}</Aviso>
 
       <div className="cartao centro stagger" style={{ marginBottom: 14 }}>
         <button onClick={() => arquivo.current?.click()}>
-          <Avatar nome={eu.atleta.nome} url={eu.atleta.foto_url} tam={104} />
+          <Avatar nome={eu.usuario.nome} url={eu.usuario.foto_url} tam={104} />
         </button>
         <input ref={arquivo} type="file" accept="image/*" hidden onChange={trocarFoto} />
         <h2 style={{ fontSize: 23, fontWeight: 900, margin: '13px 0 3px', letterSpacing: '-.5px' }}>
-          {eu.atleta.nome}
+          {eu.usuario.nome}
         </h2>
         <p className="mini" style={{ margin: 0 }}>
           {[p.bairro, p.cidade, p.uf].filter(Boolean).join(', ') || 'Sem cidade definida'}
@@ -96,7 +96,7 @@ export default function Perfil({ eu, atualizar, deslogar }: {
       </div>
 
       <p className="mini centro" style={{ marginTop: 26, lineHeight: 1.7 }}>
-        🎾 Rally · encontro de tenistas<br />
+        🎾 Amigos do Tênis<br />
         Combine sempre em quadra pública ou clube.<br />
         Denuncie qualquer comportamento estranho.
       </p>
@@ -117,7 +117,7 @@ function FolhaEditar({ eu, fechar, aoSalvar, aoErro }: {
   eu: Eu; fechar: () => void; aoSalvar: (e: Eu) => void; aoErro: (m: string) => void
 }) {
   const p = eu.perfil
-  const [nome, setNome] = useState(eu.atleta.nome)
+  const [nome, setNome] = useState(eu.usuario.nome)
   const [cidade, setCidade] = useState(p.cidade)
   const [uf, setUf] = useState(p.uf || 'SP')
   const [bairro, setBairro] = useState(p.bairro)

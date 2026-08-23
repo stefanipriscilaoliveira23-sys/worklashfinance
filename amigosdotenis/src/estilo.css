@@ -101,6 +101,9 @@ a { color: var(--lima); }
   -webkit-background-clip: text; background-clip: text; color: transparent;
 }
 .logo .bola { display: inline-block; animation: quica 1.7s infinite cubic-bezier(.5,0,.5,1); }
+/* nas telas cheias o nome fica embaixo da bola, com mais respiro */
+.logo--empilhado { flex-direction: column; gap: 2px; line-height: 1.1; }
+.logo--empilhado .bola { font-size: 1.5em; }
 
 /* ---------------- cartões ---------------- */
 .cartao {

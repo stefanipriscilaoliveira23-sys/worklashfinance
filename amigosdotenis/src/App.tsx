@@ -55,7 +55,9 @@ export default function App() {
     return (
       <div className="app">
         <div className="tela tela--limpa centro" style={{ display: 'grid', placeContent: 'center', minHeight: '100dvh' }}>
-          <div className="logo" style={{ fontSize: 42 }}><span className="bola">🎾</span><b>Rally</b></div>
+          <div className="logo logo--empilhado" style={{ fontSize: 32 }}>
+            <span className="bola">🎾</span><b>Amigos do Tênis</b>
+          </div>
         </div>
       </div>
     )
@@ -76,7 +78,7 @@ export default function App() {
   return (
     <div className="app">
       {aba === 'descobrir' && <Descobrir eu={eu} recarregar={carregar} irParaChat={abrirChat} />}
-      {aba === 'jogos' && <Jogos meuId={eu.atleta.id} recarregar={carregar} irParaChat={abrirChat} />}
+      {aba === 'jogos' && <Jogos meuId={eu.usuario.id} recarregar={carregar} irParaChat={abrirChat} />}
       {aba === 'chat' && <Chat conversaAberta={conversa} abrir={setConversa} recarregar={carregar} />}
       {aba === 'ranking' && <Ranking cidade={eu.perfil.cidade} />}
       {aba === 'perfil' && (

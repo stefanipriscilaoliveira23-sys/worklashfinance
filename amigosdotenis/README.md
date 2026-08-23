@@ -1,4 +1,4 @@
-# 🎾 Rally — encontro de tenistas
+# 🎾 Amigos do Tênis
 
 App para tenistas acharem com quem jogar perto de casa, mandarem um desafio e
 combinarem o jogo pelo chat. Feito para funcionar no Brasil todo, começando por
@@ -22,7 +22,7 @@ O chat **só abre depois do aceite** — isso evita spam e assédio.
 
 | Área | Estado |
 |---|---|
-| Login por celular + senha | ✅ compartilhado com o app do torneio |
+| Cadastro e login por celular + senha | ✅ base própria |
 | Cadastro guiado em 6 passos | ✅ |
 | Descobrir com swipe e lista | ✅ |
 | Filtros (livres hoje, turno, modalidade, nível, distância, Brasil todo) | ✅ |
@@ -38,7 +38,7 @@ O chat **só abre depois do aceite** — isso evita spam e assédio.
 ## Rodando na sua máquina
 
 ```bash
-cd rally
+cd amigosdotenis
 npm install
 npm run dev        # abre em http://localhost:5173
 ```
@@ -62,14 +62,18 @@ Para apontar um Chrome específico: `CHROME=/caminho/do/chrome node teste-e2e.mj
 
 ## Banco de dados
 
-Projeto Supabase: **saque-barragem** (o mesmo do torneio Saque na Barragem).
+Projeto Supabase: **outros-projetos** (`neernbcttnluwjjchsss`).
 
-O Rally **reaproveita o login que já existe** — as tabelas `atletas` e `sessoes`.
-Quem já tem conta no torneio entra no Rally com o mesmo celular e senha, sem se
-cadastrar de novo.
+Esse projeto guarda **dois apps independentes**, que não compartilham nada:
 
-Tudo que é do Rally usa o prefixo `tenis_`, então nada do torneio foi tocado:
+- **Saque na Barragem** (torneio) — tabelas `atletas`, `sessoes`, `inscricoes`,
+  `config`, `regras`, `novidades`, `patrocinadores`
+- **Amigos do Tênis** — tudo com o prefixo `tenis_`
 
+Cada um tem sua própria base de usuários e seu próprio login. Quem joga o
+torneio **não** entra aqui automaticamente: todo mundo se cadastra do zero.
+
+- `tenis_usuarios` / `tenis_sessoes` — cadastro e login (senha em bcrypt)
 - `tenis_perfis` — nível, cidade, coordenadas, preferências, rating, reputação
 - `tenis_disponibilidade` — grade semanal (dia × turno)
 - `tenis_livre` — "estou livre hoje das 19h às 21h"

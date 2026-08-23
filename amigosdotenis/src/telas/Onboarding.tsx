@@ -12,8 +12,8 @@ export default function Onboarding({ eu, atualizar }: { eu: Eu; atualizar: (e: E
   const { recado, erro } = useRecado()
   const arquivo = useRef<HTMLInputElement>(null)
 
-  const [nome, setNome] = useState(eu.atleta.nome)
-  const [foto, setFoto] = useState(eu.atleta.foto_url)
+  const [nome, setNome] = useState(eu.usuario.nome)
+  const [foto, setFoto] = useState(eu.usuario.foto_url)
   const [cidade, setCidade] = useState(eu.perfil.cidade)
   const [uf, setUf] = useState(eu.perfil.uf || 'SP')
   const [bairro, setBairro] = useState(eu.perfil.bairro)
@@ -41,7 +41,7 @@ export default function Onboarding({ eu, atualizar }: { eu: Eu; atualizar: (e: E
     if (!f) return
     if (f.size > 6_000_000) return erro('Foto muito grande. Use uma de até 6 MB.')
     try {
-      const url = await subirFoto(f, eu.atleta.id)
+      const url = await subirFoto(f, eu.usuario.id)
       setFoto(url)
       await rpcAuth('tenis_salvar_foto', { p_url: url })
     } catch (err) { erro((err as Error).message) }

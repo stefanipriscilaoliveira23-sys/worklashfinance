@@ -44,7 +44,7 @@ export type Perfil = {
 }
 
 export type Eu = {
-  atleta: { id: string; nome: string; telefone: string; foto_url: string | null; is_admin: boolean; nascimento: string | null }
+  usuario: { id: string; nome: string; telefone: string; foto_url: string | null; nascimento: string | null }
   perfil: Perfil
   disponibilidade: { dia: number; turno: string }[]
   livre_hoje: { data: string; hora_ini: string; hora_fim: string; obs: string } | null

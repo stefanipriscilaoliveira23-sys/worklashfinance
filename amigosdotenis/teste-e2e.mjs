@@ -14,7 +14,7 @@ const jogadorB = {
   disponibilidade: [{ dia: 2, turno: 'noite' }], convite_pendente: false, conversa_id: 'cv-1',
 }
 const eu = {
-  atleta: { id: 'a-1111', nome: 'Stéfani Oliveira', telefone: '18999998888', foto_url: null, is_admin: false, nascimento: null },
+  usuario: { id: 'a-1111', nome: 'Stéfani Oliveira', telefone: '18999998888', foto_url: null, nascimento: null },
   perfil: {
     cidade: 'Araçatuba', uf: 'SP', bairro: 'Centro', lat: -21.2, lng: -50.4, nivel: 5, rating: 1024,
     mao: 'destro', joga_simples: true, joga_duplas: true, genero: 'F', estilo: '', bio: 'Voltando a jogar depois de uma pausa.',
@@ -26,7 +26,8 @@ const eu = {
   livre_hoje: null, convites_novos: 1, msgs_novas: 2, jogos_pendentes: 1,
 }
 const respostas = {
-  fazer_login: { token: 'tok-teste', atleta: eu.atleta },
+  tenis_login: { token: 'tok-teste', usuario: eu.usuario },
+  tenis_criar_conta: { token: 'tok-teste', usuario: eu.usuario },
   tenis_eu: eu,
   tenis_descobrir: { jogadores: [jogadorB] },
   tenis_convidar: { ok: true, convite_id: 'c-1' },

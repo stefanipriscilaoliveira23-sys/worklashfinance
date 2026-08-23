@@ -7,8 +7,8 @@ export const sb = createClient(URL, CHAVE, {
   auth: { persistSession: false, autoRefreshToken: false },
 })
 
-/* ---- sessão (token próprio, o mesmo do app do torneio) ---- */
-const CHAVE_TOKEN = 'rally.token'
+/* ---- sessão (token próprio do Amigos do Tênis) ---- */
+const CHAVE_TOKEN = 'amigosdotenis.token'
 
 export const pegarToken = () => localStorage.getItem(CHAVE_TOKEN)
 export const guardarToken = (t: string) => localStorage.setItem(CHAVE_TOKEN, t)
@@ -37,16 +37,16 @@ function traduzir(msg: string) {
 }
 
 /* ---- entrar / criar conta ---- */
-export type Sessao = { token: string; atleta: { id: string; nome: string; telefone: string; is_admin: boolean } }
+export type Sessao = { token: string; usuario: { id: string; nome: string; telefone: string } }
 
 export async function entrar(telefone: string, senha: string) {
-  const r = await rpc<Sessao>('fazer_login', { p_telefone: telefone, p_senha: senha })
+  const r = await rpc<Sessao>('tenis_login', { p_telefone: telefone, p_senha: senha })
   guardarToken(r.token)
   return r
 }
 
 export async function criarConta(nome: string, telefone: string, senha: string, nascimento: string | null) {
-  const r = await rpc<Sessao>('criar_conta', {
+  const r = await rpc<Sessao>('tenis_criar_conta', {
     p_nome: nome, p_telefone: telefone, p_senha: senha,
     p_nascimento: nascimento || null,
   })
@@ -56,14 +56,14 @@ export async function criarConta(nome: string, telefone: string, senha: string, 
 
 export async function sair() {
   const token = pegarToken()
-  if (token) { try { await rpc('logout', { p_token: token }) } catch { /* ignora */ } }
+  if (token) { try { await rpc('tenis_logout', { p_token: token }) } catch { /* ignora */ } }
   limparToken()
 }
 
 /* ---- foto ---- */
-export async function subirFoto(arquivo: File, atletaId: string) {
+export async function subirFoto(arquivo: File, usuarioId: string) {
   const ext = (arquivo.name.split('.').pop() || 'jpg').toLowerCase()
-  const caminho = `rally/${atletaId}-${Date.now()}.${ext}`
+  const caminho = `amigosdotenis/${usuarioId}-${Date.now()}.${ext}`
   const { error } = await sb.storage.from('fotos').upload(caminho, arquivo, { upsert: true })
   if (error) throw new Error('Não consegui enviar a foto. Tente outra.')
   const { data } = sb.storage.from('fotos').getPublicUrl(caminho)

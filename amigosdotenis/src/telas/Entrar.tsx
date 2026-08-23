@@ -32,8 +32,8 @@ export default function Entrar({ pronto }: { pronto: () => void }) {
   return (
     <div className="tela tela--limpa" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', minHeight: '100dvh' }}>
       <div className="centro" style={{ marginBottom: 34 }}>
-        <div className="logo" style={{ fontSize: 46 }}>
-          <span className="bola">🎾</span><b>Rally</b>
+        <div className="logo logo--empilhado" style={{ fontSize: 34 }}>
+          <span className="bola">🎾</span><b>Amigos do Tênis</b>
         </div>
         <p style={{ color: 'var(--txt-2)', fontSize: 16, marginTop: 10, fontWeight: 600 }}>
           Ache com quem jogar. Desafie. Joga hoje.
@@ -86,8 +86,8 @@ export default function Entrar({ pronto }: { pronto: () => void }) {
       </div>
 
       <p className="mini centro" style={{ marginTop: 20, lineHeight: 1.6 }}>
-        Já joga o torneio Saque na Barragem?<br />
-        <span className="lima forte">Entre com o mesmo celular e senha.</span>
+        Ao criar sua conta você concorda em combinar os jogos<br />
+        <span className="lima forte">sempre em quadra pública ou clube.</span>
       </p>
     </div>
   )

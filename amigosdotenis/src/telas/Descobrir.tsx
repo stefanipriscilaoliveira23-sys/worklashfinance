@@ -40,7 +40,9 @@ export default function Descobrir({ eu, recarregar, irParaChat }: {
     <div className="tela">
       <div className="topo">
         <div className="cresce">
-          <div className="logo"><span className="bola">🎾</span><b>Rally</b></div>
+          <div className="logo" style={{ fontSize: 23 }}>
+            <span className="bola">🎾</span><b>Amigos do Tênis</b>
+          </div>
           <p>{eu.perfil.cidade || 'Brasil'} · {jogadores.length} {jogadores.length === 1 ? 'jogador' : 'jogadores'}</p>
         </div>
         <button className="redondo" onClick={() => setVista(v => v === 'cards' ? 'lista' : 'cards')}
