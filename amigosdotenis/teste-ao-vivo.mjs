@@ -33,7 +33,7 @@ await passo('cria conta nova no banco real', async () => {
   await p.getByPlaceholder('Como te chamam na quadra').fill('Teste Automatico')
   await p.getByPlaceholder('(18) 99999-9999').fill(TEL)
   await p.getByPlaceholder('Mínimo 4 caracteres').fill('teste1234')
-  await p.getByRole('button', { name: /Bora começar/ }).click()
+  await p.getByRole('button', { name: /bora começar/i }).click()
   await p.waitForSelector('text=Vamos montar seu perfil', { timeout: 30000 })
 })
 
@@ -65,14 +65,14 @@ await passo('passo 5 — horários', async () => {
 })
 
 await passo('finaliza o cadastro e entra no app', async () => {
-  await p.getByRole('button', { name: /Bora jogar/ }).click()
+  await p.getByRole('button', { name: /bora jogar/i }).click()
   await p.waitForSelector('.tabs', { timeout: 30000 })
 })
 
 await passo('grava "livre hoje" no banco', async () => {
   await p.getByText('Bora jogar hoje?').click()
   await p.waitForSelector('text=Tô livre!', { timeout: 15000 })
-  await p.getByRole('button', { name: /Tô livre/ }).click()
+  await p.getByRole('button', { name: /tô livre/i }).click()
   await p.waitForSelector('text=Você está livre hoje', { timeout: 20000 })
 })
 
@@ -88,7 +88,7 @@ await passo('sai e faz login de novo', async () => {
   await p.waitForSelector('text=Ache com quem jogar', { timeout: 20000 })
   await p.getByPlaceholder('(18) 99999-9999').fill(TEL)
   await p.getByPlaceholder('Mínimo 4 caracteres').fill('teste1234')
-  await p.getByRole('button', { name: /Entrar/ }).click()
+  await p.getByRole('button', { name: /entrar/i }).click()
   await p.waitForSelector('.tabs', { timeout: 30000 })
 })
 
