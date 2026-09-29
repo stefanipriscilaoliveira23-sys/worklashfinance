@@ -4,7 +4,8 @@ import { Button } from "@/components/ui/button";
 const CRM_URL = "https://crm.worklash.com.br";
 
 /**
- * O CRM roda num servidor próprio (crm.worklash.com.br) e aparece aqui dentro.
+ * A Torre de Controle roda num servidor próprio (crm.worklash.com.br) e
+ * aparece aqui dentro.
  * O login dele é separado do Escritório: na primeira vez cada pessoa entra com
  * o e-mail e a senha dela e o navegador guarda a sessão.
  */
@@ -14,7 +15,7 @@ export default function Crm() {
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2">
-            <MessageSquare className="h-6 w-6 text-primary" /> Atendimento
+            <MessageSquare className="h-6 w-6 text-primary" /> Torre de Controle
           </h1>
           <p className="text-sm text-muted-foreground">
             WhatsApp e Instagram da equipe, com funil de vendas. Na primeira vez, entre
@@ -31,7 +32,7 @@ export default function Crm() {
       <div className="flex-1 overflow-hidden rounded-lg border border-border bg-card">
         <iframe
           src={CRM_URL}
-          title="Atendimento"
+          title="Torre de Controle"
           className="h-full w-full"
           allow="clipboard-write; microphone"
         />
