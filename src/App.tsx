@@ -29,6 +29,7 @@ import Crm from "./pages/Crm";
 import Agenda from "./pages/Agenda";
 import AgendarPublico from "./pages/AgendarPublico";
 import Scripts from "./pages/Scripts";
+import Iscas from "./pages/Iscas";
 import Formularios from "./pages/Formularios";
 import BibliotecaProcessos from "./pages/BibliotecaProcessos";
 import DRE from "./pages/DRE";
@@ -58,6 +59,7 @@ const App = () => (
               <Route path="/dashboard" element={<AdminRoute><Dashboard /></AdminRoute>} />
               <Route path="/biblioteca" element={<BibliotecaProcessos />} />
               <Route path="/scripts" element={<Scripts />} />
+              <Route path="/iscas" element={<Iscas />} />
               <Route path="/produtos-cursos" element={<ProdutosMargem />} />
               <Route path="/formularios" element={<Formularios />} />
               <Route path="/dre" element={<AdminRoute><DRE /></AdminRoute>} />

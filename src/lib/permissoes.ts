@@ -17,6 +17,7 @@ export const MODULOS: ModuloDef[] = [
   { key: "/mentoria", label: "Mentoria", setor: "Mentoria" },
   { key: "/biblioteca", label: "Biblioteca de POP", setor: "Mentoria" },
   { key: "/scripts", label: "Scripts", setor: "Comercial" },
+  { key: "/iscas", label: "Iscas", setor: "Comercial" },
   { key: "/produtos", label: "Nossos Produtos", setor: "Comercial" },
   { key: "/formularios", label: "Formulários", setor: "Comercial" },
   { key: "/clientes", label: "Clientes", setor: "Clientes" },

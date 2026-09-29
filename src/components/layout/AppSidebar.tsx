@@ -1,7 +1,7 @@
 import {
   LayoutDashboard, DollarSign, CalendarCheck, Building2, User, Users, PartyPopper,
   Package, TrendingUp, BarChart3, Settings, LogOut, TrendingUp as Logo, FileSpreadsheet, PiggyBank, Home, Scale, GraduationCap, CalendarDays,
-  MessageSquareText, ClipboardList, BookOpen, ListChecks, MessageSquare, Eye } from "lucide-react";
+  MessageSquareText, ClipboardList, BookOpen, ListChecks, MessageSquare, Eye, Magnet } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useAuth, isAdmin } from "@/contexts/AuthContext";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -38,6 +38,7 @@ const setores: Setor[] = [
       { title: "Pessoas", url: "/pessoas", icon: Users },
       { title: "Clientes", url: "/clientes", icon: Users },
       { title: "Scripts", url: "/scripts", icon: MessageSquareText },
+      { title: "Iscas", url: "/iscas", icon: Magnet },
       { title: "Nossos Produtos", url: "/produtos", icon: Package },
       { title: "Formulários", url: "/formularios", icon: ClipboardList },
     ],
