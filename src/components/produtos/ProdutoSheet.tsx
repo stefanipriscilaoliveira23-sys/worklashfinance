@@ -14,7 +14,7 @@ import type { Database } from "@/integrations/supabase/types";
 
 type ProdutoCategoria = Database["public"]["Enums"]["produto_categoria"];
 
-const CATEGORIAS: ProdutoCategoria[] = ["Mentorias", "Renovações", "Digitais", "Físicos"];
+const CATEGORIAS: ProdutoCategoria[] = ["Mentorias", "Consultorias", "Renovações", "Digitais", "Físicos"];
 
 const CAMPOS_TEXTO = [
   { key: "o_que_e", label: "O que é" },

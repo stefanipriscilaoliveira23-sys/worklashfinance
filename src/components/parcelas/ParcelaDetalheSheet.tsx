@@ -100,6 +100,7 @@ export default function ParcelaDetalheSheet({ selectedAluna, onClose, onRegistra
     parcela_atual: d.numero_parcela,
     data_vencimento: d.data_vencimento,
     valor_parcela: d.valor_real ?? d.valor_sugerido ?? 0,
+      encargos_isentos: d.encargos_isentos ?? false,
     saldo_restante: d.saldo_parcela ?? 0,
     status: d.status,
   });
@@ -217,8 +218,20 @@ export default function ParcelaDetalheSheet({ selectedAluna, onClose, onRegistra
                         </div>
                       </div>
 
+                      {/* Parcela perdoada: mostra isso em vez de multa zerada,
+                          senão fica parecendo erro de cálculo. */}
+                      {calc.isento && (
+                        <div className="rounded-md border border-primary/30 bg-primary/5 p-2 text-[11px] space-y-0.5">
+                          <p className="font-medium text-primary">Multa e juros perdoados</p>
+                          <p className="text-muted-foreground">
+                            {temAtraso ? `${calc.diasAtraso} dia(s) de atraso, sem cobrança extra.` : "Sem cobrança extra."}
+                            {d.isencao_motivo ? ` ${d.isencao_motivo}` : ""}
+                          </p>
+                        </div>
+                      )}
+
                       {/* Computed real-time fields */}
-                      {temAtraso && (
+                      {temAtraso && !calc.isento && (
                         <div className="grid grid-cols-2 gap-x-3 gap-y-1 rounded-md border border-destructive/20 bg-destructive/5 p-2 text-[11px]">
                           <div className="flex justify-between">
                             <span className="text-muted-foreground">Dias atraso</span>

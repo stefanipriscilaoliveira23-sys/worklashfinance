@@ -7,8 +7,7 @@ import { saudacaoAgora, primeiroNome, dataPorExtenso } from "@/lib/saudacao";
 
 import {
   Loader2, DollarSign, CalendarClock, Building2, User,
-  CalendarCheck, BookOpen, RefreshCw, ArrowRight, TrendingUp,
-} from "lucide-react";
+  CalendarCheck, BookOpen, RefreshCw, ArrowRight, TrendingUp, Eye, CalendarRange, CalendarCheck2, Search } from "lucide-react";
 
 function Card({ label, value, sub, icon: Icon, tone = "default", onClick }: any) {
   const toneClasses =
@@ -143,6 +142,27 @@ export default function Inicio() {
         </p>
       </div>
 
+      {/* Atalhos da Visão. Ficam no topo de propósito: são as leituras que
+          respondem "o que eu faço agora" e "isso está melhorando". Sem
+          atalho, elas ficam a dois cliques e ninguém abre. */}
+      <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
+        {[
+          { rotulo: "O que pede decisão", aba: "hoje", Icone: Eye },
+          { rotulo: "Como foi a semana", aba: "semana", Icone: CalendarRange },
+          { rotulo: "Como está o mês", aba: "mes", Icone: CalendarCheck2 },
+          { rotulo: "Por que trava", aba: "conversas", Icone: Search },
+        ].map(({ rotulo, aba, Icone }) => (
+          <button
+            key={aba}
+            type="button"
+            onClick={() => navigate(`/visao?aba=${aba}`)}
+            className="flex items-center gap-2 rounded-lg border border-border px-3 py-2.5 text-left text-sm transition-colors hover:bg-surface-hover"
+          >
+            <Icone className="h-4 w-4 shrink-0 text-primary" />
+            <span className="min-w-0 truncate">{rotulo}</span>
+          </button>
+        ))}
+      </div>
 
       {/* Faturamento — apenas admin */}
       {admin && (

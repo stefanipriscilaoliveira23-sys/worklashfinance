@@ -43,6 +43,8 @@ export interface TemplateContext {
   valor_parcela?: number | null;
   saldo_restante?: number | null;
   status?: string | null;
+  /** Parcela com multa e juros perdoados. */
+  encargos_isentos?: boolean | null;
   // Pagamento (opcional — usado no comprovante)
   valor_pago?: number | null;
   data_pagamento?: string | null;
@@ -79,6 +81,8 @@ export function buildVars(ctx: TemplateContext): RenderedVars {
       valor_real: valorParcela,
       data_vencimento: ctx.data_vencimento ?? null,
       status: ctx.status ?? null,
+      // Parcela perdoada não pode sair cobrando multa e juros na mensagem.
+      encargos_isentos: ctx.encargos_isentos ?? false,
     },
     ctx.desconto ?? 0
   );

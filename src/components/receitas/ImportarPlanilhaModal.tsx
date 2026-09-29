@@ -21,7 +21,7 @@ import type { Database } from "@/integrations/supabase/types";
 type PlataformaOrigem = Database["public"]["Enums"]["plataforma_origem"];
 type ProdutoCategoria = Database["public"]["Enums"]["produto_categoria"];
 
-const CATEGORIAS: ProdutoCategoria[] = ["Mentorias", "Renovações", "Digitais", "Físicos"];
+const CATEGORIAS: ProdutoCategoria[] = ["Mentorias", "Consultorias", "Renovações", "Digitais", "Físicos"];
 
 interface ImportRow {
   data: string;

@@ -65,6 +65,7 @@ export default function ParcelasMentoria() {
       parcela_atual: d.numero_parcela,
       data_vencimento: d.data_vencimento,
       valor_parcela: d.valor_real ?? d.valor_sugerido ?? 0,
+      encargos_isentos: d.encargos_isentos ?? false,
       saldo_restante: d.saldo_parcela ?? 0,
       status: d.status,
       valor_pago: valorPago,

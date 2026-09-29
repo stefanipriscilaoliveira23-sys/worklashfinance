@@ -1,8 +1,7 @@
 import {
   LayoutDashboard, DollarSign, CalendarCheck, Building2, User, Users, PartyPopper,
   Package, TrendingUp, BarChart3, Settings, LogOut, TrendingUp as Logo, FileSpreadsheet, PiggyBank, Home, Scale, GraduationCap, CalendarDays,
-  MessageSquareText, ClipboardList, BookOpen, ListChecks
-} from "lucide-react";
+  MessageSquareText, ClipboardList, BookOpen, ListChecks, MessageSquare, Eye } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useAuth, isAdmin } from "@/contexts/AuthContext";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -27,7 +26,20 @@ const setores: Setor[] = [
     setor: "Geral",
     items: [
       { title: "Início", url: "/", icon: Home },
-      { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard, adminOnly: true },
+      { title: "Visão", url: "/visao", icon: Eye },
+      { title: "Raio-X do Negócio", url: "/dashboard", icon: LayoutDashboard, adminOnly: true },
+      { title: "Agenda", url: "/agenda", icon: CalendarDays },
+    ],
+  },
+  {
+    setor: "Comercial",
+    items: [
+      { title: "Atendimento", url: "/crm", icon: MessageSquare },
+      { title: "Pessoas", url: "/pessoas", icon: Users },
+      { title: "Clientes", url: "/clientes", icon: Users },
+      { title: "Scripts", url: "/scripts", icon: MessageSquareText },
+      { title: "Nossos Produtos", url: "/produtos", icon: Package },
+      { title: "Formulários", url: "/formularios", icon: ClipboardList },
     ],
   },
   {
@@ -46,32 +58,15 @@ const setores: Setor[] = [
     ],
   },
   {
-    setor: "Mentoria",
+    setor: "Sucesso do Cliente",
     items: [
       { title: "Mentoria", url: "/mentoria", icon: GraduationCap },
       { title: "Biblioteca de POP", url: "/biblioteca", icon: BookOpen },
     ],
   },
-  {
-    setor: "Comercial",
-    items: [
-      { title: "Scripts", url: "/scripts", icon: MessageSquareText },
-      { title: "Nossos Produtos", url: "/produtos", icon: Package },
-      { title: "Formulários", url: "/formularios", icon: ClipboardList },
-    ],
-  },
-  {
-    setor: "Clientes",
-    items: [{ title: "Clientes", url: "/clientes", icon: Users }],
-  },
-  {
-    setor: "Agenda",
-    items: [{ title: "Agenda", url: "/agenda", icon: CalendarDays }],
-  },
 ];
 
 const adminItems: MenuItem[] = [
-  { title: "Business Intelligence", url: "/bi", icon: BarChart3 },
   { title: "Configurações", url: "/config", icon: Settings },
 ];
 

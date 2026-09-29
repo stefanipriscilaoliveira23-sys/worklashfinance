@@ -24,7 +24,7 @@ const GOLD_COLORS = ["#C9A84C", "#E5C76B", "#A68A3E", "#D4B85A", "#8B7432", "#F0
 const ENTRY_CATEGORIES = ["Digitais", "Físicos"];
 
 const CATEGORIAS: ProdutoCategoria[] = [
-  "Mentorias", "Renovações", "Digitais", "Físicos"
+  "Mentorias", "Consultorias", "Renovações", "Digitais", "Físicos"
 ];
 
 export default function ProdutosMargem() {

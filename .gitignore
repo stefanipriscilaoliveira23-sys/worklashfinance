@@ -22,3 +22,8 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+.vercel
+.env*
+
+# backup do banco: NUNCA commitar, o repo e publico
+*.backup

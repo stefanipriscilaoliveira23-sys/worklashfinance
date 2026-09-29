@@ -3,9 +3,12 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { formatDate } from "@/lib/format";
-import { notificarProprio, criarNotificacao } from "@/lib/notificacoes";
+import { criarNotificacao } from "@/lib/notificacoes";
 import { useAuth } from "@/contexts/AuthContext";
 import ReuniaoDetalhe from "@/components/agenda/ReuniaoDetalhe";
+import EditarReuniaoDialog from "@/components/agenda/EditarReuniaoDialog";
+import { perguntasDoTipo } from "@/lib/roteirosCall";
+import RoteiroDaCall from "@/components/agenda/RoteiroDaCall";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -19,7 +22,7 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { CalendarDays, ChevronLeft, ChevronRight, Copy, Loader2, Plus, Trash2 } from "lucide-react";
+import { CalendarDays, ChevronLeft, ChevronRight, Copy, Loader2, Plus, Trash2, Pencil } from "lucide-react";
 
 
 const DIAS = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
@@ -63,6 +66,7 @@ export default function Agenda() {
   const [showAgendar, setShowAgendar] = useState(false);
   const [tipoForm, setTipoForm] = useState({ nome: "", duracao_minutos: "60", descricao: "", titulo_pagina: "", subtitulo_pagina: "" });
   const [agForm, setAgForm] = useState({ ...AG_VAZIO });
+  const [agRespostas, setAgRespostas] = useState<Record<string, string>>({});
   const [dispForm, setDispForm] = useState({ tipo_id: "", dia_semana: "1", hora_inicio: "09:00", hora_fim: "18:00" });
   const [bloqForm, setBloqForm] = useState({ data: "", hora_inicio: "", hora_fim: "", motivo: "" });
   const [visao, setVisao] = useState<"calendario" | "lista">("calendario");
@@ -86,10 +90,37 @@ export default function Agenda() {
     },
   });
 
+  const meuNome =
+    (perfis ?? []).find((p) => p.user_id === user?.id)?.display_name ||
+    user?.email ||
+    "";
+
   const nomeAnfitriao = (id: string | null | undefined) =>
     (anfitrioes ?? []).find((a) => a.id === id)?.nome ?? "";
   const nomeTipo = (id: string | null | undefined) =>
     (tipos ?? []).find((t) => t.id === id)?.nome ?? "reunião";
+
+  // Quem marcou a reunião.
+  //
+  // A ordem importa: `agendado_por` só existe pra quem tem login aqui. Quem
+  // agenda pelo CRM ou pela IA não tem, e antes disso tudo caía no genérico
+  // "alguém da equipe (não ficou registrado)". Por isso `agendado_por_nome`,
+  // que é texto livre, vem primeiro.
+  const quemAgendou = (a: {
+    origem?: string | null;
+    agendado_por?: string | null;
+    agendado_por_nome?: string | null;
+  }) => {
+    const nome = (a.agendado_por_nome ?? "").trim();
+    if (a.origem === "Auto-agendamento") {
+      return nome ? `ela mesma, pelo link que ${nome} mandou` : "ela mesma, pelo link público";
+    }
+    if (nome) return nome;
+    const p = (perfis ?? []).find((x) => x.user_id === a.agendado_por);
+    return p?.display_name || p?.email || "alguém da equipe (não ficou registrado)";
+  };
+
+  const [editando, setEditando] = useState<any | null>(null);
 
 
   const { data: tipos } = useQuery({
@@ -222,11 +253,13 @@ export default function Agenda() {
         tipo_id: agForm.tipo_id || null,
         anfitriao_id: agForm.anfitriao_id,
         agendado_por: user?.id ?? null,
+        agendado_por_nome: meuNome || null,
         data: agForm.data,
         hora_inicio: agForm.hora_inicio,
         hora_fim: horaFim,
         observacoes: agForm.observacoes || null,
         link_reuniao: agForm.link_reuniao || null,
+        respostas: agRespostas,
         status: "Confirmado",
         origem: "Interno",
       }).select("id").single();
@@ -247,12 +280,6 @@ export default function Agenda() {
         });
       }
 
-      await notificarProprio({
-        titulo: "Reunião agendada",
-        descricao: `${descricaoReuniao} com ${anfitriao?.nome ?? "anfitrião"}`,
-        tipo: "agenda", link_interno: "/agenda",
-      });
-
       if (criado?.id) {
         await supabase.from("agendamento_tarefas").insert([
           { agendamento_id: criado.id, responsavel_id: user?.id ?? null, titulo: "Enviar lembrete ao anfitrião" },
@@ -263,6 +290,7 @@ export default function Agenda() {
     onSuccess: () => {
       setShowAgendar(false);
       setAgForm({ ...AG_VAZIO });
+      setAgRespostas({});
       qc.invalidateQueries({ queryKey: ["agendamentos"] });
       toast.success("Agendamento criado");
     },
@@ -319,24 +347,9 @@ export default function Agenda() {
     ? (agendamentos ?? []).filter((a) => a.data === diaSelecionado)
     : [];
 
-  // Lembrete diário das reuniões do dia (uma vez por dia por usuário)
-  useEffect(() => {
-    if (!agendamentos?.length) return;
-    const hoje = new Date().toISOString().slice(0, 10);
-    const doDia = agendamentos.filter((a) => a.data === hoje && a.status !== "Cancelado");
-    if (!doDia.length) return;
-    const chave = `agenda-lembrete-${hoje}`;
-    if (localStorage.getItem(chave)) return;
-    localStorage.setItem(chave, "1");
-    notificarProprio({
-      titulo: `${doDia.length} reunião(ões) hoje`,
-      descricao: doDia
-        .map((a) => `${a.hora_inicio?.slice(0, 5)} ${a.nome}`)
-        .join(" · "),
-      tipo: "agenda",
-      link_interno: "/agenda",
-    });
-  }, [agendamentos]);
+  // O lembrete de reuniões do dia agora é montado em lib/notificacoesDoDia.ts,
+  // uma vez por dia por pessoa, em vez de a cada abertura desta página.
+
 
 
   return (
@@ -677,9 +690,20 @@ export default function Agenda() {
               <Label className="text-xs">Link da reunião</Label>
               <Input value={agForm.link_reuniao} onChange={(e) => setAgForm({ ...agForm, link_reuniao: e.target.value })} />
             </div>
+            <div className="col-span-2">
+              <RoteiroDaCall
+                tipo={(tipos ?? []).find((t) => t.id === agForm.tipo_id)}
+                respostas={agRespostas}
+                onChange={(chave, valor) => setAgRespostas((r) => ({ ...r, [chave]: valor }))}
+              />
+            </div>
             <div className="space-y-1.5 col-span-2">
               <Label className="text-xs">Observações</Label>
-              <Textarea value={agForm.observacoes} onChange={(e) => setAgForm({ ...agForm, observacoes: e.target.value })} />
+              <Textarea
+                value={agForm.observacoes}
+                onChange={(e) => setAgForm({ ...agForm, observacoes: e.target.value })}
+                placeholder="Qualquer coisa que não coube no roteiro."
+              />
             </div>
           </div>
           <DialogFooter>
@@ -716,24 +740,50 @@ export default function Agenda() {
                 </div>
                 <p className={`text-sm ${a.status === "Cancelado" ? "line-through text-muted-foreground" : ""}`}>{a.nome}</p>
 
+                <p className="text-xs text-muted-foreground">
+                  <span className="text-foreground/70">{nomeTipo(a.tipo_id)}</span>
+                  {" · agendada por "}{quemAgendou(a)}
+                </p>
                 {a.anfitriao_id && (
                   <p className="text-xs text-muted-foreground">Anfitrião: {nomeAnfitriao(a.anfitriao_id)}</p>
                 )}
                 {a.whatsapp && <p className="text-xs text-muted-foreground">{a.whatsapp}</p>}
                 {a.instagram && <p className="text-xs text-muted-foreground">{a.instagram}</p>}
-                {a.observacoes && <p className="text-xs text-muted-foreground">{a.observacoes}</p>}
+                {(() => {
+                  const tipoDaCall = (tipos ?? []).find((t) => t.id === a.tipo_id);
+                  const respondidas = perguntasDoTipo(tipoDaCall).filter(
+                    (q) => ((a.respostas ?? {}) as Record<string, string>)[q.chave]
+                  );
+                  if (!respondidas.length) return null;
+                  return (
+                    <div className="rounded-md bg-secondary/40 px-2 py-1.5 space-y-0.5">
+                      {respondidas.map((q) => (
+                        <p key={q.chave} className="text-[11px] text-muted-foreground">
+                          <span className="text-foreground/70">{q.label}</span>{" "}
+                          {((a.respostas ?? {}) as Record<string, string>)[q.chave]}
+                        </p>
+                      ))}
+                    </div>
+                  );
+                })()}
+                {a.observacoes && <p className="text-xs text-muted-foreground whitespace-pre-line">{a.observacoes}</p>}
                 {a.link_reuniao && (
                   <a href={a.link_reuniao} target="_blank" rel="noreferrer" className="text-xs text-primary underline">
                     Abrir link da reunião
                   </a>
                 )}
-                <Select value={a.status} onValueChange={(v) => mudarStatus.mutate({ id: a.id, status: v })}>
-                  <SelectTrigger className="h-7 w-40 text-[11px]"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {["Pendente", "Confirmado", "Realizado", "Cancelado", "Não compareceu"].map((s) =>
-                      <SelectItem key={s} value={s}>{s}</SelectItem>)}
-                  </SelectContent>
-                </Select>
+                <div className="flex items-center gap-2">
+                  <Select value={a.status} onValueChange={(v) => mudarStatus.mutate({ id: a.id, status: v })}>
+                    <SelectTrigger className="h-7 w-40 text-[11px]"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {["Pendente", "Confirmado", "Realizado", "Cancelado", "Não compareceu"].map((s) =>
+                        <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                  <Button size="sm" variant="outline" className="h-7 text-[11px]" onClick={() => setEditando(a)}>
+                    <Pencil className="h-3 w-3 mr-1" /> Editar
+                  </Button>
+                </div>
                 <ReuniaoDetalhe
                   agendamentoId={a.id}
                   anfitriao={nomeAnfitriao(a.anfitriao_id)}
@@ -750,6 +800,15 @@ export default function Agenda() {
         </DialogContent>
 
       </Dialog>
+
+      <EditarReuniaoDialog
+        agendamento={editando}
+        tipos={(tipos ?? []) as any}
+        anfitrioes={(anfitrioes ?? []) as any}
+        quemAgendou={editando ? quemAgendou(editando) : ""}
+        open={!!editando}
+        onClose={() => setEditando(null)}
+      />
     </div>
 
   );

@@ -1,4 +1,5 @@
 import { useAuth } from "@/contexts/AuthContext";
+import { useDespesasRealtime } from "@/hooks/useDespesasRealtime";
 import { Navigate, Outlet } from "react-router-dom";
 import { AppSidebar } from "@/components/layout/AppSidebar";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
@@ -8,6 +9,10 @@ import { Loader2, Menu } from "lucide-react";
 
 export default function AppLayout() {
   const { session, loading } = useAuth();
+  useDespesasRealtime(!!session);
+  // A geração dos avisos do dia saiu daqui e foi para o servidor (pg_cron),
+  // senão só existiria quando alguém abrisse o app. Ver as funções
+  // gerar_notificacoes_do_dia() e gerar_lembretes_de_reuniao() no banco.
 
   if (loading) {
     return (

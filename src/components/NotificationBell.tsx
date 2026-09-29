@@ -34,7 +34,7 @@ export default function NotificationBell() {
         .from("notificacoes")
         .select("*")
         .order("created_at", { ascending: false })
-        .limit(30);
+        .limit(100);
       if (error) throw error;
       return data ?? [];
     },
@@ -84,7 +84,9 @@ export default function NotificationBell() {
             </Button>
           )}
         </div>
-        <ScrollArea className="max-h-80">
+        {/* Altura FIXA de propósito: o ScrollArea do shadcn põe h-full no viewport
+            interno, então com max-h ele não rola, só transborda. Era esse o bug. */}
+        <ScrollArea className={(notificacoes ?? []).length > 0 ? "h-[22rem]" : ""}>
           {isLoading ? (
             <div className="p-6 flex justify-center">
               <Loader2 className="h-5 w-5 animate-spin text-primary" />

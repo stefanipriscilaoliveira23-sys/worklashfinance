@@ -6,21 +6,33 @@ import { Loader2, Download, ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
-const PRO_LABORE_DEFAULT = 30000;
-
+/**
+ * Colunas de entrada. Toda categoria de produto precisa estar aqui: o que não
+ * estivesse caía num `rev.outras` que não existia e virava NaN, contaminando o
+ * total do dia e o saldo acumulado dali para frente. Foi o que aconteceu quando
+ * a categoria Consultorias nasceu.
+ */
 const CATEGORY_COLS: { key: string; label: string; cats: string[] }[] = [
   { key: "parcelas", label: "Parcelas", cats: [] },
   { key: "mentorias", label: "Mentorias", cats: ["Mentorias"] },
+  { key: "consultorias", label: "Consultorias", cats: ["Consultorias"] },
   { key: "cursos", label: "Digitais", cats: ["Digitais"] },
   { key: "renovacoes", label: "Renovações", cats: ["Renovações"] },
   { key: "fisicos", label: "Físicos", cats: ["Físicos"] },
+  { key: "outras", label: "Outras", cats: [] },
 ];
 
+/**
+ * Custos fixos. O pró-labore tem coluna própria porque é a maior saída fixa e
+ * precisa ser visível: ele é lançado pela função `sincronizar_pro_labore` com
+ * o valor das contas fixas pessoais do mês.
+ */
 const FIXED_CATEGORIES: { key: string; label: string; cats: string[] }[] = [
+  { key: "proLabore", label: "Pró-labore", cats: ["Pró-labore"] },
   { key: "aluguel", label: "Aluguel", cats: ["Aluguel Comercial"] },
   { key: "salarios", label: "Salários", cats: ["Salário Funcionário"] },
   { key: "assinaturas", label: "Assinaturas", cats: ["Plataforma Digital", "IA", "Internet"] },
-  { key: "outrosFixos", label: "Outros Fixos", cats: ["Contabilidade", "Energia", "Planos e Benefícios", "Transportadora", "Serviços Terceiros"] },
+  { key: "outrosFixos", label: "Outros Fixos", cats: ["Contabilidade", "Energia", "Planos e Benefícios", "Transportadora", "Serviços Terceiros", "Outros"] },
 ];
 
 export default function PLDiario() {
@@ -32,14 +44,10 @@ export default function PLDiario() {
   const diasMes = getDaysInMonth(ano, mes);
   const mesLabel = new Date(ano, mes).toLocaleString("pt-BR", { month: "long", year: "numeric" });
 
-  const { data: configProLabore } = useQuery({
-    queryKey: ["config-prolabore"],
-    queryFn: async () => {
-      const { data } = await supabase.from("configuracoes").select("valor").eq("chave", "pro_labore").single();
-      return data?.valor ? parseFloat(data.valor) : PRO_LABORE_DEFAULT;
-    },
-  });
-  const proLabore = configProLabore ?? PRO_LABORE_DEFAULT;
+  // O pró-labore NÃO vem mais de configuracoes: ele é uma despesa fixa de
+  // verdade em despesas_empresa, categoria "Pró-labore", e entra junto com as
+  // outras fixas. Antes existia um valor solto aqui que era lido e nunca usado,
+  // então o pró-labore simplesmente não aparecia no P&L.
 
   const { data: receitas, isLoading: lr } = useQuery({
     queryKey: ["pl-receitas", start, end],
@@ -94,13 +102,13 @@ export default function PLDiario() {
 
   // Fixed expenses rationed daily - pro-labore from configuracoes
   const fixosMap = useMemo(() => {
-    const result: Record<string, number> = { aluguel: 0, salarios: 0, assinaturas: 0, outrosFixos: 0 };
+    const result: Record<string, number> = {};
+    FIXED_CATEGORIES.forEach(fc => { result[fc.key] = 0; });
     allFixas.forEach(d => {
       const fc = FIXED_CATEGORIES.find(fc => fc.cats.includes(d.categoria));
       if (fc) result[fc.key] += (d.valor_original ?? 0);
       else result.outrosFixos += (d.valor_original ?? 0);
     });
-    // Pro-labore já incluso nas despesas da empresa
     return result;
   }, [allFixas]);
 
@@ -150,10 +158,10 @@ export default function PLDiario() {
       CATEGORY_COLS.forEach(c => { rev[c.key] = 0; });
       rev.parcelas = parcelasDia.reduce((s, p) => s + (p.valor_real ?? p.valor_sugerido ?? 0), 0);
       receitasDia.forEach(r => {
-        const cat = r.produto_categoria ?? "Digitais";
+        const cat = r.produto_categoria ?? "";
         const col = CATEGORY_COLS.find(c => c.cats.includes(cat));
-        if (col) rev[col.key] += (r.valor_bruto ?? 0);
-        else rev.outras += (r.valor_bruto ?? 0);
+        // Categoria desconhecida vai para "Outras", que agora existe de verdade.
+        rev[col ? col.key : "outras"] += (r.valor_bruto ?? 0);
       });
       const totalReceita = Object.values(rev).reduce((s, v) => s + v, 0);
 
@@ -184,11 +192,20 @@ export default function PLDiario() {
   }, [rows]);
 
   const exportCSV = () => {
-    const headers = ["Data", "Parcelas", "Mentorias", "Cursos Digitais", "Renovações", "Produtos Físicos", "Outras Entradas", "Total Receita", "Impostos", "Comissões", "Tráfego Pago", "Taxas Plataformas", "Outros Custos Var.", "Total Custos Var.", "Lucro Bruto", "Aluguel", "Salários", "Assinaturas", "Outros Fixos", "Total Fixos", "Lucro Líquido", "Saldo Acumulado", "Observações"];
+    const headers = [
+      "Data",
+      ...CATEGORY_COLS.map(c => c.label),
+      "Total Receita", "Impostos", "Comissões", "Tráfego Pago", "Taxas Plataformas",
+      "Outros Custos Var.", "Total Custos Var.", "Lucro Bruto",
+      ...FIXED_CATEGORIES.map(f => f.label),
+      "Total Fixos", "Lucro Líquido", "Saldo Acumulado", "Observações",
+    ];
     const csvRows = rows.map(r => [
-      r.ds, r.parcelas, r.mentorias, r.cursos, r.renovacoes, r.fisicos, r.outras, r.totalReceita,
+      r.ds,
+      ...CATEGORY_COLS.map(c => (r as any)[c.key] ?? 0),
+      r.totalReceita,
       r.impostos, r.comissoes, r.trafego, r.taxas, r.outrosVar, r.totalCustosVar, r.lucroBruto,
-      (r as any).fix_aluguel, (r as any).fix_salarios, (r as any).fix_assinaturas, (r as any).fix_outrosFixos,
+      ...FIXED_CATEGORIES.map(f => (r as any)[`fix_${f.key}`] ?? 0),
       r.totalFixoDiario, r.lucroLiquido, r.saldoAcumulado, observacoes[r.ds] ?? ""
     ].map(v => typeof v === "number" ? v.toFixed(2) : `"${v}"`).join(","));
     const csv = [headers.join(","), ...csvRows].join("\n");

@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -31,6 +31,11 @@ function toHora(min: number) {
 
 export default function AgendarPublico() {
   const { slug } = useParams<{ slug: string }>();
+  // Quem mandou o link. Vem na URL (?por=IA%20(Claude)) e fica gravado no
+  // agendamento, senão toda marcação por link vira "ela mesma" e a gente
+  // perde de vista que foi a IA (ou a Isabel) que colocou a pessoa aqui.
+  const [params] = useSearchParams();
+  const quemMandouOLink = (params.get("por") ?? "").trim().slice(0, 120);
   const [dataSel, setDataSel] = useState<string | null>(null);
   const [horaSel, setHoraSel] = useState<string | null>(null);
   const [nome, setNome] = useState("");
@@ -79,8 +84,16 @@ export default function AgendarPublico() {
 
   const dias = useMemo(() => {
     const diasComJanela = new Set((janelas ?? []).map((j) => j.dia_semana));
-    return proximosDias(21).filter((d) => diasComJanela.has(new Date(d + "T00:00:00").getDay()));
-  }, [janelas]);
+    // O tipo pode ter janela de datas (ex: uma consultoria que só acontece numa
+    // semana). Bloqueio não serve pra isso: ele é global e derrubaria os outros
+    // tipos junto. Nulo nas duas pontas = sem limite, como sempre foi.
+    const de = (tipo as { data_inicio?: string | null } | undefined)?.data_inicio ?? null;
+    const ate = (tipo as { data_fim?: string | null } | undefined)?.data_fim ?? null;
+    return proximosDias(60)
+      .filter((d) => diasComJanela.has(new Date(d + "T00:00:00").getDay()))
+      .filter((d) => (!de || d >= de) && (!ate || d <= ate))
+      .slice(0, 21);
+  }, [janelas, tipo]);
 
   const horarios = useMemo(() => {
     if (!dataSel || !tipo) return [];
@@ -109,6 +122,7 @@ export default function AgendarPublico() {
     const { error } = await supabase.rpc("criar_agendamento_publico", {
       _slug: slug!, _nome: nome.trim(), _whatsapp: whatsapp.trim(),
       _instagram: instagram.trim() || "", _data: dataSel, _hora_inicio: horaSel,
+      _por: quemMandouOLink || null,
     });
     setEnviando(false);
     if (error) return toast.error(error.message.includes("indisponivel") ? "Esse horário acabou de ser ocupado." : error.message);

@@ -22,7 +22,7 @@ type ProdutoCategoria = Database["public"]["Enums"]["produto_categoria"];
 type Periodicidade = Database["public"]["Enums"]["periodicidade"];
 
 const PLATAFORMAS: PlataformaOrigem[] = ["Hotmart", "Kiwify", "Eduzz", "Direto Pix", "Outro"];
-const CATEGORIAS: ProdutoCategoria[] = ["Mentorias", "Renovações", "Digitais", "Físicos"];
+const CATEGORIAS: ProdutoCategoria[] = ["Mentorias", "Consultorias", "Renovações", "Digitais", "Físicos"];
 const MENTORIA_CATS: ProdutoCategoria[] = ["Mentorias", "Renovações"];
 
 const FORMAS_PAGAMENTO = ["Pix", "Cartão", "Kiwify", "Hotmart", "Transferência", "Boleto", "Outro"];
@@ -64,6 +64,12 @@ export function NovaReceitaModal({ open, onClose }: { open: boolean; onClose: ()
   const [produtoId, setProdutoId] = useState<string | null>(null);
   const [categoria, setCategoria] = useState<ProdutoCategoria>("Digitais");
   const [data, setData] = useState(format(new Date(), "yyyy-MM-dd"));
+  // Data em que o dinheiro (entrada ou pagamento total) cai. Vazio = mesma da
+  // venda. A receita fica sempre na data da VENDA; esta só vai pro contrato e
+  // pra base das parcelas. Regra dela de 03/09/2026: venda de 31/08 com entrada
+  // em 04/09 conta em agosto.
+  const [dataPagamento, setDataPagamento] = useState("");
+  const dataPagamentoEfetiva = dataPagamento || data;
   const [dataInicioMentoria, setDataInicioMentoria] = useState("");
   const [dataFimMentoria, setDataFimMentoria] = useState("");
   const [observacao, setObservacao] = useState("");
@@ -119,6 +125,26 @@ export function NovaReceitaModal({ open, onClose }: { open: boolean; onClose: ()
     },
   });
 
+  // Quem já aparece como vendedor nas vendas. Serve de sugestão no campo:
+  // digitado à mão, "Felipe" e "Felipe Reis" viram duas pessoas no placar.
+  const { data: vendedoresConhecidos } = useQuery({
+    queryKey: ["vendedores-conhecidos"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("receitas")
+        .select("vendedor")
+        .not("vendedor", "is", null)
+        .order("data", { ascending: false })
+        .limit(1000);
+      const nomes = new Set<string>();
+      for (const r of data ?? []) {
+        const nome = (r.vendedor ?? "").trim();
+        if (nome) nomes.add(nome);
+      }
+      return [...nomes].sort();
+    },
+  });
+
   const { data: origensOpcoes } = useQuery({
     queryKey: ["origens-venda-opcoes"],
     queryFn: async () => {
@@ -146,6 +172,43 @@ export function NovaReceitaModal({ open, onClose }: { open: boolean; onClose: ()
       toast.success("Origem adicionada");
     },
     onError: (e: any) => toast.error("Erro ao criar origem: " + e.message),
+  });
+
+  /**
+   * Receita parecida que ALGUEM JA LANCOU.
+   *
+   * Nada impedia duas pessoas de lancarem a mesma venda: aconteceu com a
+   * Ana Carolina em 03/09, lancada duas vezes com 51 minutos de diferenca,
+   * e cada lancamento criou o seu contrato de parcelas. A cliente passou a
+   * dever 24 parcelas em vez de 12.
+   *
+   * Aqui so AVISA. Nao bloqueia: existe caso legitimo de duas vendas iguais
+   * no mesmo dia, e travar o lancamento seria pior que o problema.
+   */
+  const { data: receitasParecidas } = useQuery({
+    queryKey: ["receita-parecida", clienteNome, valorContrato, data],
+    enabled: clienteNome.trim().length > 2 && valorContrato > 0 && !!data,
+    staleTime: 0,
+    queryFn: async () => {
+      const { data: achadas } = await supabase
+        .from("receitas")
+        .select("id, produto_nome, valor_bruto, criado_em, lancado_por, cliente_nome")
+        .eq("data", data)
+        .ilike("cliente_nome", `%${clienteNome.trim()}%`);
+      if (!achadas?.length) return [];
+
+      const ids = [...new Set(achadas.map((r: any) => r.lancado_por).filter(Boolean))];
+      const { data: pessoas } = ids.length
+        ? await supabase.from("profiles").select("user_id, display_name, email").in("user_id", ids)
+        : { data: [] as any[] };
+      const nomePor = new Map(
+        (pessoas ?? []).map((p: any) => [p.user_id, (p.display_name || p.email || "").trim()]),
+      );
+      return achadas.map((r: any) => ({
+        ...r,
+        quem: nomePor.get(r.lancado_por) || "alguem da equipe",
+      }));
+    },
   });
 
   const isMentoria = MENTORIA_CATS.includes(categoria);
@@ -186,6 +249,16 @@ export function NovaReceitaModal({ open, onClose }: { open: boolean; onClose: ()
     setTaxaPercent(taxaPercentEfetivo);
   }, [taxaValorLinhas, valorLiquidoLinhas, taxaPercentEfetivo]);
 
+  // Produto de mentoria já marca a caixinha sozinho. Antes ela vinha
+  // desmarcada e, quando passava batido, a aluna entrava em Receitas mas não
+  // aparecia na pipeline (aconteceu com a Rayane e a Lidiane em 06/08/2026).
+  useEffect(() => {
+    if (categoria === "Mentorias" || categoria === "Renovações") {
+      setVendaMentoria(true);
+      setAlunaNome((atual) => atual || clienteNome);
+    }
+  }, [categoria, clienteNome]);
+
   // Auto-calc cambio
   useEffect(() => {
     const base = valorRecebido;
@@ -201,7 +274,7 @@ export function NovaReceitaModal({ open, onClose }: { open: boolean; onClose: ()
     if (!showStep2 || quantParcelas < 1) return;
     const valorParcela = saldoRestante / quantParcelas;
     const rows: ParcelaRow[] = [];
-    const baseDate = new Date(data + "T00:00:00");
+    const baseDate = new Date(dataPagamentoEfetiva + "T00:00:00");
     for (let i = 0; i < quantParcelas; i++) {
       let d: Date;
       if (periodicidade === "Semanal") d = addDays(baseDate, (i + 1) * 7);
@@ -210,7 +283,7 @@ export function NovaReceitaModal({ open, onClose }: { open: boolean; onClose: ()
       rows.push({ numero: i + 1, data: format(d, "yyyy-MM-dd"), valor: Math.round(valorParcela * 100) / 100 });
     }
     setParcelas(rows);
-  }, [showStep2, quantParcelas, saldoRestante, periodicidade, data]);
+  }, [showStep2, quantParcelas, saldoRestante, periodicidade, dataPagamentoEfetiva]);
 
   // Auto-fill from catalogo
   const handleProdutoSelect = (id: string) => {
@@ -260,6 +333,11 @@ export function NovaReceitaModal({ open, onClose }: { open: boolean; onClose: ()
 
       // Build observacao with payment details
       let obsCompleta = observacao;
+      if (dataPagamento && dataPagamento !== data) {
+        const fmt = (d: string) => d.split("-").reverse().join("/");
+        const aviso = `Venda em ${fmt(data)}. Pagamento (${isMentoria && !isAvista ? "entrada" : "total"}) em ${fmt(dataPagamento)}.`;
+        obsCompleta = obsCompleta ? `${obsCompleta}\n${aviso}` : aviso;
+      }
       if (isMentoria && tipoPagamento === "entrada_parcelas" && entradaLinhas.length > 0) {
         const detalhes = `Entrada: ${entradaFormaConcat}. Restante (${formatCurrency(saldoRestante)}): ${formaPagamentoResto} em ${quantParcelas}x.`;
         obsCompleta = obsCompleta ? `${obsCompleta}\n${detalhes}` : detalhes;
@@ -339,7 +417,7 @@ export function NovaReceitaModal({ open, onClose }: { open: boolean; onClose: ()
           produto_id: produtoId,
           valor_total: valorContrato,
           entrada_valor: entradaValorTotal,
-          entrada_data: entradaValorTotal > 0 ? data : null,
+          entrada_data: entradaValorTotal > 0 ? dataPagamentoEfetiva : null,
           quant_parcelas: quantParcelas,
           periodicidade,
           data_inicio: data,
@@ -386,7 +464,7 @@ export function NovaReceitaModal({ open, onClose }: { open: boolean; onClose: ()
           produto_id: produtoId,
           valor_total: valorContrato,
           entrada_valor: valorContrato,
-          entrada_data: data,
+          entrada_data: dataPagamentoEfetiva,
           quant_parcelas: 0,
           periodicidade: "Mensal",
           data_inicio: data,
@@ -402,16 +480,49 @@ export function NovaReceitaModal({ open, onClose }: { open: boolean; onClose: ()
       if (vendaMentoria && receita) {
         const nomeAluna = (alunaNome || clienteNome).trim();
         const telefone = alunaTelefone.trim();
+        const emailAluna = (clienteEmail || "").trim().toLowerCase();
         const { data: existentes } = await supabase
-          .from("mentoradas").select("id, nome, telefone");
+          .from("mentoradas").select("id, nome, telefone, email, qtd_renovacoes, tags, status_jornada");
         const jaExiste = (existentes ?? []).find(
           (mm) =>
             mm.nome.trim().toLowerCase() === nomeAluna.toLowerCase() ||
-            (!!telefone && (mm.telefone ?? "").trim() === telefone)
+            (!!telefone && (mm.telefone ?? "").trim() === telefone) ||
+            (!!emailAluna && (mm.email ?? "").trim().toLowerCase() === emailAluna)
         );
-        if (!jaExiste) {
+        let mentoradaId: string | null = jaExiste?.id ?? null;
+        if (jaExiste) {
+          // Ficha já existe: é renovação (ou aluna voltando). Antes o modal
+          // simplesmente pulava aqui e a ficha ficava Inativa com a venda
+          // lançada (Thayna, 01/09/2026). Agora reativa e abre o ciclo novo.
+          const meses = Number(alunaDuracao) || 3;
+          const inicio = dataInicioMentoria || data;
+          const tagsAtuais = (jaExiste.tags ?? []).filter((t) => t !== "REMOVIDA");
+          const novasTags = Array.from(new Set([...tagsAtuais, "MENTORIA", "RENOVAÇÃO"]));
+          const { error: upErr } = await supabase.from("mentoradas").update({
+            status_jornada: ["Inativa", "Cancelada", "Concluída"].includes(jaExiste.status_jornada) ? "Ativa" : jaExiste.status_jornada,
+            data_inicio: inicio,
+            data_termino: dataFimMentoria || (inicio ? addMeses(inicio, meses) : null),
+            prazo_meses: meses,
+            valor_mentoria: valorContrato || valorRecebido,
+            vendedor: vendedor || null,
+            forma_pagamento: alunaForma ? [alunaForma] : null,
+            qtd_renovacoes: (jaExiste.qtd_renovacoes ?? 0) + 1,
+            status_cobranca: "Em dia",
+            status_renovacao: "Não venceu",
+            data_saida: null,
+            receita_id: receita.id,
+            tags: novasTags,
+            email: clienteEmail || undefined,
+            telefone: telefone || undefined,
+          }).eq("id", jaExiste.id);
+          if (upErr) throw upErr;
+        } else {
           const meses = Number(alunaDuracao) || 0;
           const inicio = dataInicioMentoria || data;
+          // Sem pipeline_id a mentorada nasce fora da pipeline. A Gabriela e a
+          // Petra caíram nisso em 10/08/2026.
+          const { data: pipeline } = await supabase
+            .from("pipelines_mentoradas").select("id").order("ordem").limit(1).maybeSingle();
           const { data: nova, error: mErr } = await supabase.from("mentoradas").insert({
             nome: nomeAluna,
             email: clienteEmail || null,
@@ -421,13 +532,20 @@ export function NovaReceitaModal({ open, onClose }: { open: boolean; onClose: ()
             data_inicio: inicio,
             data_termino: dataFimMentoria || (inicio ? addMeses(inicio, meses) : null),
             valor_mentoria: valorContrato || valorRecebido,
-            vendedor: alunaVendedor || null,
+            vendedor: vendedor || null,
             forma_pagamento: alunaForma ? [alunaForma] : null,
             status_jornada: "Onboarding",
             receita_id: receita.id,
+            pipeline_id: pipeline?.id ?? null,
           }).select("id").single();
           if (mErr) throw mErr;
-          await gerarTarefasDaEtapa(nova.id, "Onboarding");
+          mentoradaId = nova.id;
+          await gerarTarefasDaEtapa(nova.id, "Onboarding", pipeline?.id ?? null);
+        }
+        // Amarra o contrato de parcelas à ficha. Sem isso o contrato fica
+        // solto e a ficha não mostra as parcelas (Katriely e Maria Clara).
+        if (mentoradaId) {
+          await supabase.from("parcelas_mentoria").update({ mentorada_id: mentoradaId } as any).eq("receita_id", receita.id);
         }
       }
     },
@@ -450,6 +568,9 @@ export function NovaReceitaModal({ open, onClose }: { open: boolean; onClose: ()
     if (!produtoId) erros.push("Produto");
     if (!clienteNome) erros.push("Nome do cliente");
     if (!clienteEmail) erros.push("Email do cliente");
+    // Sem vendedor, o placar da equipe não fecha: em setembro de 2026,
+    // R$ 18,8 mil dos R$ 27,5 mil vendidos não tinham dono.
+    if (!vendedor.trim()) erros.push("Vendedor");
     if (erros.length > 0) {
       toast.error("Campos obrigatórios faltando: " + erros.join(", "));
       return;
@@ -482,6 +603,9 @@ export function NovaReceitaModal({ open, onClose }: { open: boolean; onClose: ()
     if (!produtoId) erros.push("Produto");
     if (!clienteNome) erros.push("Nome do cliente");
     if (!clienteEmail) erros.push("Email do cliente");
+    // Sem vendedor, o placar da equipe não fecha: em setembro de 2026,
+    // R$ 18,8 mil dos R$ 27,5 mil vendidos não tinham dono.
+    if (!vendedor.trim()) erros.push("Vendedor");
     if (erros.length > 0) {
       toast.error("Campos obrigatórios faltando: " + erros.join(", "));
       return false;
@@ -515,7 +639,30 @@ export function NovaReceitaModal({ open, onClose }: { open: boolean; onClose: ()
             {/* ═══════════════════════════════════════ */}
             {/* SEÇÃO 1: DADOS DO CLIENTE              */}
             {/* ═══════════════════════════════════════ */}
-            <div className="space-y-3">
+            <>
+              {!!receitasParecidas?.length && (
+                <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 p-3">
+                  <p className="text-sm font-medium text-amber-200 flex items-center gap-2">
+                    <AlertTriangle className="h-4 w-4 shrink-0" />
+                    {receitasParecidas.length === 1
+                      ? "Já existe uma receita desse cliente nesse dia"
+                      : `Já existem ${receitasParecidas.length} receitas desse cliente nesse dia`}
+                  </p>
+                  <ul className="mt-1.5 space-y-1">
+                    {receitasParecidas.map((r: any) => (
+                      <li key={r.id} className="text-xs text-amber-100/80">
+                        {r.produto_nome} · {formatCurrency(Number(r.valor_bruto) || 0)} · lançada por{" "}
+                        <strong>{r.quem}</strong> em {format(new Date(r.criado_em), "dd/MM 'às' HH:mm")}
+                      </li>
+                    ))}
+                  </ul>
+                  <p className="mt-1.5 text-[11px] text-amber-100/60">
+                    Se for a mesma venda, não lance de novo: cada lançamento cria
+                    outro contrato de parcelas. Se for uma venda diferente, pode seguir.
+                  </p>
+                </div>
+              )}
+              <div className="space-y-3">
               <h3 className="text-xs font-semibold text-primary uppercase tracking-wider border-b border-border pb-1.5">
                 Dados do Cliente
               </h3>
@@ -536,6 +683,7 @@ export function NovaReceitaModal({ open, onClose }: { open: boolean; onClose: ()
                 </div>
               </div>
             </div>
+            </>
 
             {/* ═══════════════════════════════════════ */}
             {/* SEÇÃO 2: DADOS DO PRODUTO              */}
@@ -603,12 +751,27 @@ export function NovaReceitaModal({ open, onClose }: { open: boolean; onClose: ()
 
 
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                 <div className="space-y-1.5">
                   <Label className="text-foreground/80">Data da venda</Label>
                   <Input type="date" value={data} onChange={(e) => setData(e.target.value)} className="bg-secondary/50 border-border" />
+                  <p className="text-[10px] text-muted-foreground">Dia em que fechou. É o mês em que a receita conta.</p>
                 </div>
-                <div className="space-y-1.5">
+                {/* Quando e entrada + parcelas, esta data aparece dentro do
+                    bloco da entrada, junto do valor. Mostrar nos dois lugares
+                    faria o mesmo campo pedir a mesma coisa duas vezes. */}
+                {!(isMentoria && tipoPagamento === "entrada_parcelas") && (
+                  <div className="space-y-1.5">
+                    <Label className="text-foreground/80">Data do pagamento</Label>
+                    <Input type="date" value={dataPagamentoEfetiva} onChange={(e) => setDataPagamento(e.target.value)} className="bg-secondary/50 border-border" />
+                    <p className="text-[10px] text-muted-foreground">
+                      {dataPagamento && dataPagamento !== data
+                        ? "Dia em que o pagamento cai."
+                        : "Se o dinheiro caiu em outro dia, muda aqui."}
+                    </p>
+                  </div>
+                )}
+                <div className="space-y-1.5 col-span-2 sm:col-span-1">
                   <Label className="text-foreground/80">Plataforma</Label>
                   <Select value={plataforma} onValueChange={(v) => setPlataforma(v as PlataformaOrigem)}>
                     <SelectTrigger className="bg-secondary/50 border-border"><SelectValue /></SelectTrigger>
@@ -670,10 +833,6 @@ export function NovaReceitaModal({ open, onClose }: { open: boolean; onClose: ()
                       <Label className="text-foreground/80">Duração (meses)</Label>
                       <Input type="number" min={1} value={alunaDuracao}
                         onChange={(e) => setAlunaDuracao(e.target.value)} className="bg-secondary/50 border-border" />
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label className="text-foreground/80">Vendedor</Label>
-                      <Input value={alunaVendedor} onChange={(e) => setAlunaVendedor(e.target.value)} className="bg-secondary/50 border-border" />
                     </div>
                     <div className="space-y-1.5">
                       <Label className="text-foreground/80">Forma de pagamento</Label>
@@ -871,6 +1030,21 @@ export function NovaReceitaModal({ open, onClose }: { open: boolean; onClose: ()
                   {tipoPagamento === "entrada_parcelas" && (
                     <div className="p-3 rounded-lg bg-primary/5 border border-primary/20 space-y-3">
                       <Label className="text-foreground/80 text-sm">Detalhe da entrada</Label>
+                      {/* A data da entrada mora aqui, junto do valor dela.
+                          Ela existia la em cima, perto da data da venda, e
+                          ninguem achava: e desta data que as parcelas contam. */}
+                      <div className="space-y-1.5">
+                        <Label className="text-xs text-muted-foreground">Data da entrada</Label>
+                        <Input
+                          type="date"
+                          value={dataPagamentoEfetiva}
+                          onChange={(e) => setDataPagamento(e.target.value)}
+                          className="bg-secondary/50 border-border"
+                        />
+                        <p className="text-[10px] text-muted-foreground">
+                          Dia em que a entrada caiu. As parcelas abaixo contam a partir dela.
+                        </p>
+                      </div>
                       {entradaLinhas.map((linha, idx) => {
                         const liquidoLinha = linha.valor - (linha.valor * (linha.taxaPercent || 0)) / 100;
                         return (
@@ -1038,8 +1212,21 @@ export function NovaReceitaModal({ open, onClose }: { open: boolean; onClose: ()
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div className="space-y-1.5">
-                <Label className="text-foreground/80">Vendedor</Label>
-                <Input value={vendedor} onChange={(e) => setVendedor(e.target.value)} placeholder="Quem vendeu" className="bg-secondary/50 border-border" />
+                <Label className="text-foreground/80">
+                  Vendedor <span className="text-destructive">*</span>
+                </Label>
+                <Input
+                  list="vendedores-conhecidos"
+                  value={vendedor}
+                  onChange={(e) => setVendedor(e.target.value)}
+                  placeholder="Quem vendeu"
+                  className="bg-secondary/50 border-border"
+                />
+                <datalist id="vendedores-conhecidos">
+                  {(vendedoresConhecidos ?? []).map((nome) => (
+                    <option key={nome} value={nome} />
+                  ))}
+                </datalist>
               </div>
               <div className="space-y-1.5">
                 <Label className="text-foreground/80">Desconto (%)</Label>

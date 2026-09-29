@@ -8,6 +8,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
+import { computeParcela, formatBRL } from "@/lib/parcelaCalc";
 import type { Tables } from "@/integrations/supabase/types";
 
 interface Props {
@@ -38,9 +40,19 @@ export default function PagamentoDialog({ showPagamento, onClose, onSuccess }: P
   const [pgValor, setPgValor] = useState("");
   const [pgData, setPgData] = useState(new Date().toISOString().split("T")[0]);
   const [pgObs, setPgObs] = useState("");
+  const [isentar, setIsentar] = useState(false);
+  const [motivoIsencao, setMotivoIsencao] = useState("");
+
+  // Quanto de multa e juros esta parcela está acumulando hoje.
+  const encargos = showPagamento
+    ? computeParcela({ ...showPagamento, encargos_isentos: false })
+    : null;
+  const temEncargos = !!encargos && encargos.diasAtraso > 0;
 
   useEffect(() => {
     if (!showPagamento) return;
+    setIsentar(showPagamento.encargos_isentos === true);
+    setMotivoIsencao(showPagamento.isencao_motivo ?? "");
 
     const valorParcela = showPagamento.valor_real ?? showPagamento.valor_sugerido ?? 0;
     const jaPagoNaParcela = showPagamento.valor_pago_parcial ?? 0;
@@ -71,6 +83,24 @@ export default function PagamentoDialog({ showPagamento, onClose, onSuccess }: P
         observacao: pgObs || null,
       });
       if (pgError) throw pgError;
+
+      // 1b. Perdoar (ou voltar a cobrar) multa e juros desta parcela.
+      // Fica gravado porque o cálculo é feito na hora: sem a marca, amanhã a
+      // cobrança voltaria sozinha.
+      const mudouIsencao = (showPagamento.encargos_isentos === true) !== isentar;
+      if (mudouIsencao) {
+        const { data: auth } = await supabase.auth.getUser();
+        const { error: isErr } = await supabase
+          .from("parcelas_mentoria_detalhe")
+          .update({
+            encargos_isentos: isentar,
+            isencao_motivo: isentar ? (motivoIsencao.trim() || null) : null,
+            isentado_por: isentar ? auth?.user?.id ?? null : null,
+            isentado_em: isentar ? new Date().toISOString() : null,
+          })
+          .eq("id", showPagamento.id);
+        if (isErr) throw isErr;
+      }
 
       // 2. Update the current installment's paid amount and status
       const novoPago = jaPagoNaParcela + valor;
@@ -162,6 +192,7 @@ export default function PagamentoDialog({ showPagamento, onClose, onSuccess }: P
       onClose();
       setPgValor("");
       setPgObs("");
+      setMotivoIsencao("");
     },
     onError: (e: any) => toast.error(e.message || "Erro ao registrar pagamento"),
   });
@@ -190,6 +221,39 @@ export default function PagamentoDialog({ showPagamento, onClose, onSuccess }: P
             <Label className="text-muted-foreground">Data do Pagamento</Label>
             <Input type="date" value={pgData} onChange={e => setPgData(e.target.value)} className="bg-secondary/50 border-border" />
           </div>
+          {(temEncargos || isentar) && (
+            <div className="rounded-lg border border-border bg-secondary/30 p-3 space-y-2">
+              <label className="flex items-start gap-3 cursor-pointer">
+                <Switch checked={isentar} onCheckedChange={setIsentar} className="mt-0.5" />
+                <span className="space-y-0.5">
+                  <span className="block text-sm font-medium text-foreground">
+                    Isentar multa e juros
+                  </span>
+                  <span className="block text-xs text-muted-foreground">
+                    {encargos && encargos.diasAtraso > 0 ? (
+                      <>
+                        {encargos.diasAtraso} dia(s) de atraso · multa R$ {formatBRL(encargos.multa)}
+                        {" + juros R$ "}{formatBRL(encargos.juros)}
+                        {" = "}<span className="text-foreground">R$ {formatBRL(encargos.multaJuros)}</span>
+                      </>
+                    ) : (
+                      "Esta parcela está marcada como isenta."
+                    )}
+                  </span>
+                </span>
+              </label>
+
+              {isentar && (
+                <Input
+                  value={motivoIsencao}
+                  onChange={e => setMotivoIsencao(e.target.value)}
+                  placeholder="Motivo (opcional): pagou no fim de semana, atrasou 1 dia..."
+                  className="bg-card border-border text-xs"
+                />
+              )}
+            </div>
+          )}
+
           <div>
             <Label className="text-muted-foreground">Observação</Label>
             <Textarea value={pgObs} onChange={e => setPgObs(e.target.value)} className="bg-secondary/50 border-border" rows={2} />

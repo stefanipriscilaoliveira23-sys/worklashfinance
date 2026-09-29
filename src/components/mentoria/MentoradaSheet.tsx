@@ -49,7 +49,7 @@ export default function MentoradaSheet({ id, onClose }: Props) {
   const { data: pipelines } = useQuery({
     queryKey: ["pipelines"],
     queryFn: async () => {
-      const { data } = await supabase.from("pipelines").select("*").order("ordem");
+      const { data } = await supabase.from("pipelines_mentoradas").select("*").order("ordem");
       return data ?? [];
     },
   });

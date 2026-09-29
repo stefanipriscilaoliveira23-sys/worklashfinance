@@ -1,4 +1,5 @@
 import { useState } from "react";
+import SituacaoPagamentoCard from "@/components/despesas/SituacaoPagamentoCard";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -47,11 +48,13 @@ function getDisplayStatus(status: string | null, dataVencimento: string | null) 
   const [dateFilter, setDateFilter] = useState<DateFilter>({ type: "month", key: getCurrentMonthKey() });
 
   const [showNova, setShowNova] = useState(false);
-  const [novaForm, setNovaForm] = useState({
+  const FORM_VAZIO = {
     descricao: "", categoria: "" as any, tipo_despesa: "Fixa" as "Fixa" | "Variável",
     valor_original: "", data_vencimento: "", forma_pagamento: "", observacao: "",
     prioridade: "Média" as "Alta" | "Média" | "Baixa",
-  });
+    parcelado: false, parcelas_restantes: "2",
+  };
+  const [novaForm, setNovaForm] = useState(FORM_VAZIO);
 
   const [showPagamento, setShowPagamento] = useState<Tables<"despesas_pessoal"> | null>(null);
   const [pgValor, setPgValor] = useState("");
@@ -92,7 +95,49 @@ function getDisplayStatus(status: string | null, dataVencimento: string | null) 
         prioridade: novaForm.prioridade as any,
       };
 
-      if (novaForm.tipo_despesa === "Fixa" && novaForm.data_vencimento) {
+      /**
+       * Compra parcelada: uma linha por parcela, cada uma vencendo no seu mês.
+       *
+       * O campo é "quantas parcelas ainda faltam", que é como ela pensa: já
+       * pagou algumas no cartão e quer lançar só o que ainda vai sair.
+       *
+       * Fica marcada como Fixa de propósito. Parcela de compra é compromisso
+       * que sai todo mês, então tem que entrar na conta do pró-labore junto com
+       * aluguel e financiamento.
+       */
+      if (novaForm.parcelado) {
+        const quantas = parseInt(novaForm.parcelas_restantes, 10);
+        if (isNaN(quantas) || quantas < 2) throw new Error("Parcelado precisa de pelo menos 2 parcelas");
+        if (!novaForm.data_vencimento) throw new Error("Escolha a data de vencimento da próxima parcela");
+
+        const base = new Date(novaForm.data_vencimento + "T12:00:00");
+        const dia = base.getDate();
+        const linhas = Array.from({ length: quantas }, (_, i) => {
+          const d = new Date(base.getFullYear(), base.getMonth() + i, dia);
+          // Dia 31 em mês de 30: cai para o último dia do mês.
+          if (d.getDate() !== dia) d.setDate(0);
+          return {
+            ...baseRecord,
+            tipo_despesa: "Fixa" as const,
+            descricao: `${novaForm.descricao} (${i + 1}/${quantas})`,
+            data_vencimento: d.toISOString().split("T")[0],
+            total_parcelas: quantas,
+            numero_parcela_atual: i + 1,
+          };
+        });
+
+        const { data: criadas, error } = await supabase
+          .from("despesas_pessoal").insert(linhas).select("id, numero_parcela_atual");
+        if (error) throw error;
+
+        // Liga todas as parcelas à primeira, para saber que são a mesma compra.
+        const primeira = (criadas ?? []).find(c => c.numero_parcela_atual === 1);
+        const demais = (criadas ?? []).filter(c => c.numero_parcela_atual !== 1).map(c => c.id);
+        if (primeira && demais.length > 0) {
+          await supabase.from("despesas_pessoal")
+            .update({ despesa_pai_id: primeira.id }).in("id", demais);
+        }
+      } else if (novaForm.tipo_despesa === "Fixa" && novaForm.data_vencimento) {
         const baseDate = new Date(novaForm.data_vencimento + "T12:00:00");
         const day = baseDate.getDate();
         const baseMonth = baseDate.getMonth();
@@ -114,7 +159,7 @@ function getDisplayStatus(status: string | null, dataVencimento: string | null) 
       queryClient.invalidateQueries({ queryKey: ["despesas-pessoal"] });
       toast.success("Despesa criada");
       setShowNova(false);
-      setNovaForm({ descricao: "", categoria: "" as any, tipo_despesa: "Fixa", valor_original: "", data_vencimento: "", forma_pagamento: "", observacao: "", prioridade: "Média" });
+      setNovaForm(FORM_VAZIO);
     },
     onError: (e: any) => toast.error(e.message),
   });
@@ -238,6 +283,40 @@ function getDisplayStatus(status: string | null, dataVencimento: string | null) 
   const totalFixas = mesAtual.filter(d => d.tipo_despesa === "Fixa").reduce((s, d) => s + (d.valor_original ?? 0), 0);
   const totalVariaveis = mesAtual.filter(d => d.tipo_despesa === "Variável").reduce((s, d) => s + (d.valor_original ?? 0), 0);
   const totalMes = totalFixas + totalVariaveis;
+
+  /**
+   * Compras parceladas com parcela em aberto, independente do mês escolhido.
+   *
+   * Agrupa pelo nome sem o "(3/10)" no fim, porque cada parcela é uma linha
+   * própria. Mostra só o que ainda não foi pago: é a resposta para "quanto eu
+   * ainda devo de coisa parcelada".
+   */
+  const comprasParceladas = (() => {
+    const hoje = new Date().toISOString().split("T")[0];
+    const grupos = new Map<string, {
+      chave: string; nome: string; total: number; valorParcela: number;
+      faltaQtd: number; faltaValor: number; ultima: string;
+    }>();
+    (despesas ?? [])
+      .filter((d: any) => d.total_parcelas && d.total_parcelas > 1)
+      .forEach((d: any) => {
+        const nome = (d.descricao ?? "").replace(/\s*\(\d+\/\d+\)\s*$/, "").trim();
+        const chave = `${nome}|${d.total_parcelas}`;
+        const g = grupos.get(chave) ?? {
+          chave, nome, total: d.total_parcelas, valorParcela: d.valor_original ?? 0,
+          faltaQtd: 0, faltaValor: 0, ultima: d.data_vencimento ?? hoje,
+        };
+        if (d.status !== "Pago") {
+          g.faltaQtd += 1;
+          g.faltaValor += d.saldo_pendente ?? d.valor_original ?? 0;
+        }
+        if ((d.data_vencimento ?? "") > g.ultima) g.ultima = d.data_vencimento;
+        grupos.set(chave, g);
+      });
+    return [...grupos.values()]
+      .filter(g => g.faltaQtd > 0)
+      .sort((a, b) => b.faltaValor - a.faltaValor);
+  })();
   const pagoMes = mesAtual.reduce((s, d) => s + (d.valor_pago_total ?? 0), 0);
   const emAtraso = mesAtual.filter(d => d.status === "Em Atraso").reduce((s, d) => s + (d.saldo_pendente ?? 0), 0);
   const pendenteMes = mesAtual.filter(d => d.status === "A Vencer").reduce((s, d) => s + (d.saldo_pendente ?? 0), 0);
@@ -289,6 +368,33 @@ function getDisplayStatus(status: string | null, dataVencimento: string | null) 
           </div>
         ))}
       </div>
+
+      {comprasParceladas.length > 0 && (
+        <div className="rounded-xl border border-border bg-card p-5">
+          <h3 className="mb-1 text-sm font-medium text-foreground">Compras parceladas que ainda vão sair</h3>
+          <p className="mb-3 text-xs text-muted-foreground">
+            Somando tudo que falta:{" "}
+            <span className="font-medium text-primary">
+              {formatCurrency(comprasParceladas.reduce((acc, c) => acc + c.faltaValor, 0))}
+            </span>
+            {" "}em {comprasParceladas.reduce((acc, c) => acc + c.faltaQtd, 0)} parcelas.
+          </p>
+          <div className="space-y-1.5">
+            {comprasParceladas.map(c => (
+              <div key={c.chave} className="flex items-center justify-between gap-3 border-b border-border/50 pb-1.5 text-xs last:border-0">
+                <div className="min-w-0">
+                  <p className="truncate text-foreground">{c.nome}</p>
+                  <p className="text-[10px] text-muted-foreground">
+                    faltam {c.faltaQtd} de {c.total} · {formatCurrency(c.valorParcela)} por mês ·
+                    última em {formatDate(c.ultima)}
+                  </p>
+                </div>
+                <span className="shrink-0 font-medium text-foreground">{formatCurrency(c.faltaValor)}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList className="bg-secondary/50 border border-border">
@@ -452,13 +558,58 @@ function getDisplayStatus(status: string | null, dataVencimento: string | null) 
                 </SelectContent>
               </Select>
             </div>
+            {/* Compra parcelada: ela informa o que ainda falta pagar */}
+            <div className="rounded-lg border border-border bg-secondary/30 p-3">
+              <label className="flex cursor-pointer items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={novaForm.parcelado}
+                  onChange={e => setNovaForm(f => ({ ...f, parcelado: e.target.checked }))}
+                  className="h-4 w-4 accent-primary"
+                />
+                <span className="text-sm text-foreground">Eu parcelei essa compra</span>
+              </label>
+              {novaForm.parcelado && (
+                <div className="mt-3 space-y-2">
+                  <div>
+                    <Label className="text-muted-foreground">Quantas parcelas ainda faltam pagar *</Label>
+                    <Input
+                      type="number" min={2}
+                      value={novaForm.parcelas_restantes}
+                      onChange={e => setNovaForm(f => ({ ...f, parcelas_restantes: e.target.value }))}
+                      className="bg-card border-border"
+                    />
+                  </div>
+                  <p className="text-[11px] text-muted-foreground">
+                    Vou criar uma linha por parcela, cada uma vencendo no seu mês, começando pela data
+                    abaixo. No campo Valor coloque o valor de UMA parcela, não o total da compra.
+                  </p>
+                  {(() => {
+                    const q = parseInt(novaForm.parcelas_restantes, 10);
+                    const v = parseFloat(novaForm.valor_original);
+                    if (isNaN(q) || isNaN(v) || q < 2) return null;
+                    return (
+                      <p className="text-[11px] text-foreground">
+                        {q}x de {formatCurrency(v)} ={" "}
+                        <span className="font-medium text-primary">{formatCurrency(q * v)}</span> ainda a pagar.
+                      </p>
+                    );
+                  })()}
+                </div>
+              )}
+            </div>
+
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <Label className="text-muted-foreground">Valor *</Label>
+                <Label className="text-muted-foreground">
+                  {novaForm.parcelado ? "Valor de cada parcela *" : "Valor *"}
+                </Label>
                 <Input type="number" value={novaForm.valor_original} onChange={e => setNovaForm(f => ({ ...f, valor_original: e.target.value }))} className="bg-secondary/50 border-border" />
               </div>
               <div>
-                <Label className="text-muted-foreground">Data Vencimento</Label>
+                <Label className="text-muted-foreground">
+                  {novaForm.parcelado ? "Próxima parcela vence em *" : "Data Vencimento"}
+                </Label>
                 <Input type="date" value={novaForm.data_vencimento} onChange={e => setNovaForm(f => ({ ...f, data_vencimento: e.target.value }))} className="bg-secondary/50 border-border" />
               </div>
             </div>
@@ -512,6 +663,13 @@ function getDisplayStatus(status: string | null, dataVencimento: string | null) 
         <DialogContent className="bg-card border-border">
           <DialogHeader><DialogTitle className="text-foreground">Editar Despesa</DialogTitle></DialogHeader>
           <div className="space-y-4">
+            {editItem && (
+              <SituacaoPagamentoCard
+                despesa={editItem as never}
+                tabela="despesas_pessoal"
+                onMudou={() => setEditItem(null)}
+              />
+            )}
             <div><Label className="text-muted-foreground">Descrição *</Label><Input value={editForm.descricao} onChange={e => setEditForm(f => ({ ...f, descricao: e.target.value }))} className="bg-secondary/50 border-border" /></div>
             <div className="grid grid-cols-2 gap-3">
               <div><Label className="text-muted-foreground">Categoria</Label>

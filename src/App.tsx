@@ -2,11 +2,12 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Navigate, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import AppLayout from "@/components/layout/AppLayout";
 import AdminRoute from "@/components/layout/AdminRoute";
 import Auth from "./pages/Auth";
+import RedefinirSenha from "./pages/RedefinirSenha";
 import Dashboard from "./pages/Dashboard";
 import Inicio from "./pages/Inicio";
 import Receitas from "./pages/Receitas";
@@ -16,13 +17,15 @@ import DespesasPessoal from "./pages/DespesasPessoal";
 import EventosEspeciais from "./pages/EventosEspeciais";
 import ProdutosMargem from "./pages/ProdutosMargem";
 import Projecao from "./pages/Projecao";
-import BusinessIntelligence from "./pages/BusinessIntelligence";
 import Configuracoes from "./pages/Configuracoes";
 import PLDiario from "./pages/PLDiario";
 import Clientes from "./pages/Clientes";
+import Pessoas from "./pages/Pessoas";
 import Cofrinho from "./pages/Cofrinho";
 import Dividas from "./pages/Dividas";
 import Mentoria from "./pages/Mentoria";
+import Visao from "./pages/Visao";
+import Crm from "./pages/Crm";
 import Agenda from "./pages/Agenda";
 import AgendarPublico from "./pages/AgendarPublico";
 import Scripts from "./pages/Scripts";
@@ -44,9 +47,11 @@ const App = () => (
         <BrowserRouter>
           <Routes>
             <Route path="/auth" element={<Auth />} />
+            <Route path="/redefinir-senha" element={<RedefinirSenha />} />
             <Route path="/agendar/:slug" element={<AgendarPublico />} />
             <Route element={<AppLayout />}>
               <Route path="/" element={<Inicio />} />
+              <Route path="/visao" element={<Visao />} />
               <Route path="/mentoria" element={<Mentoria />} />
               <Route path="/agenda" element={<Agenda />} />
 
@@ -60,7 +65,9 @@ const App = () => (
 
               <Route path="/receitas" element={<Receitas />} />
               <Route path="/parcelas" element={<ParcelasMentoria />} />
+              <Route path="/pessoas" element={<Pessoas />} />
               <Route path="/clientes" element={<Clientes />} />
+              <Route path="/crm" element={<Crm />} />
 
               <Route path="/despesas-empresa" element={<AdminRoute><DespesasEmpresa /></AdminRoute>} />
               <Route path="/despesas-pessoal" element={<AdminRoute><DespesasPessoal /></AdminRoute>} />
@@ -70,7 +77,8 @@ const App = () => (
               <Route path="/pl-diario" element={<AdminRoute><PLDiario /></AdminRoute>} />
               <Route path="/cofrinho" element={<AdminRoute><Cofrinho /></AdminRoute>} />
               <Route path="/dividas" element={<AdminRoute><Dividas /></AdminRoute>} />
-              <Route path="/bi" element={<AdminRoute><BusinessIntelligence /></AdminRoute>} />
+              {/* Business Intelligence virou a aba Inteligencia dentro do Painel. */}
+              <Route path="/bi" element={<Navigate to="/dashboard" replace />} />
               <Route path="/config" element={<AdminRoute><Configuracoes /></AdminRoute>} />
             </Route>
             <Route path="*" element={<NotFound />} />

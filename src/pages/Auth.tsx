@@ -5,16 +5,17 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { Loader2, LogIn, UserPlus, TrendingUp } from "lucide-react";
+import { Loader2, LogIn, TrendingUp, MailCheck, ArrowLeft } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 
 export default function Auth() {
   const { session, loading } = useAuth();
-  const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [displayName, setDisplayName] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const { signIn, signUp } = useAuth();
+  const [esqueci, setEsqueci] = useState(false);
+  const [linkEnviado, setLinkEnviado] = useState(false);
+  const { signIn } = useAuth();
 
   if (loading) {
     return (
@@ -29,27 +30,33 @@ export default function Auth() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
-
-    if (isLogin) {
-      const { error } = await signIn(email, password);
-      if (error) {
-        toast.error(error.message);
-      }
-    } else {
-      if (!displayName.trim()) {
-        toast.error("Informe seu nome");
-        setSubmitting(false);
-        return;
-      }
-      const { error } = await signUp(email, password, displayName);
-      if (error) {
-        toast.error(error.message);
-      } else {
-        toast.success("Conta criada! Você já pode acessar o sistema.");
-        setIsLogin(true);
-      }
-    }
+    const { error } = await signIn(email, password);
+    if (error) toast.error(error.message);
     setSubmitting(false);
+  };
+
+  const enviarLinkDeSenha = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email.trim()) {
+      toast.error("Informe seu e-mail");
+      return;
+    }
+    setSubmitting(true);
+    const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+      redirectTo: `${window.location.origin}/redefinir-senha`,
+    });
+    setSubmitting(false);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    setLinkEnviado(true);
+  };
+
+  const voltarParaLogin = () => {
+    setEsqueci(false);
+    setLinkEnviado(false);
+    setPassword("");
   };
 
   return (
@@ -78,42 +85,78 @@ export default function Auth() {
 
         {/* Card */}
         <div className="glass-card rounded-xl p-8">
-          <div className="mb-6 flex gap-1 rounded-lg bg-secondary p-1">
-            <button
-              onClick={() => setIsLogin(true)}
-              className={`flex-1 rounded-md py-2 text-sm font-medium transition-all ${
-                isLogin
-                  ? "gold-gradient text-primary-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              Entrar
-            </button>
-            <button
-              onClick={() => setIsLogin(false)}
-              className={`flex-1 rounded-md py-2 text-sm font-medium transition-all ${
-                !isLogin
-                  ? "gold-gradient text-primary-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              Criar conta
-            </button>
-          </div>
-
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {!isLogin && (
-              <div className="space-y-2">
-                <Label htmlFor="displayName" className="text-foreground/80">Nome</Label>
-                <Input
-                  id="displayName"
-                  value={displayName}
-                  onChange={(e) => setDisplayName(e.target.value)}
-                  placeholder="Seu nome completo"
-                  className="border-border bg-secondary/50 text-foreground placeholder:text-muted-foreground focus:border-primary focus:ring-primary/20"
-                />
+          {esqueci ? (
+            linkEnviado ? (
+              <div className="space-y-5 text-center">
+                <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
+                  <MailCheck className="h-6 w-6 text-primary" />
+                </div>
+                <div className="space-y-2">
+                  <p className="font-medium text-foreground">Link enviado</p>
+                  <p className="text-sm text-muted-foreground">
+                    Enviamos um link para <span className="text-foreground">{email}</span>.
+                    Abra o e-mail e clique nele para escolher sua senha.
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Não chegou em alguns minutos? Confira a caixa de spam.
+                  </p>
+                </div>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={voltarParaLogin}
+                  className="w-full text-muted-foreground hover:text-foreground"
+                >
+                  <ArrowLeft className="mr-2 h-4 w-4" />
+                  Voltar para o login
+                </Button>
               </div>
-            )}
+            ) : (
+              <form onSubmit={enviarLinkDeSenha} className="space-y-4">
+                <div className="space-y-2 text-center">
+                  <p className="font-medium text-foreground">Esqueci minha senha</p>
+                  <p className="text-sm text-muted-foreground">
+                    Informe seu e-mail e enviamos um link para você escolher uma senha nova.
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="emailRecuperacao" className="text-foreground/80">E-mail</Label>
+                  <Input
+                    id="emailRecuperacao"
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="seu@email.com"
+                    required
+                    className="border-border bg-secondary/50 text-foreground placeholder:text-muted-foreground focus:border-primary focus:ring-primary/20"
+                  />
+                </div>
+                <Button
+                  type="submit"
+                  disabled={submitting}
+                  className="w-full gold-gradient font-semibold text-primary-foreground shadow-lg shadow-primary/20"
+                >
+                  {submitting ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <MailCheck className="mr-2 h-4 w-4" />
+                  )}
+                  Enviar link
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={voltarParaLogin}
+                  className="w-full text-muted-foreground hover:text-foreground"
+                >
+                  <ArrowLeft className="mr-2 h-4 w-4" />
+                  Voltar para o login
+                </Button>
+              </form>
+            )
+          ) : (
+          <>
+          <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="email" className="text-foreground/80">E-mail</Label>
               <Input
@@ -146,14 +189,24 @@ export default function Auth() {
             >
               {submitting ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : isLogin ? (
-                <LogIn className="mr-2 h-4 w-4" />
               ) : (
-                <UserPlus className="mr-2 h-4 w-4" />
+                <LogIn className="mr-2 h-4 w-4" />
               )}
-              {isLogin ? "Entrar" : "Criar conta"}
+              Entrar
             </Button>
           </form>
+
+          {(
+            <button
+              type="button"
+              onClick={() => setEsqueci(true)}
+              className="mt-4 w-full text-center text-sm text-muted-foreground transition-colors hover:text-primary"
+            >
+              Esqueci minha senha
+            </button>
+          )}
+          </>
+          )}
         </div>
 
         <p className="mt-6 text-center text-xs text-muted-foreground">

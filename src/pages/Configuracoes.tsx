@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatCurrency } from "@/lib/format";
 import { toast } from "sonner";
-import { Loader2, Save, Plus, Trash2, Settings, Users, Package, DollarSign, Tag, Globe, ShieldCheck } from "lucide-react";
+import { Loader2, Save, Plus, Trash2, Settings, Users, Package, DollarSign, Tag, Globe, ShieldCheck, KeyRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -16,6 +16,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Navigate } from "react-router-dom";
 import { Constants } from "@/integrations/supabase/types";
 import PermissoesDialog from "@/components/config/PermissoesDialog";
+import DefinirSenhaDialog from "@/components/config/DefinirSenhaDialog";
+import MinhaContaTab from "@/components/config/MinhaContaTab";
 
 const MESES = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
 
@@ -38,6 +40,7 @@ export default function Configuracoes() {
           <TabsTrigger value="origens"><Globe className="h-3.5 w-3.5 mr-1.5" />Origens</TabsTrigger>
           <TabsTrigger value="cambio"><DollarSign className="h-3.5 w-3.5 mr-1.5" />Câmbio</TabsTrigger>
           <TabsTrigger value="usuarios"><Users className="h-3.5 w-3.5 mr-1.5" />Usuários</TabsTrigger>
+          <TabsTrigger value="minhaconta"><KeyRound className="h-3.5 w-3.5 mr-1.5" />Minha conta</TabsTrigger>
         </TabsList>
 
         <TabsContent value="metas"><MetasTab /></TabsContent>
@@ -47,6 +50,7 @@ export default function Configuracoes() {
         <TabsContent value="origens"><OrigensTab /></TabsContent>
         <TabsContent value="cambio"><CambioTab /></TabsContent>
         <TabsContent value="usuarios"><UsuariosTab /></TabsContent>
+        <TabsContent value="minhaconta"><MinhaContaTab /></TabsContent>
       </Tabs>
     </div>
   );
@@ -402,6 +406,7 @@ function UsuariosTab() {
   const [nome, setNome] = useState("");
   const [novoRole, setNovoRole] = useState("operacional");
   const [permUser, setPermUser] = useState<{ user_id: string; nome: string } | null>(null);
+  const [senhaUser, setSenhaUser] = useState<{ user_id: string; nome: string } | null>(null);
 
   const { data: profiles, isLoading } = useQuery({
     queryKey: ["config-users"],
@@ -437,7 +442,7 @@ function UsuariosTab() {
         </div>
         <table className="w-full text-sm">
           <thead><tr className="border-b border-border bg-secondary/30">
-            {["Nome", "Email", "Perfil", "Autorizações"].map(h => (
+            {["Nome", "Email", "Perfil", "Autorizações", "Senha"].map(h => (
               <th key={h} className="p-3 text-xs font-medium text-muted-foreground text-left">{h}</th>
             ))}
           </tr></thead>
@@ -469,6 +474,14 @@ function UsuariosTab() {
                       <ShieldCheck className="h-3.5 w-3.5 mr-1.5" /> Autorizações
                     </Button>
                   </td>
+                  <td className="p-3" onClick={e => e.stopPropagation()}>
+                    <Button
+                      size="sm" variant="outline" className="h-8 text-xs"
+                      onClick={() => setSenhaUser({ user_id: p.user_id, nome: p.display_name ?? p.email ?? "Usuário" })}
+                    >
+                      <KeyRound className="h-3.5 w-3.5 mr-1.5" /> Definir senha
+                    </Button>
+                  </td>
                 </tr>
               );
             })}
@@ -477,6 +490,7 @@ function UsuariosTab() {
       </div>
 
       <PermissoesDialog usuario={permUser} open={!!permUser} onClose={() => setPermUser(null)} />
+      <DefinirSenhaDialog usuario={senhaUser} open={!!senhaUser} onClose={() => setSenhaUser(null)} />
     </div>
   );
 }

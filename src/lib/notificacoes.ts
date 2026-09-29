@@ -22,6 +22,28 @@ export async function criarNotificacao(n: NovaNotificacao) {
   if (error) console.warn("Falha ao criar notificação:", error.message);
 }
 
+/**
+ * Avisa alguém que uma tarefa foi atribuída a ela. Não avisa se a pessoa
+ * atribuiu a tarefa a si mesma (ninguém precisa de aviso do próprio ato).
+ */
+export async function notificarTarefaAtribuida(opts: {
+  responsavelId: string | null | undefined;
+  titulo: string;
+  contexto?: string | null;
+  link_interno?: string | null;
+}) {
+  if (!opts.responsavelId) return;
+  const { data: auth } = await supabase.auth.getUser();
+  if (auth?.user?.id === opts.responsavelId) return;
+  await criarNotificacao({
+    destinatario_id: opts.responsavelId,
+    titulo: `Nova tarefa: ${opts.titulo}`,
+    descricao: opts.contexto ?? null,
+    tipo: "tarefa",
+    link_interno: opts.link_interno ?? null,
+  });
+}
+
 /** Notifica a si mesmo — usado quando a ação não tem responsável definido. */
 export async function notificarProprio(n: Omit<NovaNotificacao, "destinatario_id">) {
   const { data: auth } = await supabase.auth.getUser();

@@ -4,7 +4,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { STATUS_JORNADA, diasRestantes, gerarTarefasDaEtapa } from "@/lib/mentoria";
-import { notificarProprio } from "@/lib/notificacoes";
 import MentoradaSheet from "@/components/mentoria/MentoradaSheet";
 import PipelineEditorDialog from "@/components/mentoria/PipelineEditorDialog";
 import TagsAluna from "@/components/mentoria/TagsAluna";
@@ -13,6 +12,7 @@ import WhatsAppButton from "@/components/WhatsAppButton";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { SaidasTab } from "@/components/mentoria/SaidasTab";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertTriangle, GraduationCap, Loader2, Search, Settings2, SlidersHorizontal } from "lucide-react";
@@ -43,7 +43,7 @@ export default function Mentoria() {
     queryKey: ["pipelines"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("pipelines").select("*").order("ordem", { ascending: true });
+        .from("pipelines_mentoradas").select("*").order("ordem", { ascending: true });
       if (error) throw error;
       return data ?? [];
     },
@@ -168,7 +168,7 @@ export default function Mentoria() {
 
   const criarPipeline = useMutation({
     mutationFn: async (nome: string) => {
-      const { error } = await supabase.from("pipelines").insert({ nome, ordem: (pipelines ?? []).length + 1 });
+      const { error } = await supabase.from("pipelines_mentoradas").insert({ nome, ordem: (pipelines ?? []).length + 1 });
       if (error) throw error;
     },
     onSuccess: () => {
@@ -281,19 +281,9 @@ export default function Mentoria() {
   ).sort();
 
 
-  useEffect(() => {
-    if (!mentoradas || pendencias.length === 0) return;
-    const chave = `mentoria-pendencias-${new Date().toISOString().slice(0, 10)}`;
-    if (localStorage.getItem(chave)) return;
-    localStorage.setItem(chave, "1");
-    const juridico = pendencias.filter((m) => (m.motivo_cancelamento ?? "").toLowerCase().includes("jur")).length;
-    notificarProprio({
-      titulo: `${pendencias.length} pendências jurídicas / inadimplência`,
-      descricao: `${juridico} no jurídico e ${pendencias.length - juridico} com parcelas em atraso. Acompanhe a cobrança.`,
-      tipo: "mentoria",
-      link_interno: "/mentoria",
-    });
-  }, [mentoradas, pendencias.length]);
+  // Notificação de pendências removida: não estava na lista do que a Stéfani
+  // quer receber, e era recriada a cada abertura da página.
+
 
 
   return (
@@ -310,8 +300,13 @@ export default function Mentoria() {
       <Tabs defaultValue="pipeline">
         <TabsList>
           <TabsTrigger value="pipeline">Pipeline</TabsTrigger>
+          <TabsTrigger value="saidas">Saídas</TabsTrigger>
         </TabsList>
 
+
+        <TabsContent value="saidas">
+          <SaidasTab />
+        </TabsContent>
 
         <TabsContent value="pipeline" className="space-y-4 pt-4">
           <div className="flex flex-wrap gap-2">

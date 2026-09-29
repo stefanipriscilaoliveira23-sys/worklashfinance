@@ -72,7 +72,9 @@ export default function DRE() {
 
   const carregando = receitas.isLoading || parcelas.isLoading || despEmpresa.isLoading || despPessoal.isLoading;
 
-  const recVendas = (receitas.data ?? []).reduce((s, r: any) => s + (r.valor_em_brl ?? r.valor_bruto ?? 0), 0);
+  // valor_bruto ja esta em real em todas as linhas. O campo valor_em_brl nao
+  // e confiavel: seis lancamentos manuais vieram com zero e derrubavam o DRE.
+  const recVendas = (receitas.data ?? []).reduce((s, r: any) => s + (r.valor_bruto ?? 0), 0);
   const taxas = (receitas.data ?? []).reduce((s, r: any) => s + (r.taxa_plataforma_valor ?? 0), 0);
   const recParcelas = (parcelas.data ?? [])
     .filter((p: any) => isParcelaFaturadaNoPeriodo(p, start, end))

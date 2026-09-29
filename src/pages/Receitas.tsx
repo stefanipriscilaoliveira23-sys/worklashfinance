@@ -21,9 +21,10 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import MonthNavigator, { getCurrentMonthKey, type DateFilter, filterByDate } from "@/components/MonthNavigator";
 
 const PLATAFORMAS = ["Hotmart", "Kiwify", "Eduzz", "Direto Pix", "Outro"] as const;
-const CATEGORIAS = ["Mentorias", "Renovações", "Digitais", "Físicos"] as const;
+const CATEGORIAS = ["Mentorias", "Consultorias", "Renovações", "Digitais", "Físicos"] as const;
 
 const MENTORIA_CATS = ["Mentorias"];
+const CONSULTORIA_CATS = ["Consultorias"];
 const RENOVACAO_CATS = ["Renovações"];
 const DIGITAL_CATS = ["Digitais"];
 const FISICO_CATS = ["Físicos"];
@@ -184,19 +185,29 @@ export default function Receitas() {
     .filter((pq: any) => !!pq.data_pagamento)
     .map((pq: any) => {
     const parent = pq.parcelas_mentoria;
+    // A parcela herda da venda que a gerou. Quem vendeu a mentoria vendeu cada
+    // parcela dela, e a origem que trouxe a venda é a mesma. Sem isso o
+    // relatório por vendedor perde todo o parcelado, que é a maior parte.
+    const vendaOriginal = parent.receita_id
+      ? allReceitas.find((r: any) => r.id === parent.receita_id)
+      : undefined;
+    const nomeDoProduto = getProdutoNome(parent);
     return {
       id: `parcela-${pq.id}`,
       data: pq.data_pagamento,
-      produto_nome: getProdutoNome(parent),
+      produto_nome: `Parcela ${pq.numero_parcela} de ${parent.quant_parcelas} · ${nomeDoProduto}`,
+      produto_nome_base: nomeDoProduto,
       produto_categoria: parent.tipo_mentoria,
       plataforma: "" as any,
       cliente_nome: parent.cliente_nome,
       cliente_email: parent.cliente_email,
+      cliente_id: parent.cliente_id,
       valor_bruto: pq.valor_real ?? pq.valor_sugerido ?? 0,
       taxa_plataforma_valor: 0,
       valor_liquido: pq.valor_real ?? pq.valor_sugerido ?? 0,
       moeda_original: "BRL",
-      origens_venda: [] as string[],
+      vendedor: vendaOriginal?.vendedor ?? null,
+      origens_venda: (vendaOriginal?.origens_venda ?? []) as string[],
       status: "ativo",
       observacao: pq.observacao,
       forma_pagamento: null,
@@ -209,6 +220,35 @@ export default function Receitas() {
   });
 
   const vendedores = [...new Set(allReceitas.map((r: any) => r.vendedor).filter(Boolean))].sort() as string[];
+
+  /**
+   * Suspeita de venda lançada duas vezes.
+   *
+   * O caso real: a plataforma manda a venda sozinha e alguém lança a mesma
+   * venda na mão no CRM para poder amarrar a conversa. Aconteceu em 23/09 e
+   * 28/09/2026 com o Lash Educadora. Agora dá para vincular a conversa sem
+   * relançar, mas se acontecer de novo esta marca avisa na hora.
+   */
+  const idsSuspeitos = (() => {
+    const suspeitos = new Set<string>();
+    const veioDaPlataforma = (r: any) => typeof r.crm_card_id === "string" && r.crm_card_id.includes(":");
+    const automaticas = allReceitas.filter(veioDaPlataforma);
+    const naMao = allReceitas.filter((r: any) => !veioDaPlataforma(r));
+    const chave = (r: any) => (r.cliente_email ?? "").toLowerCase().trim();
+    const diasEntre = (a: string, b: string) =>
+      Math.abs((new Date(a + "T00:00:00").getTime() - new Date(b + "T00:00:00").getTime()) / 86400000);
+
+    automaticas.forEach((a: any) => {
+      if (!chave(a)) return;
+      naMao.forEach((m: any) => {
+        if (chave(m) !== chave(a)) return;
+        if (diasEntre(m.data, a.data) > 3) return;
+        suspeitos.add(a.id);
+        suspeitos.add(m.id);
+      });
+    });
+    return suspeitos;
+  })();
 
   const filtered = allReceitas.filter((r) => {
     if (filtroPlataforma !== "all" && r.plataforma !== filtroPlataforma) return false;
@@ -229,7 +269,10 @@ export default function Receitas() {
     // Parcelas nunca são importadas de planilha
     if (filtroImportado === "importado") return false;
     if (filtroPlataforma !== "all" && r.plataforma !== filtroPlataforma) return false;
-    if (filtroProduto !== "all" && r.produto_nome !== filtroProduto) return false;
+    // Compara pelo nome do produto, não pelo rótulo "Parcela 3 de 12 · ...".
+    if (filtroProduto !== "all" && r.produto_nome_base !== filtroProduto) return false;
+    // Agora a parcela tem vendedor herdado, então ela obedece o filtro também.
+    if (filtroVendedor !== "all" && (r.vendedor ?? "") !== filtroVendedor) return false;
     if (search) {
       const s = search.toLowerCase();
       return r.produto_nome.toLowerCase().includes(s) || (r.cliente_nome ?? "").toLowerCase().includes(s) || (r.cliente_email ?? "").toLowerCase().includes(s);
@@ -256,6 +299,7 @@ export default function Receitas() {
   const getTabData = () => {
     switch (tab) {
       case "mentorias": return salesEntries.filter(r => MENTORIA_CATS.includes(r.produto_categoria ?? ""));
+      case "consultorias": return salesEntries.filter(r => CONSULTORIA_CATS.includes(r.produto_categoria ?? ""));
       case "renovacoes": return salesEntries.filter(r => RENOVACAO_CATS.includes(r.produto_categoria ?? ""));
       case "digitais": return salesEntries.filter(r => DIGITAL_CATS.includes(r.produto_categoria ?? ""));
       case "fisicos": return salesEntries.filter(r => FISICO_CATS.includes(r.produto_categoria ?? ""));
@@ -308,7 +352,9 @@ export default function Receitas() {
       data: r.data,
       tipo: "parcela" as const,
       cliente: r.cliente_nome,
-      produto: r.produto_nome,
+      // Aqui o rótulo da parcela já vai em `parcela_label`, então o produto vai
+      // sem o "Parcela X de Y" para não sair escrito duas vezes.
+      produto: r.produto_nome_base ?? r.produto_nome,
       valor: r.valor_bruto ?? 0,
       parcela_label: r.parcela_label,
       data_vencimento: r._parent_detalhes ? undefined : undefined, // preenchido abaixo
@@ -379,7 +425,19 @@ export default function Receitas() {
           return (
             <tr key={r.id} className={`border-b border-border/50 hover:bg-surface-hover transition-colors ${isParcela ? "bg-primary/[0.02]" : ""}`}>
               <td className="p-3">{formatDate(r.data)}</td>
-              <td className="p-3 truncate max-w-[200px]">{r.produto_nome}</td>
+              <td className="p-3 truncate max-w-[200px]">
+                <span className="flex items-center gap-1.5">
+                  <span className="truncate">{r.produto_nome}</span>
+                  {idsSuspeitos.has(r.id) && (
+                    <span
+                      title="Esta mesma pessoa tem outra venda parecida nestes dias. Confira se não entrou duas vezes: vale a que veio da plataforma, porque ela já traz a taxa."
+                      className="shrink-0 rounded bg-destructive/15 px-1.5 py-0.5 text-[9px] font-medium text-destructive"
+                    >
+                      possível repetida
+                    </span>
+                  )}
+                </span>
+              </td>
               <td className="p-3 text-muted-foreground text-xs max-w-[180px]">
                 {Array.isArray(r.origens_venda) && r.origens_venda.length > 0
                   ? (
@@ -408,15 +466,17 @@ export default function Receitas() {
     </table>
   );
 
-  const renderMentoriasTable = () => (
+  // Consultoria é vendida igual mentoria: contrato fechado mais parcelas. Por
+  // isso as duas abas usam a mesma tabela, só troca o nome da coluna.
+  const renderMentoriasTable = (rotulo = "Mentoria") => (
     <table className="w-full text-sm">
       <thead><tr className="border-b border-border bg-secondary/30">
-        {["Data Venda", "Cliente", "Mentoria", "Valor Pago", "Valor Total", "Forma Pgto", "Nº Parcelas", "Vlr Parcela", "1ª Parcela", "Canal de Venda", "Obs.", ""].map(h => (
+        {["Data Venda", "Cliente", rotulo, "Valor Pago", "Valor Total", "Forma Pgto", "Nº Parcelas", "Vlr Parcela", "1ª Parcela", "Canal de Venda", "Obs.", ""].map(h => (
           <th key={h} className={`p-3 text-xs font-medium text-muted-foreground ${["Valor Pago", "Valor Total", "Vlr Parcela"].includes(h) ? "text-right" : "text-left"}`}>{h}</th>
         ))}
       </tr></thead>
       <tbody>
-        {tabData.length === 0 && <tr><td colSpan={12} className="p-12 text-center text-muted-foreground">Nenhuma mentoria</td></tr>}
+        {tabData.length === 0 && <tr><td colSpan={12} className="p-12 text-center text-muted-foreground">Nenhuma {rotulo.toLowerCase()}</td></tr>}
         {tabData.map(r => {
           const pi = getParcelaInfo(r);
           return (
@@ -657,6 +717,7 @@ export default function Receitas() {
         <TabsList className="bg-secondary/50 border border-border flex-wrap">
           <TabsTrigger value="todas">Todas</TabsTrigger>
           <TabsTrigger value="mentorias">Mentorias</TabsTrigger>
+          <TabsTrigger value="consultorias">Consultorias</TabsTrigger>
           <TabsTrigger value="renovacoes">Renovações</TabsTrigger>
           <TabsTrigger value="digitais">Digitais</TabsTrigger>
           <TabsTrigger value="fisicos">Físicos</TabsTrigger>
@@ -671,6 +732,7 @@ export default function Receitas() {
               <>
                 <TabsContent value="todas" className="m-0">{renderAllTable()}</TabsContent>
                 <TabsContent value="mentorias" className="m-0">{renderMentoriasTable()}</TabsContent>
+                <TabsContent value="consultorias" className="m-0">{renderMentoriasTable("Consultoria")}</TabsContent>
                 <TabsContent value="renovacoes" className="m-0">{renderRenovacoesTable()}</TabsContent>
                 <TabsContent value="digitais" className="m-0">{renderDigitaisTable()}</TabsContent>
                 <TabsContent value="fisicos" className="m-0">{renderFisicosTable()}</TabsContent>

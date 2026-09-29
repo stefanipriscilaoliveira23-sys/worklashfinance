@@ -1,4 +1,5 @@
 import { useState } from "react";
+import SituacaoPagamentoCard from "@/components/despesas/SituacaoPagamentoCard";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -828,6 +829,13 @@ export default function DespesasEmpresa() {
         <DialogContent className="bg-card border-border">
           <DialogHeader><DialogTitle className="text-foreground">Editar Despesa</DialogTitle></DialogHeader>
           <div className="space-y-4">
+            {editItem && (
+              <SituacaoPagamentoCard
+                despesa={editItem as never}
+                tabela="despesas_empresa"
+                onMudou={() => setEditItem(null)}
+              />
+            )}
             <div><Label className="text-muted-foreground">Descrição *</Label><Input value={editForm.descricao} onChange={e => setEditForm(f => ({ ...f, descricao: e.target.value }))} className="bg-secondary/50 border-border" /></div>
             <div className="grid grid-cols-2 gap-3">
               <div><Label className="text-muted-foreground">Categoria</Label>

@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import ConversaDoCrm from "./ConversaDoCrm";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -55,6 +56,10 @@ export function EditarReceitaModal({ receita, open, onClose }: EditarReceitaModa
   const [formaPagamento, setFormaPagamento] = useState("");
   const [origensVenda, setOrigensVenda] = useState<string[]>([]);
   const [observacao, setObservacao] = useState("");
+  // Vendedor não existia nesta janela: venda importada da Kiwify nasce sem
+  // dono e não tinha por onde arrumar. Sem isso o placar da equipe fica
+  // torto pra sempre.
+  const [vendedor, setVendedor] = useState("");
   const [status, setStatus] = useState("ativo");
   const [dataInicioMentoria, setDataInicioMentoria] = useState("");
   const [dataFimMentoria, setDataFimMentoria] = useState("");
@@ -97,6 +102,24 @@ export function EditarReceitaModal({ receita, open, onClose }: EditarReceitaModa
     enabled: !!receita?.id,
   });
 
+  const { data: vendedoresConhecidos } = useQuery({
+    queryKey: ["vendedores-conhecidos"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("receitas")
+        .select("vendedor")
+        .not("vendedor", "is", null)
+        .order("data", { ascending: false })
+        .limit(1000);
+      const nomes = new Set<string>();
+      for (const r of data ?? []) {
+        const nome = (r.vendedor ?? "").trim();
+        if (nome) nomes.add(nome);
+      }
+      return [...nomes].sort();
+    },
+  });
+
   useEffect(() => {
     if (receita) {
       setData(receita.data ?? "");
@@ -122,6 +145,7 @@ export function EditarReceitaModal({ receita, open, onClose }: EditarReceitaModa
       setFormaPagamento(receita.forma_pagamento ?? "");
       setOrigensVenda(receita.origens_venda ?? []);
       setObservacao(receita.observacao ?? "");
+      setVendedor(receita.vendedor ?? "");
       setStatus(receita.status ?? "ativo");
       setDataInicioMentoria(receita.data_inicio_mentoria ?? "");
       setDataFimMentoria(receita.data_fim_mentoria ?? "");
@@ -129,6 +153,12 @@ export function EditarReceitaModal({ receita, open, onClose }: EditarReceitaModa
       setRestanteForma("");
     }
   }, [receita, produtos]);
+
+  // Data do pagamento (entrada ou total) mora no contrato, não na receita.
+  // A receita fica na data da venda; aqui só a data em que o dinheiro caiu.
+  useEffect(() => {
+    setEntradaData(contratoExistente?.entrada_data ?? "");
+  }, [contratoExistente]);
 
   const isMentoria = MENTORIA_CATS.includes(categoria);
   const valorRestante = isMentoria ? Math.max(0, valorContrato - valorBruto) : 0;
@@ -213,6 +243,7 @@ export function EditarReceitaModal({ receita, open, onClose }: EditarReceitaModa
         cliente_email: clienteEmail,
         forma_pagamento: restantePago ? `${formaPagamento}${formaPagamento ? " + " : ""}${restantePagoForma || "Pix"}` : formaPagamento,
         origens_venda: origensVenda,
+        vendedor: vendedor.trim() || null,
         is_ascensao: origensVenda.includes("Ascensão"),
         observacao: restantePago ? `${observacao ? observacao + " | " : ""}Restante ${formatCurrency(valorRestante)} pago via ${restantePagoForma || "Pix"}` : observacao,
         
@@ -220,6 +251,15 @@ export function EditarReceitaModal({ receita, open, onClose }: EditarReceitaModa
         data_fim_mentoria: dataFimMentoria || null,
       }).eq("id", receita.id);
       if (error) throw error;
+
+      // Contrato já existe: só atualiza a data em que a entrada caiu
+      if (isMentoria && contratoExistente) {
+        const { error: edErr } = await supabase
+          .from("parcelas_mentoria")
+          .update({ entrada_data: entradaData || data || null })
+          .eq("id", contratoExistente.id);
+        if (edErr) throw edErr;
+      }
 
       // Create contract if parcelas selected and no existing contract
       if (showStep2 && parcelas.length > 0) {
@@ -230,7 +270,7 @@ export function EditarReceitaModal({ receita, open, onClose }: EditarReceitaModa
           produto_id: produtoId,
           valor_total: valorContrato,
           entrada_valor: valorBruto,
-          entrada_data: data || null,
+          entrada_data: entradaData || data || null,
           quant_parcelas: quantParcelas,
           periodicidade,
           data_inicio: dataInicioMentoria || data,
@@ -259,6 +299,7 @@ export function EditarReceitaModal({ receita, open, onClose }: EditarReceitaModa
       queryClient.invalidateQueries({ queryKey: ["receitas-all"] });
       queryClient.invalidateQueries({ queryKey: ["receitas-mes"] });
       queryClient.invalidateQueries({ queryKey: ["ultimas-receitas"] });
+      queryClient.invalidateQueries({ queryKey: ["contrato-receita"] });
       queryClient.invalidateQueries({ queryKey: ["parcelas-mentoria"] });
       queryClient.invalidateQueries({ queryKey: ["parcelas-detalhe-all"] });
       toast.success("Receita atualizada!");
@@ -281,12 +322,20 @@ export function EditarReceitaModal({ receita, open, onClose }: EditarReceitaModa
 
         {step === 1 && (
           <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className={`grid grid-cols-2 ${isMentoria ? "sm:grid-cols-3" : ""} gap-4`}>
               <div className="space-y-1.5">
                 <Label className="text-foreground/80">Data da venda</Label>
                 <Input type="date" value={data} onChange={(e) => setData(e.target.value)} className="bg-secondary/50 border-border" />
+                <p className="text-[10px] text-muted-foreground">Dia em que fechou. É o mês em que a receita conta.</p>
               </div>
-              <div className="space-y-1.5">
+              {isMentoria && (
+                <div className="space-y-1.5">
+                  <Label className="text-foreground/80">Data do pagamento</Label>
+                  <Input type="date" value={entradaData || data} onChange={(e) => setEntradaData(e.target.value)} className="bg-secondary/50 border-border" />
+                  <p className="text-[10px] text-muted-foreground">Dia em que a entrada (ou o total) caiu.</p>
+                </div>
+              )}
+              <div className={`space-y-1.5 ${isMentoria ? "col-span-2 sm:col-span-1" : ""}`}>
                 <Label className="text-foreground/80">Forma de pagamento</Label>
                 <Input value={formaPagamento} onChange={(e) => setFormaPagamento(e.target.value)} className="bg-secondary/50 border-border" />
               </div>
@@ -518,9 +567,35 @@ export function EditarReceitaModal({ receita, open, onClose }: EditarReceitaModa
 
 
             <div className="space-y-1.5">
+              <Label className="text-foreground/80">Vendedor</Label>
+              <Input
+                list="vendedores-conhecidos-edicao"
+                value={vendedor}
+                onChange={(e) => setVendedor(e.target.value)}
+                placeholder="Quem vendeu"
+                className="bg-secondary/50 border-border"
+              />
+              <datalist id="vendedores-conhecidos-edicao">
+                {(vendedoresConhecidos ?? []).map((nome: string) => (
+                  <option key={nome} value={nome} />
+                ))}
+              </datalist>
+            </div>
+
+            <div className="space-y-1.5">
               <Label className="text-foreground/80">Observação</Label>
               <Textarea value={observacao} onChange={(e) => setObservacao(e.target.value)} className="bg-secondary/50 border-border" rows={2} />
             </div>
+
+            {receita?.id && (
+              <ConversaDoCrm
+                receitaId={receita.id}
+                conversaAtual={(receita as any).crm_conversa_id ?? null}
+                pedidoPlataforma={(receita as any).crm_card_id ?? null}
+                clienteNome={receita.cliente_nome ?? null}
+                clienteEmail={receita.cliente_email ?? null}
+              />
+            )}
 
             {/* Origin info */}
             <p className="text-[11px] text-muted-foreground italic pt-2 border-t border-border">

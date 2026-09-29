@@ -166,6 +166,7 @@ export type Database = {
           status: string
           tipo_id: string | null
           whatsapp: string | null
+          respostas: Json
         }
         Insert: {
           agendado_por?: string | null
@@ -185,6 +186,7 @@ export type Database = {
           status?: string
           tipo_id?: string | null
           whatsapp?: string | null
+          respostas?: Json
         }
         Update: {
           agendado_por?: string | null
@@ -204,6 +206,7 @@ export type Database = {
           status?: string
           tipo_id?: string | null
           whatsapp?: string | null
+          respostas?: Json
         }
         Relationships: [
           {
@@ -548,6 +551,9 @@ export type Database = {
       }
       despesas_pessoal: {
         Row: {
+          despesa_pai_id: string | null
+          numero_parcela_atual: number | null
+          total_parcelas: number | null
           categoria: Database["public"]["Enums"]["despesa_categoria_pessoal"]
           criado_em: string
           data_pagamento: string | null
@@ -564,6 +570,9 @@ export type Database = {
           valor_pago_total: number | null
         }
         Insert: {
+          despesa_pai_id?: string | null
+          numero_parcela_atual?: number | null
+          total_parcelas?: number | null
           categoria: Database["public"]["Enums"]["despesa_categoria_pessoal"]
           criado_em?: string
           data_pagamento?: string | null
@@ -580,6 +589,9 @@ export type Database = {
           valor_pago_total?: number | null
         }
         Update: {
+          despesa_pai_id?: string | null
+          numero_parcela_atual?: number | null
+          total_parcelas?: number | null
           categoria?: Database["public"]["Enums"]["despesa_categoria_pessoal"]
           criado_em?: string
           data_pagamento?: string | null
@@ -1250,7 +1262,7 @@ export type Database = {
             foreignKeyName: "mentoradas_pipeline_id_fkey"
             columns: ["pipeline_id"]
             isOneToOne: false
-            referencedRelation: "pipelines"
+            referencedRelation: "pipelines_mentoradas"
             referencedColumns: ["id"]
           },
         ]
@@ -1470,6 +1482,10 @@ export type Database = {
           valor_pago_parcial: number | null
           valor_real: number | null
           valor_sugerido: number | null
+          encargos_isentos: boolean
+          isencao_motivo: string | null
+          isentado_por: string | null
+          isentado_em: string | null
         }
         Insert: {
           data_pagamento?: string | null
@@ -1483,6 +1499,10 @@ export type Database = {
           valor_pago_parcial?: number | null
           valor_real?: number | null
           valor_sugerido?: number | null
+          encargos_isentos?: boolean
+          isencao_motivo?: string | null
+          isentado_por?: string | null
+          isentado_em?: string | null
         }
         Update: {
           data_pagamento?: string | null
@@ -1496,6 +1516,10 @@ export type Database = {
           valor_pago_parcial?: number | null
           valor_real?: number | null
           valor_sugerido?: number | null
+          encargos_isentos?: boolean
+          isencao_motivo?: string | null
+          isentado_por?: string | null
+          isentado_em?: string | null
         }
         Relationships: [
           {
@@ -1534,12 +1558,12 @@ export type Database = {
             foreignKeyName: "pipeline_etapas_pipeline_id_fkey"
             columns: ["pipeline_id"]
             isOneToOne: false
-            referencedRelation: "pipelines"
+            referencedRelation: "pipelines_mentoradas"
             referencedColumns: ["id"]
           },
         ]
       }
-      pipelines: {
+      pipelines_mentoradas: {
         Row: {
           created_at: string
           id: string
@@ -1599,7 +1623,7 @@ export type Database = {
             foreignKeyName: "processos_etapa_pipeline_id_fkey"
             columns: ["pipeline_id"]
             isOneToOne: false
-            referencedRelation: "pipelines"
+            referencedRelation: "pipelines_mentoradas"
             referencedColumns: ["id"]
           },
         ]
@@ -1751,12 +1775,50 @@ export type Database = {
         }
         Relationships: []
       }
+      push_inscricoes: {
+        Row: {
+          aparelho: string | null
+          auth: string
+          criado_em: string
+          endpoint: string
+          falhas: number
+          id: string
+          p256dh: string
+          ultimo_envio: string | null
+          user_id: string
+        }
+        Insert: {
+          aparelho?: string | null
+          auth: string
+          criado_em?: string
+          endpoint: string
+          falhas?: number
+          id?: string
+          p256dh: string
+          ultimo_envio?: string | null
+          user_id: string
+        }
+        Update: {
+          aparelho?: string | null
+          auth?: string
+          criado_em?: string
+          endpoint?: string
+          falhas?: number
+          id?: string
+          p256dh?: string
+          ultimo_envio?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       receitas: {
         Row: {
           cliente_email: string | null
           cliente_id: string | null
           cliente_nome: string | null
           criado_em: string
+          crm_card_id: string | null
+          crm_conversa_id: string | null
           data: string
           data_fim_mentoria: string | null
           data_inicio_mentoria: string | null
@@ -1770,6 +1832,7 @@ export type Database = {
           lancado_por: string | null
           moeda_original: string | null
           observacao: string | null
+          origem_registro: string | null
           origens_venda: string[] | null
           plataforma: Database["public"]["Enums"]["plataforma_origem"]
           produto_categoria:
@@ -1795,6 +1858,8 @@ export type Database = {
           cliente_id?: string | null
           cliente_nome?: string | null
           criado_em?: string
+          crm_card_id?: string | null
+          crm_conversa_id?: string | null
           data: string
           data_fim_mentoria?: string | null
           data_inicio_mentoria?: string | null
@@ -1808,6 +1873,7 @@ export type Database = {
           lancado_por?: string | null
           moeda_original?: string | null
           observacao?: string | null
+          origem_registro?: string | null
           origens_venda?: string[] | null
           plataforma: Database["public"]["Enums"]["plataforma_origem"]
           produto_categoria?:
@@ -1833,6 +1899,8 @@ export type Database = {
           cliente_id?: string | null
           cliente_nome?: string | null
           criado_em?: string
+          crm_card_id?: string | null
+          crm_conversa_id?: string | null
           data?: string
           data_fim_mentoria?: string | null
           data_inicio_mentoria?: string | null
@@ -1846,6 +1914,7 @@ export type Database = {
           lancado_por?: string | null
           moeda_original?: string | null
           observacao?: string | null
+          origem_registro?: string | null
           origens_venda?: string[] | null
           plataforma?: Database["public"]["Enums"]["plataforma_origem"]
           produto_categoria?:
@@ -2136,7 +2205,7 @@ export type Database = {
       periodicidade: "Semanal" | "Quinzenal" | "Mensal"
       plataforma_origem: "Hotmart" | "Kiwify" | "Eduzz" | "Direto Pix" | "Outro"
       prioridade_despesa: "Alta" | "Média" | "Baixa"
-      produto_categoria: "Mentorias" | "Renovações" | "Digitais" | "Físicos"
+      produto_categoria: "Mentorias" | "Renovações" | "Digitais" | "Físicos" | "Consultorias"
       status_despesa: "A Vencer" | "Pago" | "Em Atraso" | "Parcialmente Pago"
       status_parcela: "Pendente" | "Quitado" | "Atraso" | "Parcialmente Pago"
       tipo_despesa: "Fixa" | "Variável"
@@ -2356,7 +2425,7 @@ export const Constants = {
       periodicidade: ["Semanal", "Quinzenal", "Mensal"],
       plataforma_origem: ["Hotmart", "Kiwify", "Eduzz", "Direto Pix", "Outro"],
       prioridade_despesa: ["Alta", "Média", "Baixa"],
-      produto_categoria: ["Mentorias", "Renovações", "Digitais", "Físicos"],
+      produto_categoria: ["Mentorias", "Renovações", "Digitais", "Físicos", "Consultorias"],
       status_despesa: ["A Vencer", "Pago", "Em Atraso", "Parcialmente Pago"],
       status_parcela: ["Pendente", "Quitado", "Atraso", "Parcialmente Pago"],
       tipo_despesa: ["Fixa", "Variável"],

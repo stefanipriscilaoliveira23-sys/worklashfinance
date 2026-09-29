@@ -66,7 +66,7 @@ export default function PipelineEditorDialog({
 
   const salvarNome = useMutation({
     mutationFn: async () => {
-      const { error } = await supabase.from("pipelines").update({ nome: nome.trim() }).eq("id", pipeline!.id);
+      const { error } = await supabase.from("pipelines_mentoradas").update({ nome: nome.trim() }).eq("id", pipeline!.id);
       if (error) throw error;
     },
     onSuccess: () => { invalidar(); toast.success("Pipeline atualizada"); },
@@ -75,7 +75,7 @@ export default function PipelineEditorDialog({
 
   const excluirPipeline = useMutation({
     mutationFn: async () => {
-      const { error } = await supabase.from("pipelines").delete().eq("id", pipeline!.id);
+      const { error } = await supabase.from("pipelines_mentoradas").delete().eq("id", pipeline!.id);
       if (error) throw error;
     },
     onSuccess: () => { invalidar(); toast.success("Pipeline excluída"); onClose(); },

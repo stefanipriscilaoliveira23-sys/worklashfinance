@@ -38,6 +38,8 @@ function round2(n: number): number {
 export interface ParcelaCalc {
   valorParcela: number;
   diasAtraso: number;
+  /** true = multa e juros foram perdoados nesta parcela */
+  isento: boolean;
   multa: number;
   juros: number;
   multaJuros: number;
@@ -46,17 +48,28 @@ export interface ParcelaCalc {
 }
 
 export function computeParcela(
-  detalhe: { valor_real?: number | null; valor_sugerido?: number | null; data_vencimento?: string | null; status?: string | null },
+  detalhe: {
+    valor_real?: number | null;
+    valor_sugerido?: number | null;
+    data_vencimento?: string | null;
+    status?: string | null;
+    /** Parcela perdoada: atrasou, mas não se cobra multa nem juros. */
+    encargos_isentos?: boolean | null;
+  },
   desconto = 0
 ): ParcelaCalc {
   const valorParcela = getInstallmentValue(detalhe);
   const dias = diasAtraso(detalhe.data_vencimento, detalhe.status);
-  const multa = calcularMulta(valorParcela, dias);
-  const juros = calcularJuros(valorParcela, dias);
+  const isento = detalhe.encargos_isentos === true;
+  // Os dias de atraso continuam aparecendo (é informação real), mas o dinheiro
+  // cobrado por eles vira zero.
+  const multa = isento ? 0 : calcularMulta(valorParcela, dias);
+  const juros = isento ? 0 : calcularJuros(valorParcela, dias);
   const valorTotalAtualizado = calcularValorTotalAtualizado(valorParcela, multa, juros, desconto);
   return {
     valorParcela,
     diasAtraso: dias,
+    isento,
     multa,
     juros,
     multaJuros: round2(multa + juros),
