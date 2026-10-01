@@ -20,6 +20,7 @@ export const MODULOS: ModuloDef[] = [
   { key: "/iscas", label: "Iscas", setor: "Comercial" },
   { key: "/produtos", label: "Nossos Produtos", setor: "Comercial" },
   { key: "/formularios", label: "Formulários", setor: "Comercial" },
+  { key: "/agenda-reels", label: "Agenda de Reels", setor: "Marketing" },
   { key: "/clientes", label: "Clientes", setor: "Clientes" },
   { key: "/agenda", label: "Agenda", setor: "Agenda" },
   { key: "/bi", label: "Business Intelligence", setor: "Administração" },

@@ -1,4 +1,4 @@
-import {
+import { CalendarClock,
   LayoutDashboard, DollarSign, CalendarCheck, Building2, User, Users, PartyPopper,
   Package, TrendingUp, BarChart3, Settings, LogOut, TrendingUp as Logo, FileSpreadsheet, PiggyBank, Home, Scale, GraduationCap, CalendarDays,
   MessageSquareText, ClipboardList, BookOpen, ListChecks, MessageSquare, Eye, Magnet } from "lucide-react";
@@ -41,6 +41,12 @@ const setores: Setor[] = [
       { title: "Iscas", url: "/iscas", icon: Magnet },
       { title: "Nossos Produtos", url: "/produtos", icon: Package },
       { title: "Formulários", url: "/formularios", icon: ClipboardList },
+    ],
+  },
+  {
+    setor: "Marketing",
+    items: [
+      { title: "Agenda de Reels", url: "/agenda-reels", icon: CalendarClock },
     ],
   },
   {
