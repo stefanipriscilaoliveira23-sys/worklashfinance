@@ -38,16 +38,16 @@ async function chamar(corpo) {
   return j;
 }
 
-/** WhatsApp lida melhor com jpg/png; webp, heic etc. viram jpg pelo sips do Mac */
+/** WhatsApp lida melhor com jpg/png; webp, heic etc. viram jpg pelo sips do Mac (no Windows vai como está) */
 function prepararImagem(caminho) {
   const ext = extname(caminho).toLowerCase();
   let arquivo = caminho;
-  if (![".jpg", ".jpeg", ".png"].includes(ext) && [".webp", ".heic", ".heif", ".tiff", ".gif", ".bmp"].includes(ext)) {
+  if (process.platform === "darwin" && [".webp", ".heic", ".heif", ".tiff", ".gif", ".bmp"].includes(ext)) {
     arquivo = join(mkdtempSync(join(tmpdir(), "campanha-")), basename(caminho, ext) + ".jpg");
     execFileSync("sips", ["-s", "format", "jpeg", "-s", "formatOptions", "90", caminho, "--out", arquivo], { stdio: "ignore" });
   }
   const e = extname(arquivo).toLowerCase();
-  const mime = { ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png", ".mp4": "video/mp4", ".mov": "video/quicktime", ".pdf": "application/pdf", ".mp3": "audio/mpeg", ".ogg": "audio/ogg" }[e] ?? "application/octet-stream";
+  const mime = { ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png", ".webp": "image/webp", ".mp4": "video/mp4", ".mov": "video/quicktime", ".pdf": "application/pdf", ".mp3": "audio/mpeg", ".ogg": "audio/ogg" }[e] ?? "application/octet-stream";
   return { base64: readFileSync(arquivo).toString("base64"), nome: basename(arquivo), mime };
 }
 
