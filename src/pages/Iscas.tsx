@@ -13,23 +13,23 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { Copy, ExternalLink, LayoutDashboard, Loader2, Magnet, Pencil, Plus, Trash2, Users } from "lucide-react";
+import { Copy, Eye, EyeOff, ExternalLink, KeyRound, LayoutDashboard, Loader2, Magnet, Pencil, Plus, Trash2, Users } from "lucide-react";
 
 const TIPOS = ["Quiz", "Desafio", "Calculadora", "Página de captura", "IA de presente", "Aula / apresentação", "Material / PDF", "Artefato"];
 const STATUS = ["Ativa", "Exclusiva", "Pausada", "Encerrada"];
 
 type Isca = {
   id: string; titulo: string; tipo: string; descricao: string | null; url: string;
-  painel_url: string | null; tabela_leads: string | null; onde_caem_leads: string | null;
+  painel_url: string | null; painel_senha: string | null; tabela_leads: string | null; onde_caem_leads: string | null;
   status: string; ordem: number;
 };
 
 type Form = {
   id?: string; titulo: string; tipo: string; descricao: string; url: string;
-  painel_url: string; onde_caem_leads: string; status: string; ordem: string;
+  painel_url: string; painel_senha: string; onde_caem_leads: string; status: string; ordem: string;
 };
 const vazio: Form = {
-  titulo: "", tipo: TIPOS[0], descricao: "", url: "", painel_url: "", onde_caem_leads: "", status: "Ativa", ordem: "0",
+  titulo: "", tipo: TIPOS[0], descricao: "", url: "", painel_url: "", painel_senha: "", onde_caem_leads: "", status: "Ativa", ordem: "0",
 };
 
 const corStatus: Record<string, string> = {
@@ -45,6 +45,7 @@ export default function Iscas() {
   const qc = useQueryClient();
   const [form, setForm] = useState<Form | null>(null);
   const [filtro, setFiltro] = useState<string>("Todas");
+  const [senhaVisivel, setSenhaVisivel] = useState<Record<string, boolean>>({});
 
   const { data: iscas, isLoading } = useQuery({
     queryKey: ["iscas"],
@@ -75,6 +76,7 @@ export default function Iscas() {
         descricao: form.descricao.trim() || null,
         url: form.url.trim(),
         painel_url: form.painel_url.trim() || null,
+        painel_senha: form.painel_senha.trim() || null,
         onde_caem_leads: form.onde_caem_leads.trim() || null,
         status: form.status,
         ordem: Number(form.ordem) || 0,
@@ -101,9 +103,9 @@ export default function Iscas() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const copiar = (url: string) => {
-    navigator.clipboard.writeText(url);
-    toast.success("Link copiado");
+  const copiar = (texto: string, aviso = "Link copiado") => {
+    navigator.clipboard.writeText(texto);
+    toast.success(aviso);
   };
 
   const lista = iscas ?? [];
@@ -169,6 +171,22 @@ export default function Iscas() {
                     ? <span><strong className="text-foreground">{total}</strong> {total === 1 ? "lead" : "leads"} · {i.onde_caem_leads}</span>
                     : <span>{i.onde_caem_leads ?? "Leads: não informado"}</span>}
                 </div>
+                {i.painel_senha && (
+                  <div className="flex items-center gap-1.5 rounded-md border border-border bg-muted/40 px-2 py-1 text-xs">
+                    <KeyRound className="h-3.5 w-3.5 text-muted-foreground" />
+                    <span className="text-muted-foreground">Senha do painel:</span>
+                    <span className="font-mono text-foreground">{senhaVisivel[i.id] ? i.painel_senha : "••••••••"}</span>
+                    <div className="ml-auto flex">
+                      <Button size="icon" variant="ghost" className="h-6 w-6" title={senhaVisivel[i.id] ? "Esconder" : "Mostrar"}
+                        onClick={() => setSenhaVisivel({ ...senhaVisivel, [i.id]: !senhaVisivel[i.id] })}>
+                        {senhaVisivel[i.id] ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                      </Button>
+                      <Button size="icon" variant="ghost" className="h-6 w-6" title="Copiar senha" onClick={() => copiar(i.painel_senha!, "Senha copiada")}>
+                        <Copy className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  </div>
+                )}
                 <div className="flex flex-wrap gap-2 pt-1">
                   <Button size="sm" asChild>
                     <a href={i.url} target="_blank" rel="noreferrer"><ExternalLink className="h-3.5 w-3.5 mr-1" /> Abrir</a>
@@ -184,7 +202,7 @@ export default function Iscas() {
                   <div className="ml-auto flex">
                     <Button size="icon" variant="ghost" className="h-8 w-8" title="Editar" onClick={() => setForm({
                       id: i.id, titulo: i.titulo, tipo: i.tipo, descricao: i.descricao ?? "", url: i.url,
-                      painel_url: i.painel_url ?? "", onde_caem_leads: i.onde_caem_leads ?? "", status: i.status, ordem: String(i.ordem),
+                      painel_url: i.painel_url ?? "", painel_senha: i.painel_senha ?? "", onde_caem_leads: i.onde_caem_leads ?? "", status: i.status, ordem: String(i.ordem),
                     })}>
                       <Pencil className="h-3.5 w-3.5" />
                     </Button>
@@ -241,6 +259,10 @@ export default function Iscas() {
               <div className="space-y-1.5">
                 <Label className="text-xs">Link do painel (opcional)</Label>
                 <Input placeholder="https://" value={form.painel_url} onChange={(e) => setForm({ ...form, painel_url: e.target.value })} />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Senha do painel (opcional)</Label>
+                <Input value={form.painel_senha} onChange={(e) => setForm({ ...form, painel_senha: e.target.value })} />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
