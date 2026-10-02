@@ -1,7 +1,7 @@
 import { CalendarClock,
   LayoutDashboard, DollarSign, CalendarCheck, Building2, User, Users, PartyPopper,
   Package, TrendingUp, BarChart3, Settings, LogOut, TrendingUp as Logo, FileSpreadsheet, PiggyBank, Home, Scale, GraduationCap, CalendarDays,
-  MessageSquareText, ClipboardList, BookOpen, ListChecks, MessageSquare, Eye, Magnet } from "lucide-react";
+  MessageSquareText, ClipboardList, BookOpen, ListChecks, MessageSquare, Eye, Magnet, Megaphone } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useAuth, isAdmin } from "@/contexts/AuthContext";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -47,6 +47,7 @@ const setores: Setor[] = [
     setor: "Marketing",
     items: [
       { title: "Agenda de Reels", url: "/agenda-reels", icon: CalendarClock },
+      { title: "Campanhas", url: "/campanhas", icon: Megaphone },
     ],
   },
   {

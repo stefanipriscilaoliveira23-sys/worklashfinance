@@ -286,6 +286,131 @@ export type Database = {
         }
         Relationships: []
       }
+      campanha_grupos: {
+        Row: {
+          ativo: boolean
+          criado_em: string
+          id: string
+          jid: string | null
+          nome: string
+        }
+        Insert: {
+          ativo?: boolean
+          criado_em?: string
+          id?: string
+          jid?: string | null
+          nome: string
+        }
+        Update: {
+          ativo?: boolean
+          criado_em?: string
+          id?: string
+          jid?: string | null
+          nome?: string
+        }
+        Relationships: []
+      }
+      campanha_mensagens: {
+        Row: {
+          atualizado_em: string
+          campanha_id: string
+          criado_em: string
+          dia: string
+          enviado_em: string | null
+          erro: string | null
+          grupos: string[] | null
+          hora: string
+          id: string
+          midia_tipo: string | null
+          midia_url: string | null
+          ordem: number
+          pausada: boolean
+          status: string
+          texto: string
+          titulo: string
+        }
+        Insert: {
+          atualizado_em?: string
+          campanha_id: string
+          criado_em?: string
+          dia: string
+          enviado_em?: string | null
+          erro?: string | null
+          grupos?: string[] | null
+          hora?: string
+          id?: string
+          midia_tipo?: string | null
+          midia_url?: string | null
+          ordem?: number
+          pausada?: boolean
+          status?: string
+          texto?: string
+          titulo?: string
+        }
+        Update: {
+          atualizado_em?: string
+          campanha_id?: string
+          criado_em?: string
+          dia?: string
+          enviado_em?: string | null
+          erro?: string | null
+          grupos?: string[] | null
+          hora?: string
+          id?: string
+          midia_tipo?: string | null
+          midia_url?: string | null
+          ordem?: number
+          pausada?: boolean
+          status?: string
+          texto?: string
+          titulo?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campanha_mensagens_campanha_id_fkey"
+            columns: ["campanha_id"]
+            isOneToOne: false
+            referencedRelation: "campanhas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      campanhas: {
+        Row: {
+          atualizado_em: string
+          cor: string
+          criado_em: string
+          data_fim: string | null
+          data_inicio: string | null
+          descricao: string
+          id: string
+          oferta: string
+          status: string
+        }
+        Insert: {
+          atualizado_em?: string
+          cor?: string
+          criado_em?: string
+          data_fim?: string | null
+          data_inicio?: string | null
+          descricao?: string
+          id?: string
+          oferta: string
+          status?: string
+        }
+        Update: {
+          atualizado_em?: string
+          cor?: string
+          criado_em?: string
+          data_fim?: string | null
+          data_inicio?: string | null
+          descricao?: string
+          id?: string
+          oferta?: string
+          status?: string
+        }
+        Relationships: []
+      }
       cliente_documentos: {
         Row: {
           cliente_id: string
