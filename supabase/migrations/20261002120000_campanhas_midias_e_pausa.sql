@@ -14,3 +14,8 @@ create policy campanhas_midias_escritorio on storage.objects
 -- marca as mensagens que estavam agendadas quando a campanha foi pausada,
 -- pra o Retomar devolver só essas (e não os rascunhos de verdade)
 alter table public.campanha_mensagens add column if not exists pausada boolean not null default false;
+
+-- Disparo (02/10/2026, migration campanhas_disparo_uazapi no apps-ste):
+-- campanha_config (uazapi_base, uazapi_token da instância Worklash/1388, cron_segredo; RLS sem policy)
+-- campanha_envios (uma linha por mensagem x grupo, unique (mensagem_id, jid))
+-- cron "campanhas-disparo" a cada minuto chama a edge function campanhas-disparo

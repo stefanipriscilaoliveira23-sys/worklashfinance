@@ -104,7 +104,7 @@ export default function Campanhas() {
 
       <p className="flex items-start gap-2 rounded-lg border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
         <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-        O envio automático ainda não está ligado. As mensagens agendadas ficam prontas para o disparo.
+        Envio automático ligado: na hora marcada, as mensagens agendadas saem pelo WhatsApp da Worklash (1388), um grupo de cada vez, com alguns segundos entre um e outro.
       </p>
 
       {l1 || l2 ? (

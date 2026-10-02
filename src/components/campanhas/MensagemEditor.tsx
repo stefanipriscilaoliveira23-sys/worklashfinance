@@ -151,7 +151,8 @@ export function MensagemEditor({ alvo, onClose, onAbrir, campanhas, grupos, mens
   };
 
   const ativos = grupos.filter((g) => g.ativo);
-  const outros = grupos.filter((g) => !g.ativo && f?.grupos?.includes(g.id));
+  // inativo não entra em "Todos os grupos", mas dá pra escolher à mão (ex.: grupo de teste)
+  const outros = grupos.filter((g) => !g.ativo);
 
   return (
     <Dialog open={!!alvo} onOpenChange={(o) => !o && onClose()}>
