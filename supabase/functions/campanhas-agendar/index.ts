@@ -4,7 +4,7 @@
 //
 // POST { acao: "agendar", oferta, texto, dia: "AAAA-MM-DD", hora: "HH:MM", titulo?, descricao?,
 //        imagem?: { base64, nome, mime }, midia_url?, grupos?: "todos" | "teste" | string[] (nomes),
-//        rascunho?: boolean }
+//        rascunho?: boolean, contatos?: [{ nome, numero }] }   (contatos = disparo no privado, sem grupos)
 // POST { acao: "listar" }                 -> mensagens agendadas de hoje em diante
 // POST { acao: "cancelar", mensagem_id }  -> status cancelada (só se ainda não começou a sair)
 import { createClient } from "npm:@supabase/supabase-js@2";
@@ -45,16 +45,21 @@ Deno.serve(async (req) => {
 
     if (b.acao === "listar") {
       const { data, error } = await db.from("campanha_mensagens")
-        .select("id, dia, hora, titulo, status, grupos, midia_tipo, texto, campanhas(oferta)")
+        .select("id, dia, hora, titulo, status, grupos, contatos, midia_tipo, texto, campanhas(oferta)")
         .gte("dia", hoje).in("status", ["agendada", "rascunho", "erro"]).order("dia").order("hora");
       if (error) throw error;
-      return json({ ok: true, mensagens: (data ?? []).map((m) => ({ ...m, texto: m.texto.slice(0, 80) })) });
+      return json({
+        ok: true,
+        mensagens: (data ?? []).map((m) => ({
+          ...m, texto: m.texto.slice(0, 80), contatos: Array.isArray(m.contatos) ? m.contatos.length : null,
+        })),
+      });
     }
 
     if (b.acao === "cancelar") {
       const { count } = await db.from("campanha_envios").select("id", { count: "exact", head: true })
         .eq("mensagem_id", b.mensagem_id).neq("status", "pendente");
-      if (count) return json({ erro: "Essa mensagem já começou a sair nos grupos. Não dá para cancelar o que já foi." }, 409);
+      if (count) return json({ erro: "Essa mensagem já começou a sair. Não dá para cancelar o que já foi." }, 409);
       const { data, error } = await db.from("campanha_mensagens").update({ status: "cancelada" }).eq("id", b.mensagem_id).select("id, dia, hora");
       if (error) throw error;
       await db.from("campanha_envios").delete().eq("mensagem_id", b.mensagem_id).eq("status", "pendente");
@@ -74,11 +79,18 @@ Deno.serve(async (req) => {
     const status = b.rascunho ? "rascunho" : "agendada";
     if (status === "agendada" && `${dia} ${hora}` <= agoraBR()) return json({ erro: `Esse horário já passou (agora são ${agoraBR().slice(11)} em Brasília)` }, 400);
 
-    // ---------- grupos ----------
+    // ---------- destino: contatos no privado ou grupos ----------
     const { data: grupos } = await db.from("campanha_grupos").select("id, nome, jid, ativo");
     let gruposIds: string[] | null = null;
     let destino: string[];
-    if (!b.grupos || b.grupos === "todos") {
+    let contatos: { nome: string; numero: string }[] | null = null;
+    if (Array.isArray(b.contatos)) {
+      contatos = b.contatos
+        .map((c: { nome?: string; numero?: string }) => ({ nome: String(c?.nome ?? "").trim(), numero: String(c?.numero ?? "").trim() }))
+        .filter((c: { numero: string }) => c.numero);
+      if (!contatos!.length) return json({ erro: "A lista de contatos está vazia" }, 400);
+      destino = contatos!.map((c) => c.nome || c.numero);
+    } else if (!b.grupos || b.grupos === "todos") {
       destino = (grupos ?? []).filter((g) => g.ativo && g.jid).map((g) => g.nome);
     } else {
       const nomes: string[] = b.grupos === "teste" ? ["Marketing Ste (teste)"] : b.grupos;
@@ -106,7 +118,7 @@ Deno.serve(async (req) => {
     let midia_url: string | null = b.midia_url ?? null;
     let midia_tipo: string | null = midia_url ? tipoDaMidia(midia_url) : null;
     if (b.imagem?.base64) {
-      const nome = String(b.imagem.nome ?? "midia.jpg").normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^\w.-]+/g, "-");
+      const nome = String(b.imagem.nome ?? "midia.jpg").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^\w.-]+/g, "-");
       const path = `${campanha.id}/${Date.now()}-${nome}`;
       const { error } = await db.storage.from("campanhas").upload(path, decodeBase64(b.imagem.base64), { contentType: b.imagem.mime || undefined });
       if (error) throw error;
@@ -118,7 +130,7 @@ Deno.serve(async (req) => {
       .eq("campanha_id", campanha.id).eq("dia", dia);
     const { data: msg, error: eMsg } = await db.from("campanha_mensagens").insert({
       campanha_id: campanha.id, dia, hora, ordem: ordem ?? 0, titulo: b.titulo ?? "", texto,
-      midia_url, midia_tipo, grupos: gruposIds, status,
+      midia_url, midia_tipo, grupos: gruposIds, contatos, status,
     }).select("id").single();
     if (eMsg) throw eMsg;
 
@@ -128,7 +140,7 @@ Deno.serve(async (req) => {
     const fim = campanha.data_fim && campanha.data_fim > dia ? campanha.data_fim : dia;
     await db.from("campanhas").update({ data_inicio: ini, data_fim: fim }).eq("id", campanha.id);
 
-    return json({ ok: true, status, campanha: oferta, campanha_id: campanha.id, mensagem_id: msg.id, dia, hora, midia_url, grupos: destino });
+    return json({ ok: true, status, campanha: oferta, campanha_id: campanha.id, mensagem_id: msg.id, dia, hora, midia_url, grupos: destino, privado: !!contatos });
   } catch (err) {
     console.error(err);
     return json({ ok: false, erro: (err as Error).message ?? String(err) }, 500);

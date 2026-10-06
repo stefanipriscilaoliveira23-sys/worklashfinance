@@ -333,7 +333,7 @@ function DuplicarDialog({ campanha, msgs, inicio, onClose, onPronta }: {
       if (msgs.length) {
         const { error: e2 } = await supabase.from("campanha_mensagens").insert(msgs.map((m) => ({
           campanha_id: nova.id, dia: mover(m.dia)!, hora: m.hora, ordem: m.ordem, titulo: m.titulo, texto: m.texto,
-          midia_url: m.midia_url, midia_tipo: m.midia_tipo, grupos: m.grupos, status: "rascunho",
+          midia_url: m.midia_url, midia_tipo: m.midia_tipo, grupos: m.grupos, contatos: m.contatos, status: "rascunho",
         })));
         if (e2) {
           await supabase.from("campanhas").delete().eq("id", nova.id);

@@ -7,6 +7,10 @@
 //    Cada envio é "reservado" (pendente -> enviando) antes de mandar, então duas chamadas
 //    ao mesmo tempo nunca mandam o mesmo envio.
 // 3. Mensagem com todos os grupos resolvidos vira "enviada" (ou "erro", com o resumo).
+//
+// Disparo no privado (campanha_mensagens.contatos preenchido): a mensagem vai para cada contato da
+// lista em vez dos grupos. Para o número não ser bloqueado, sai no máximo 1 conversa privada por
+// chamada, com pelo menos 1 minuto desde a anterior e às vezes pulando uma rodada (≈ 1 a cada 1-2 min).
 import { createClient } from "npm:@supabase/supabase-js@2";
 
 const TZ = "America/Sao_Paulo";
@@ -14,6 +18,13 @@ const ORCAMENTO_MS = 50_000;
 const INTERVALO_MIN_MS = 3_000;
 const INTERVALO_MAX_MS = 7_000;
 const ATRASO_MAXIMO_MIN = 120; // passou disso sem começar, não manda (evita oferta velha sair do nada)
+const PRIVADO_INTERVALO_MIN_MS = 60_000;
+const PRIVADO_CHANCE_PULAR = 0.35;
+
+const ehGrupo = (jid: string) => jid.endsWith("@g.us");
+
+/** número cru, @s.whatsapp.net ou JID: tudo vira "só dígitos@s.whatsapp.net" */
+const jidPrivado = (n: string) => n.includes("@") ? n : `${n.replace(/\D/g, "")}@s.whatsapp.net`;
 
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
@@ -47,7 +58,7 @@ Deno.serve(async (req) => {
 
     // ---------- 1. prepara os envios das mensagens que chegaram na hora ----------
     const { data: agendadas, error: e1 } = await db.from("campanha_mensagens")
-      .select("id, dia, hora, grupos, atualizado_em, campanhas!inner(status)")
+      .select("id, dia, hora, grupos, contatos, atualizado_em, campanhas!inner(status)")
       .eq("status", "agendada").lte("dia", hoje);
     if (e1) throw e1;
 
@@ -70,9 +81,15 @@ Deno.serve(async (req) => {
         continue;
       }
 
-      const alvo = (grupos ?? []).filter((g) => g.jid && (m.grupos ? m.grupos.includes(g.id) : g.ativo));
+      // deno-lint-ignore no-explicit-any
+      const contatos = Array.isArray(m.contatos) ? (m.contatos as any[]).filter((c) => c?.numero) : null;
+      const alvo = contatos
+        ? contatos.map((c) => ({ id: null, nome: String(c.nome || c.numero), jid: jidPrivado(String(c.numero)) }))
+        : (grupos ?? []).filter((g) => g.jid && (m.grupos ? m.grupos.includes(g.id) : g.ativo));
       if (alvo.length === 0) {
-        await db.from("campanha_mensagens").update({ status: "erro", erro: "Nenhum grupo de destino com endereço (JID) cadastrado." }).eq("id", m.id);
+        await db.from("campanha_mensagens").update({
+          status: "erro", erro: contatos ? "A lista de contatos está vazia." : "Nenhum grupo de destino com endereço (JID) cadastrado.",
+        }).eq("id", m.id);
         continue;
       }
       await db.from("campanha_envios").upsert(
@@ -87,20 +104,28 @@ Deno.serve(async (req) => {
 
     // ---------- 2. manda os pendentes ----------
     const resultado = { enviados: 0, erros: 0 };
+    // privado: só libera 1 nesta chamada se o último saiu há mais de 1 min (e às vezes pula a rodada)
+    const { data: ultPriv } = await db.from("campanha_envios").select("tentado_em")
+      .not("jid", "like", "%@g.us").not("tentado_em", "is", null).order("tentado_em", { ascending: false }).limit(1);
+    const desdeUltimo = ultPriv?.[0]?.tentado_em ? Date.now() - Date.parse(ultPriv[0].tentado_em) : Infinity;
+    let privadoLiberado = desdeUltimo >= PRIVADO_INTERVALO_MIN_MS && Math.random() >= PRIVADO_CHANCE_PULAR;
     while (Date.now() - inicio < ORCAMENTO_MS) {
       const { data: pend, error: e3 } = await db.from("campanha_envios")
         .select("id, jid, grupo_nome, mensagem_id, campanha_mensagens!inner(dia, hora, ordem, texto, midia_url, midia_tipo, status)")
         .eq("status", "pendente").eq("campanha_mensagens.status", "agendada").limit(200);
       if (e3) throw e3;
-      if (!pend?.length) break;
+      const fila = (pend ?? []).filter((x) => privadoLiberado || ehGrupo(x.jid));
+      if (!fila.length) break;
 
       // mesmo horário: grupo por grupo, e dentro do grupo na ordem das mensagens
       // deno-lint-ignore no-explicit-any
       const msg = (x: any) => x.campanha_mensagens;
-      pend.sort((a, b) =>
+      fila.sort((a, b) =>
         `${msg(a).dia} ${msg(a).hora}`.localeCompare(`${msg(b).dia} ${msg(b).hora}`) ||
         a.grupo_nome.localeCompare(b.grupo_nome) || msg(a).ordem - msg(b).ordem);
-      const e = pend[0];
+      const e = fila[0];
+      const privado = !ehGrupo(e.jid);
+      if (privado) privadoLiberado = false;
       const m = msg(e);
 
       const { data: reservado } = await db.from("campanha_envios")
@@ -114,6 +139,9 @@ Deno.serve(async (req) => {
           ...(m.midia_tipo === "documento" ? { docName: decodeURIComponent(m.midia_url.split("/").pop()!.split("?")[0]) } : {}),
         }
         : { number: e.jid, text: m.texto, linkPreview: true };
+      // no privado aparece "digitando..." por alguns segundos antes de chegar, como gente
+      // deno-lint-ignore no-explicit-any
+      if (privado) (corpo as any).delay = 2_000 + Math.floor(Math.random() * 4_000);
 
       let ok = false, erro = "", wid: string | null = null;
       try {
@@ -138,7 +166,7 @@ Deno.serve(async (req) => {
         : { status: "erro", erro }).eq("id", e.id);
       ok ? resultado.enviados++ : resultado.erros++;
 
-      if (Date.now() - inicio < ORCAMENTO_MS) await dormir(INTERVALO_MIN_MS + Math.random() * (INTERVALO_MAX_MS - INTERVALO_MIN_MS));
+      if (!privado && Date.now() - inicio < ORCAMENTO_MS) await dormir(INTERVALO_MIN_MS + Math.random() * (INTERVALO_MAX_MS - INTERVALO_MIN_MS));
     }
 
     // ---------- 3. fecha as mensagens ----------
@@ -149,14 +177,14 @@ Deno.serve(async (req) => {
     const { data: abertas } = await db.from("campanha_mensagens").select("id, campanha_id").eq("status", "agendada").lte("dia", hoje);
     const campanhasMexidas = new Set<string>();
     for (const m of abertas ?? []) {
-      const { data: env } = await db.from("campanha_envios").select("status, grupo_nome, erro, enviado_em").eq("mensagem_id", m.id);
+      const { data: env } = await db.from("campanha_envios").select("status, grupo_nome, jid, erro, enviado_em").eq("mensagem_id", m.id);
       if (!env?.length || env.some((x) => x.status === "pendente" || x.status === "enviando")) continue;
       const falhas = env.filter((x) => x.status === "erro");
       const ultimo = env.map((x) => x.enviado_em).filter(Boolean).sort().pop() ?? new Date().toISOString();
       await db.from("campanha_mensagens").update(falhas.length
         ? {
           status: "erro", enviado_em: ultimo,
-          erro: `${falhas.length} de ${env.length} grupos falharam: ` + falhas.map((f) => `${f.grupo_nome} (${f.erro})`).join("; ").slice(0, 900),
+          erro: `${falhas.length} de ${env.length} ${env.some((x) => ehGrupo(x.jid ?? "")) ? "grupos" : "contatos"} falharam: ` + falhas.map((f) => `${f.grupo_nome} (${f.erro})`).join("; ").slice(0, 900),
         }
         : { status: "enviada", enviado_em: ultimo, erro: null }).eq("id", m.id);
       campanhasMexidas.add(m.campanha_id);

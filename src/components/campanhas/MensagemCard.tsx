@@ -1,7 +1,7 @@
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { FileText, Film, Mic, PauseCircle, Users } from "lucide-react";
-import { Campanha, Grupo, Mensagem, STATUS_MSG, hhmm, rotuloGrupos } from "./shared";
+import { FileText, Film, MessageCircle, Mic, PauseCircle, Users } from "lucide-react";
+import { Campanha, Grupo, Mensagem, STATUS_MSG, contatosDa, hhmm, rotuloContatos, rotuloGrupos } from "./shared";
 
 type Props = { m: Mensagem; campanha?: Campanha; grupos: Grupo[]; onClick: () => void };
 
@@ -17,6 +17,7 @@ function Miniatura({ m }: { m: Mensagem }) {
 export function MensagemCard({ m, campanha, grupos, onClick }: Props) {
   const st = STATUS_MSG[m.status] ?? { rotulo: m.status, cor: "" };
   const nomesGrupos = m.grupos?.map((id) => grupos.find((g) => g.id === id)?.nome ?? "grupo removido");
+  const contatos = contatosDa(m);
   const badge = <Badge variant="outline" className={`text-[11px] ${st.cor}`}>{st.rotulo}</Badge>;
 
   return (
@@ -41,9 +42,15 @@ export function MensagemCard({ m, campanha, grupos, onClick }: Props) {
           {m.pausada && (
             <span className="flex items-center gap-1 text-[11px] text-amber-500"><PauseCircle className="h-3 w-3" /> pausada</span>
           )}
-          <span className="flex items-center gap-1 text-[11px] text-muted-foreground" title={nomesGrupos?.join(", ")}>
-            <Users className="h-3 w-3" /> {rotuloGrupos(m.grupos)}
-          </span>
+          {contatos ? (
+            <span className="flex items-center gap-1 text-[11px] text-muted-foreground" title={contatos.map((c) => c.nome || c.numero).join(", ")}>
+              <MessageCircle className="h-3 w-3" /> {rotuloContatos(contatos)}
+            </span>
+          ) : (
+            <span className="flex items-center gap-1 text-[11px] text-muted-foreground" title={nomesGrupos?.join(", ")}>
+              <Users className="h-3 w-3" /> {rotuloGrupos(m.grupos)}
+            </span>
+          )}
         </div>
         {m.titulo && <h3 className={`font-semibold leading-tight ${m.status === "cancelada" ? "line-through" : ""}`}>{m.titulo}</h3>}
         {m.texto ? (

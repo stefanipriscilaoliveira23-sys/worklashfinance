@@ -13,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Copy, CopyPlus, Loader2, Trash2, Upload, X } from "lucide-react";
 import { WhatsAppPreview } from "./WhatsAppPreview";
 import {
-  BUCKET, Campanha, Grupo, MIDIA_TIPOS, Mensagem, STATUS_MSG, agoraBR, detectarTipo, hojeBR,
+  BUCKET, Campanha, Grupo, MIDIA_TIPOS, Mensagem, STATUS_MSG, agoraBR, contatosDa, detectarTipo, hojeBR, rotuloContatos,
 } from "./shared";
 
 type Form = {
@@ -241,6 +241,22 @@ export function MensagemEditor({ alvo, onClose, onAbrir, campanhas, grupos, mens
                 </div>
               </div>
 
+              {alvo.mensagem && contatosDa(alvo.mensagem) ? (
+              <div className="space-y-2">
+                <Label>Disparo no privado · {rotuloContatos(contatosDa(alvo.mensagem)!)}</Label>
+                <p className="text-xs text-muted-foreground">
+                  Sai do WhatsApp da Worklash, uma conversa a cada 1 a 2 minutos. Não vai para os grupos.
+                </p>
+                <div className="max-h-48 space-y-1 overflow-y-auto rounded-lg border border-border p-3 text-sm">
+                  {contatosDa(alvo.mensagem)!.map((c) => (
+                    <div key={c.numero} className="flex justify-between gap-2">
+                      <span className="truncate">{c.nome || "Sem nome"}</span>
+                      <span className="shrink-0 text-xs tabular-nums text-muted-foreground">{c.numero.split("@")[0]}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              ) : (
               <div className="space-y-2">
                 <Label>Grupos</Label>
                 <label className="flex items-center gap-2 text-sm">
@@ -265,6 +281,7 @@ export function MensagemEditor({ alvo, onClose, onAbrir, campanhas, grupos, mens
                   </div>
                 )}
               </div>
+              )}
             </fieldset>
 
             <div className="space-y-2">

@@ -75,6 +75,14 @@ export function rotuloPeriodo(c: Campanha, msgs: Mensagem[]) {
 export const rotuloGrupos = (g: string[] | null) =>
   !g ? "Todos os grupos" : `${g.length} ${g.length === 1 ? "grupo" : "grupos"}`;
 
+export type ContatoPrivado = { nome: string; numero: string };
+
+/** Disparo no privado: a mensagem vai para esta lista em vez dos grupos */
+export const contatosDa = (m: Pick<Mensagem, "contatos">): ContatoPrivado[] | null =>
+  Array.isArray(m.contatos) ? (m.contatos as ContatoPrivado[]) : null;
+
+export const rotuloContatos = (c: ContatoPrivado[]) => `${c.length} ${c.length === 1 ? "contato" : "contatos"} no privado`;
+
 export function detectarTipo(nomeOuUrl: string, mime?: string): Mensagem["midia_tipo"] {
   const m = (mime ?? "").toLowerCase();
   if (m.startsWith("image/")) return "imagem";

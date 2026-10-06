@@ -314,6 +314,7 @@ export type Database = {
         Row: {
           atualizado_em: string
           campanha_id: string
+          contatos: Json | null
           criado_em: string
           dia: string
           enviado_em: string | null
@@ -332,6 +333,7 @@ export type Database = {
         Insert: {
           atualizado_em?: string
           campanha_id: string
+          contatos?: Json | null
           criado_em?: string
           dia: string
           enviado_em?: string | null
@@ -350,6 +352,7 @@ export type Database = {
         Update: {
           atualizado_em?: string
           campanha_id?: string
+          contatos?: Json | null
           criado_em?: string
           dia?: string
           enviado_em?: string | null

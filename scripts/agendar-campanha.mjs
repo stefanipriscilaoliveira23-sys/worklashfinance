@@ -5,6 +5,7 @@
 // Uso:
 //   node scripts/agendar-campanha.mjs agendar --oferta "Nome da oferta" --dia 2026-10-03 --hora 16:00 \
 //        --texto copy.txt [--imagem arte.jpg] [--titulo "..."] [--grupos todos|teste|"Nome 1;Nome 2"] [--rascunho]
+//        [--contatos lista.json]   -> disparo no PRIVADO: [{ "nome": "...", "numero": "5518..." }], sem grupos
 //   node scripts/agendar-campanha.mjs listar
 //   node scripts/agendar-campanha.mjs cancelar <mensagem_id>
 //
@@ -55,7 +56,7 @@ if (acao === "listar") {
   const { mensagens } = await chamar({ acao: "listar" });
   if (!mensagens.length) console.log("Nada agendado de hoje em diante.");
   for (const m of mensagens) {
-    console.log(`${m.dia} ${m.hora.slice(0, 5)}  [${m.status}]  ${m.campanhas?.oferta}  ${m.titulo ? `· ${m.titulo}` : ""}  ${m.grupos ? `${m.grupos.length} grupo(s)` : "todos os grupos"}  ${m.midia_tipo ?? "só texto"}  id=${m.id}`);
+    console.log(`${m.dia} ${m.hora.slice(0, 5)}  [${m.status}]  ${m.campanhas?.oferta}  ${m.titulo ? `· ${m.titulo}` : ""}  ${m.contatos != null ? `${m.contatos} contato(s) no privado` : m.grupos ? `${m.grupos.length} grupo(s)` : "todos os grupos"}  ${m.midia_tipo ?? "só texto"}  id=${m.id}`);
   }
 } else if (acao === "cancelar") {
   const id = resto[0];
@@ -75,10 +76,11 @@ if (acao === "listar") {
     descricao: args.descricao ?? "",
     grupos,
     rascunho: !!args.rascunho,
+    ...(args.contatos ? { contatos: JSON.parse(readFileSync(args.contatos, "utf8")) } : {}),
     ...(args.imagem ? { imagem: prepararImagem(args.imagem) } : {}),
   });
   console.log(`${r.status === "agendada" ? "AGENDADA" : "RASCUNHO"}: "${r.campanha}" em ${r.dia} às ${r.hora}`);
-  console.log(`Grupos (${r.grupos.length}): ${r.grupos.join(", ")}`);
+  console.log(`${r.privado ? "Contatos no privado" : "Grupos"} (${r.grupos.length}): ${r.grupos.join(", ")}`);
   if (r.midia_url) console.log(`Mídia: ${r.midia_url}`);
   console.log(`mensagem_id=${r.mensagem_id}`);
 } else {
