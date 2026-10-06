@@ -13,6 +13,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { AlertTriangle, Loader2, ArrowRight, ArrowLeft, Plus, Trash2 } from "lucide-react";
 import { format, addDays } from "date-fns";
 import { ClienteAutocomplete } from "@/components/receitas/ClienteAutocomplete";
+import { SeletorVariacoes } from "@/components/receitas/SeletorVariacoes";
+import { textoDaVariacao, variacoesFaltando, type Escolhas } from "@/lib/variacoes";
 import { formatCurrency } from "@/lib/format";
 import { addMeses, gerarTarefasDaEtapa } from "@/lib/mentoria";
 import type { Database } from "@/integrations/supabase/types";
@@ -47,6 +49,7 @@ interface ItemExtra {
   categoria: ProdutoCategoria;
   quantidade: number;
   valorUnit: number;
+  escolhas?: Escolhas;
 }
 
 
@@ -62,6 +65,7 @@ export function NovaReceitaModal({ open, onClose }: { open: boolean; onClose: ()
   // === DADOS DO PRODUTO ===
   const [produtoNome, setProdutoNome] = useState("");
   const [produtoId, setProdutoId] = useState<string | null>(null);
+  const [escolhas, setEscolhas] = useState<Escolhas>({});
   const [categoria, setCategoria] = useState<ProdutoCategoria>("Digitais");
   const [data, setData] = useState(format(new Date(), "yyyy-MM-dd"));
   // Data em que o dinheiro (entrada ou pagamento total) cai. Vazio = mesma da
@@ -124,6 +128,7 @@ export function NovaReceitaModal({ open, onClose }: { open: boolean; onClose: ()
       return data ?? [];
     },
   });
+  const produtoEscolhido = produtos?.find((p) => p.id === produtoId);
 
   // Quem já aparece como vendedor nas vendas. Serve de sugestão no campo:
   // digitado à mão, "Felipe" e "Felipe Reis" viram duas pessoas no placar.
@@ -291,6 +296,7 @@ export function NovaReceitaModal({ open, onClose }: { open: boolean; onClose: ()
     if (p) {
       setProdutoId(p.id);
       setProdutoNome(p.nome);
+      setEscolhas({});
       setCategoria(p.categoria);
       setTaxaPercent(p.custo_direto_percentual ?? 0);
     }
@@ -331,8 +337,13 @@ export function NovaReceitaModal({ open, onClose }: { open: boolean; onClose: ()
       // forma_pagamento: sempre concatenar as linhas (com taxa quando > 0)
       const formaPagamentoFinal = entradaFormaConcat || entradaLinhas[0]?.forma || null;
 
-      // Build observacao with payment details
-      let obsCompleta = observacao;
+      // Build observacao with payment details. Curvatura e caixinha dos fios
+      // entram aqui e não no nome do produto, pro relatório por produto bater.
+      const linhasDeVariacao = [
+        textoDaVariacao(produtoEscolhido, escolhas),
+        ...extrasValidos.map((i) => textoDaVariacao(produtos?.find((p) => p.id === i.produtoId), i.escolhas ?? {})),
+      ].filter(Boolean);
+      let obsCompleta = [...linhasDeVariacao, observacao].filter(Boolean).join("\n");
       if (dataPagamento && dataPagamento !== data) {
         const fmt = (d: string) => d.split("-").reverse().join("/");
         const aviso = `Venda em ${fmt(data)}. Pagamento (${isMentoria && !isAvista ? "entrada" : "total"}) em ${fmt(dataPagamento)}.`;
@@ -563,9 +574,24 @@ export function NovaReceitaModal({ open, onClose }: { open: boolean; onClose: ()
     onError: (e) => toast.error("Erro: " + (e as Error).message),
   });
 
+  // Fio sem curvatura/caixinha não passa: a expedição não saberia o que mandar.
+  const faltandoVariacao = () => {
+    const faltando = variacoesFaltando(produtoEscolhido, escolhas);
+    if (!isMentoria) {
+      itensExtras.forEach((i, idx) => {
+        if (!i.produtoId) return;
+        variacoesFaltando(produtos?.find((p) => p.id === i.produtoId), i.escolhas ?? {}).forEach((n) =>
+          faltando.push(`${n} do item ${idx + 2}`),
+        );
+      });
+    }
+    return faltando;
+  };
+
   const handleSubmit = () => {
     const erros: string[] = [];
     if (!produtoId) erros.push("Produto");
+    erros.push(...faltandoVariacao());
     if (!clienteNome) erros.push("Nome do cliente");
     if (!clienteEmail) erros.push("Email do cliente");
     // Sem vendedor, o placar da equipe não fecha: em setembro de 2026,
@@ -601,6 +627,7 @@ export function NovaReceitaModal({ open, onClose }: { open: boolean; onClose: ()
   const canGoStep2 = () => {
     const erros: string[] = [];
     if (!produtoId) erros.push("Produto");
+    erros.push(...faltandoVariacao());
     if (!clienteNome) erros.push("Nome do cliente");
     if (!clienteEmail) erros.push("Email do cliente");
     // Sem vendedor, o placar da equipe não fecha: em setembro de 2026,
@@ -705,11 +732,14 @@ export function NovaReceitaModal({ open, onClose }: { open: boolean; onClose: ()
                 </Select>
               </div>
 
+              <SeletorVariacoes produto={produtoEscolhido} escolhas={escolhas} onChange={setEscolhas} />
+
               {/* Itens adicionais da venda */}
               {!isMentoria && (
                 <div className="space-y-2">
                   {itensExtras.map((it, idx) => (
-                    <div key={idx} className="flex gap-2 items-end">
+                    <div key={idx} className="space-y-2">
+                    <div className="flex gap-2 items-end">
                       <div className="flex-[2] space-y-1">
                         <Label className="text-xs text-muted-foreground">Item adicional {idx + 2}</Label>
                         <Select
@@ -721,6 +751,7 @@ export function NovaReceitaModal({ open, onClose }: { open: boolean; onClose: ()
                               produtoNome: p?.nome ?? "",
                               categoria: (p?.categoria ?? categoria) as ProdutoCategoria,
                               valorUnit: it.valorUnit || Number(p?.preco_venda ?? 0),
+                              escolhas: {},
                             });
                           }}
                         >
@@ -741,6 +772,12 @@ export function NovaReceitaModal({ open, onClose }: { open: boolean; onClose: ()
                       <Button variant="ghost" size="icon" className="h-9 w-9 text-destructive shrink-0" onClick={() => removeItemExtra(idx)}>
                         <Trash2 className="h-4 w-4" />
                       </Button>
+                    </div>
+                    <SeletorVariacoes
+                      produto={produtos?.find((p) => p.id === it.produtoId)}
+                      escolhas={it.escolhas ?? {}}
+                      onChange={(e) => updateItemExtra(idx, { escolhas: e })}
+                    />
                     </div>
                   ))}
                   <Button type="button" variant="ghost" size="sm" onClick={addItemExtra} className="text-xs text-primary">

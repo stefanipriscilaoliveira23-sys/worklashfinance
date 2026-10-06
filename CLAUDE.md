@@ -9,7 +9,7 @@ Era feito no Lovable. Saiu de lá em 09/08/2026 e agora vive aqui.
 ## Onde está no ar
 
 - **Produção (Vercel):** https://escritorio-worklash.vercel.app
-- **Antigo (Lovable, ainda de pé):** https://worklashfinance.lovable.app
+- **Antigo (Lovable):** https://worklashfinance.lovable.app, **não é mais usado** (06/10/2026)
 - **Repositório:** https://github.com/stefanipriscilaoliveira23-sys/worklashfinance (branch `main`)
 
 ## Stack
@@ -27,9 +27,10 @@ O deploy é pela CLI, não pelo GitHub. A conta do Vercel não tem "login connec
 com o GitHub, então a integração automática não foi possível. Se ela conectar o
 GitHub no Vercel depois, dá pra trocar por deploy automático a cada push.
 
-O repositório continua sincronizado nos dois sentidos com o Lovable. Commit feito
-aqui aparece lá, e vice-versa. Isso não gasta crédito. O que gasta crédito é pedir
-alteração pro chat do Lovable, e é justamente isso que paramos de fazer.
+**O Lovable não é mais usado** (confirmado por ela em 06/10/2026). Toda alteração
+nasce aqui, vai pro GitHub e é publicada pelo Vercel. Não citar o Lovable como
+parte do fluxo. Se o projeto antigo de lá ainda estiver ligado a este repositório,
+ele só recebe os commits; ninguém edita por lá.
 
 ## Banco de dados
 
@@ -61,7 +62,7 @@ Ou seja: a migração é viável e sem pegadinha. Falta só a vaga no Supabase.
 
 `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`, `VITE_SUPABASE_PROJECT_ID`.
 Estão configuradas no Vercel (production, preview e development) e também no `.env`
-do repositório, que o Lovable mantém. Quando o banco mudar, tem que trocar **nos dois
+do repositório. Quando o banco mudar, tem que trocar **nos dois
 lugares**, senão o build local pega o valor antigo do `.env`.
 
 ## Segurança

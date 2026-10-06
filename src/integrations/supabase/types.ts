@@ -1775,6 +1775,7 @@ export type Database = {
           plataformas: string[] | null
           preco_venda: number
           tipo: string | null
+          variacoes: Json
         }
         Insert: {
           ativo?: boolean
@@ -1797,6 +1798,7 @@ export type Database = {
           plataformas?: string[] | null
           preco_venda?: number
           tipo?: string | null
+          variacoes?: Json
         }
         Update: {
           ativo?: boolean
@@ -1819,6 +1821,7 @@ export type Database = {
           plataformas?: string[] | null
           preco_venda?: number
           tipo?: string | null
+          variacoes?: Json
         }
         Relationships: []
       }
