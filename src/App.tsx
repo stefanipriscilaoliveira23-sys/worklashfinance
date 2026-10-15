@@ -30,6 +30,7 @@ import Agenda from "./pages/Agenda";
 import AgendarPublico from "./pages/AgendarPublico";
 import Scripts from "./pages/Scripts";
 import Iscas from "./pages/Iscas";
+import Pesquisas from "./pages/Pesquisas";
 import AgendaReels from "./pages/AgendaReels";
 import Campanhas from "./pages/Campanhas";
 import Formularios from "./pages/Formularios";
@@ -62,6 +63,7 @@ const App = () => (
               <Route path="/biblioteca" element={<BibliotecaProcessos />} />
               <Route path="/scripts" element={<Scripts />} />
               <Route path="/iscas" element={<Iscas />} />
+              <Route path="/pesquisas" element={<Pesquisas />} />
               <Route path="/agenda-reels" element={<AgendaReels />} />
               <Route path="/campanhas" element={<Campanhas />} />
               <Route path="/produtos-cursos" element={<ProdutosMargem />} />

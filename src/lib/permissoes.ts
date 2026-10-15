@@ -4,6 +4,7 @@ export type ModuloDef = { key: string; label: string; setor: string };
 export const MODULOS: ModuloDef[] = [
   { key: "/", label: "Início", setor: "Geral" },
   { key: "/dashboard", label: "Dashboard", setor: "Geral" },
+  { key: "/pesquisas", label: "Pesquisas e Documentos", setor: "Geral" },
   { key: "/receitas", label: "Receitas", setor: "Financeiro" },
   { key: "/parcelas", label: "Parcelas de Mentoria", setor: "Financeiro" },
   { key: "/despesas-empresa", label: "Despesas Empresa", setor: "Financeiro" },
